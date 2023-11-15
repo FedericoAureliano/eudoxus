@@ -1,0 +1,26 @@
+// Purpose: tests that we cannot assign to the output of a function
+// Description: A module with one variable and a function that returns the value of that variable. The init block assigns 0 to the output of the function and at every step we increment the value of the variable. The invariant states that the variable is always non-negative. We finish with a bmc check in the control block.
+// Expectation: UCLID5 should return an error saying that we cannot assign to the output of a function.
+// Validation: Removing the check in UCLID5 should cause the verifcation to pass.
+
+module main {
+    var x: integer;
+
+    define f(): integer = x;
+
+    init {
+        f() = 0;
+    }
+
+    next {
+        x' = x + 1;
+    }
+
+    invariant future: x >= 0;
+
+    control {
+        bmc(5);
+        check;
+        print_results;
+    }
+}
