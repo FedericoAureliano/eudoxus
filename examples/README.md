@@ -8,3 +8,5 @@ Plan: write regression tests for UCLID5 features with the following template
 
 {uclid code}
 ```
+
+Note: all tests should be for semantic errors (i.e., type checking and beyond) not parsing errors (e.g., mismatched parenthesis).
