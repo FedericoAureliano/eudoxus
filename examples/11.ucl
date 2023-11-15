@@ -1,0 +1,34 @@
+// Purpose: check that havoc and assume work correctly
+// Description: a single module with three integer variables. We assume that all three variables are positive at the start. The transition relation havocs all thre variables and assumes that all three are positive. There is an invariant stating that the sum of all three variables is never 2. There is an invariant stating that the sum of all variables is never 4. We do bounded model checking for 2 steps.  
+// Expectation: The first invariant should always pass (we can never sum 3 positive integers to 2) and the second invariant should always be falsifiable.
+// Validation: Removing support for assumes or havocs will change the result.
+
+module main {
+    var x: integer;
+    var y: integer;
+    var z: integer;
+
+    init {
+        assume(x > 0);
+        assume(y > 0);
+        assume(z > 0);
+    }
+
+    next {
+        havoc x;
+        havoc y;
+        havoc z;
+        assume(x' > 0);
+        assume(y' > 0);
+        assume(z' > 0);
+    }
+
+    invariant first: x + y + z != 2;
+    invariant second: x + y + z != 4;
+
+    control {
+        bmc(2);
+        check;
+        print_results();
+    }
+}
