@@ -1,0 +1,36 @@
+// Purpose: tests that nested importing works through modules.
+// Description: This test has three modules. One submodule defines a type. The second submodule imports the types defined in the first submodule and defines a function, which uses the types. The main module imports the types and functions from the second submodule, declares a new variable and uses both. The main module has an invariant which fails.
+// Expected: UCLID will throw no errors and will report that verification failed
+// Validation: If we comment out  passManager.addPass(new ModuleTypesImportCollector()) or ModuleImportRewriter or ModuleFunctionsImportRewriter in UclidMain.scala, we will see errors.
+
+
+module module1 {
+    type T1 = integer;
+    type T2 = integer;
+}
+
+module module2 {
+    type * = module1.*;
+    function gar(x: T1): T2;
+}
+
+// Import types from module1
+module main {
+    type * = module2.*;
+    function * = module2.*;
+
+    var x: T1;
+    init {
+    	x = gar(x);
+    }
+
+    next{
+    }
+
+    invariant foo: x==0;
+
+    control{
+    	unroll(3);
+    }
+
+} 
