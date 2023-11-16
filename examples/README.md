@@ -10,3 +10,5 @@ Plan: write regression tests for UCLID5 features with the following template
 ```
 
 Note: Tests should aim for semantic errors (i.e., type checking and beyond) not parsing errors (e.g., mismatched parenthesis). Note that test 6 is for a parsing error.
+
+Tests that might actually be bugs: 6.ucl, 9.ucl, 14.ucl.
