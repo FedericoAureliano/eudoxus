@@ -1,0 +1,26 @@
+// Purpose: tests that embedded assertions are still checked, even if there is no global property
+// Description: The module implements a transition system with two variables, a and b. The variables are both initialized as 1, and the next block increments the variables according to the fibonaccoi sequence. An inline assertion in the next block checks that a is always less than or equal to b. There is no global property or invariant. The assertions are checked using bounded model checking for 3 steps.
+// Expectation: UCLID should report that 6 assertions pass.
+// Validation: Revert commit 8b9222e339e65492b4b5f9d2458a990246eca6da
+
+
+module main {
+  // System description. 
+  var a, b   : integer;
+
+
+  init {
+    a = 1; b = 1;
+  }
+  next {
+    a', b' = b, a + b;
+    assert (a' <= b');
+  }
+
+  // Proof script.
+  control {
+    unroll (3);
+    check;
+    print_results;
+  }
+}
