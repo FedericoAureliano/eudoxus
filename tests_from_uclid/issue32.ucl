@@ -1,0 +1,29 @@
+// Purpose: checks that UCLID correctly verifies all assertions, even when the first assertion is false
+// Description: A module that contains two procedures. The first procedure has an inline assumption followed by an inline assertion. The assumption is false, and so all paths to the assertion are blocked and the assertion passes because it is unreachable. The second procedure has the same inline assertion, but it should fail because there is no assumption blocking the path to the assertion. Verify the procedures using the verify command.
+// Expectation: the first assertion should pass, the second should fail.
+// Validation: revert 8bb6492c23601ae1ccac387b754ab9da08978ac7
+
+module main {
+
+    procedure shouldpass()
+    {
+        var v: integer;
+        v = 0;
+        assume(v>0);
+        assert(v==1); // unreachable
+    }
+
+    procedure shouldfail()
+    {
+        var x: integer;
+        x=0;
+        assert(x==1);
+    }
+
+    control {
+        v = verify(shouldpass); // should pass, the assertion is unreachable
+        verify(shouldfail); // should fail
+        check;
+        print_results;
+    }
+}
