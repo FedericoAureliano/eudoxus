@@ -1,0 +1,36 @@
+// Purpose: sanity check on bounded model checking with procedures: we can satisfy and falsify invariants
+// Description: A module with a single variable that starts at 10 and decrements. Starting and decrementing is done in procedures. The invariant is that the variable is always positive. We unroll for 21 steps.
+// Expectation: Half the checks should pass and half should fail (22 checks total).
+// Validation: inserting a bug in the unrolling (e.g., that states are not correctly linked) should change the ratio of passed checks.
+
+module main {
+    var y: integer;
+
+    procedure init_y () 
+        modifies y;
+    {
+        y = 10;
+    }
+
+    init {
+        call init_y();
+    }
+
+    procedure update_y ()
+        modifies y;
+    {
+        y = y - 1;
+    }
+
+    next {
+        call update_y();
+    }
+
+    invariant always_positive: y >= 0;
+
+    control {
+        bmc(21);
+        check;
+        print_results;
+    }
+}
