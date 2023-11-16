@@ -1,0 +1,42 @@
+// Purpose: tests that stepping an instance happens at the same time as updating other variables in the next block.
+// Description: The test contains two modules: a submodule called m1, which has a single integer variable, x. x is initialised at zero and is incremented by one in the next block. The main module contains an instance of m1, called m1_inst. It also declares a variable y that is initialised at zero, and incremented by one in the next block. The next block contains an inline assertion that checks y is equal to m1_inst.x at every step. The main module also has an invariant that asserts y is equal to m1_inst.x. 
+// Expectation: the assertions should pass 
+// Validation: the assertions currently don't pass.. this is a bug in UCLID?
+
+module m1 {
+
+    var x : integer;
+
+    init {
+        x = 0;
+    }
+
+    next {
+        x'=x+1;
+    }
+}
+
+module main {
+    var y: integer;
+
+    instance m_inst : m1() ;
+
+    init {
+        y=0;
+    }
+
+    next {
+        next (m_inst);
+        y'=y+1;
+        assert(y==m_inst.x);
+    }
+        
+    invariant equal : y==m_inst.x;
+
+    control {
+        v = bmc(3);
+        check;
+        print_results;
+        v.print_cex(m_inst.x, y);
+    }
+}
