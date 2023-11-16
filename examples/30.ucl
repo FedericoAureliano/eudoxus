@@ -1,0 +1,33 @@
+// Purpose: check that procedures are allowed to call each other
+// Description: an empty module with two procedures. One calls the other.
+// Expectation: Verification should pass
+// Validation: Inserting a bug into how procedure calls are handled should cause this to fail
+
+module main {
+    procedure f(x: integer) returns (y: integer) {
+        var tmp: integer;
+        call (tmp) = g(x - 1);
+        y = if (x <= 0) then 0 else tmp + 1;
+    }
+    procedure g(x: integer) returns (y: integer) {
+        y = if (x <= 0) then 0 else 1;
+    }
+
+    var x: integer;
+
+    init {
+        x = 0;
+    }
+
+    next {
+        call (x') = f(x);
+    }
+
+    invariant x_eq_0: x == 0;
+
+    control {
+        induction;
+        check;
+        print_results;
+    }
+}
