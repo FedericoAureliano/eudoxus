@@ -1,0 +1,32 @@
+// Purpose: check that state vars, function params, procedure params, init vars, and next vars can all have the same name.
+// Description: a module with a state var, a function with a param, a procedure with a param, an init var, and a next var, all with the same name. An invariant that is trivially false and an induction check.
+// Expectation: Verification should fail.
+// Validation: Not allowing name duplication would be a breaking change.
+
+
+module main {
+    var x : integer;
+
+    function f(x: integer) : integer;
+
+    procedure p(x: integer) returns (y: integer) {}
+
+    init {
+        var x : integer;
+        x = 1;
+        call (x) = p(f(x));
+    }
+
+    next {
+        var x : integer;
+        call (x') = p(f(x));
+    }
+
+    invariant trivially_false : false;
+
+    control {
+        induction;
+        check;
+        print_results;
+    }
+}
