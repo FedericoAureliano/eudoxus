@@ -1,0 +1,23 @@
+// Purpose: tests that the bmc command does not ignore not LTL properties
+// Description: A simple module that has one variable, initialised at one. The next block increments the variable by 1 each time, and a global invariant checks that n is not equal to 0. The property is checked using the bmc command.
+// Expectation: UCLID5 should report that a number of assertions pass
+// Validation: Revert PR #131, or remove the line in symbolic simulator that does symbolic simulation for bmc.
+
+module main
+{
+  var n : integer;
+  init {
+    n = 1;
+  }
+  next {
+    n' = n + 1;
+  }
+  invariant prop_eq: n != 0;
+
+  control {
+    v = bmc(5);
+    check;
+    print_results;
+    v.print_cex(n);
+  }
+}
