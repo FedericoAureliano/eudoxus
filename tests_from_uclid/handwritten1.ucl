@@ -1,0 +1,35 @@
+// Purpose: tests that importing the whole module imports types, definitions, functions and variables.
+// Description: This test has two modules. A submodule defines a type, variable, function and definition. The main module imports the whole submodule, and uses all the imported things. The main module has an invariant which will fail.
+// Expected: the module should fail assertions.
+// Validation: If we comment out  passManager.addPass(new ModuleImportRewriter()) in UclidMain.scala, we will see an error that type T was used without declaration.
+
+
+module module1 {
+    type T = integer;
+    var x: integer;
+    define bar(x: T): T = x;
+    function gar(x: T): T;
+}
+
+// Import all of module1
+module main {
+    import module1;
+
+    var y: T;
+    init {
+    	y = 0;
+    	x = 0;
+    }
+
+    next{
+    	y'=bar(y);
+    	x'=gar(x);
+    }
+
+    invariant foo: x==y;
+
+    control{
+    	unroll(3);
+    }
+
+} 
