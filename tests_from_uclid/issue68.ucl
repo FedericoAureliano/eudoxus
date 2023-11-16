@@ -1,0 +1,37 @@
+// Purpose: tests new division and multiplication operators, which should work for integers and bitvectors, and for constant literals of both types
+// Description: The module has two integer variables and two bitvector variables. It should use inline assertions in the init block to check that we can correctly divide two integers, and correctly divide two bitvectors. It should check that signed and unsigned division report different results for very big bitvectors.
+// Expectation: UCLID5 should return pass or fail, but should not return an error
+// Validation: Revert d0bade88e6d32dbf44af68a81d364a5be2f5ebce
+
+
+
+module main{
+	var x: integer;
+	var y: integer;
+	var xBV: bv32;
+	var yBV: bv32;
+
+
+	init{
+		x = 10;
+		y = 20;
+		assert(y/2==x); // should pass
+		xBV = 10bv32;
+		yBV = 20bv32;
+		assert(yBV/2bv32==xBV); // should pass 
+
+		// divide by zero gives FFFFFFF
+		assert(10bv32 /_u 0bv32==4294967295bv32); // should pass
+		assert(10bv32 / 0bv32==4294967295bv32); //should pass
+		assert(4294967295bv32/_u 20bv32 == 4294967295bv32/20bv32); // should fail
+
+	}
+
+
+	control{
+		v = unroll(1);
+		check;
+		print_results;
+	}
+
+}
