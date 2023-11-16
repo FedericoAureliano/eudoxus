@@ -1,0 +1,29 @@
+// Purpose: tests that nested finite quantifiers can be expanded.
+// Description: A single module, which declares two group of integers. Group1 contains 0, 1, 2, and 3, and Group2 contains 4,5,6 and 7. The module has two properties: the first property uses a finite_forall and finite_exists quantifier to assert that for all members of Group1, there exists a member of Group1 that is equal to it. The second property asserts that for all members of Group1, there exists a member of Group2 that is equal to it. The properties are checked with bmc(0).
+// Expectation: The first property should fail, the second should pass.
+// Validation: removing FiniteQuantsExpander from UclidMain.scala will cause an error on the solver side. inserting a bug into FiniteQuantsExpander will cause an error.
+
+module main {
+    group myGroup : integer = {0, 1, 2, 3};
+    group myGroup2 : integer = {4, 5, 6, 7};
+
+    //Should pass
+    property test1 : finite_forall (int1 : integer) in myGroup ::
+                        finite_exists (int2 : integer) in myGroup :: int1 == int2;
+
+    //Should fail.
+    property test2 : finite_forall (int1 : integer) in myGroup ::
+                        finite_exists (int2 : integer) in myGroup2 :: int1 == int2;
+
+    init {
+    }
+
+    next {
+    }
+
+    control {
+        v = unroll(0);
+        check;
+        print_results;
+    }
+}
