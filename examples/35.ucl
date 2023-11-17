@@ -1,0 +1,32 @@
+// Purpose: test enums
+// Description: declare an enum with three variants. Initialize a variable of that type to one of the variants. In the next state, change the variable to the next variant in the enum. Check if the variable is always equal to one variant.
+// Expectation: the verification should fail
+// Validation: inserting a bug into the enum encoding could make this test fail
+
+
+module main {
+    type block = enum {A | B | C};
+    var b : block;
+
+    init {
+        b = A;
+    }
+
+    next {
+        if (b == A) {
+            b' = B;
+        } else if (b == B) {
+            b' = C;
+        } else {
+            b' = A;
+        }
+    }
+
+    invariant always_a: b == A;
+
+    control {
+        bmc(5);
+        check;
+        print_results;
+    }
+}
