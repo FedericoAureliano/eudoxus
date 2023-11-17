@@ -1,0 +1,22 @@
+// Purpose: ensure that procedure verification is for partial correctness
+// Description: A module with a single procedure and a control block to verify that procedure. The procedure declares a local variable and loops until that variable is greater than or equal to 10. Inside the loop we declare a second local variable. The body of the loop increments the value of the first local variable by the second local variable. The body of the loop also assumes that the sum of the two local variables is less than 10. The procedure ends by asserting that the first local variable is not equal to 10. 
+// Expectation: the verification should pass since the loop should never terminate.
+// Validation: inserting a bug into how while loops are verified (and especially how assumptions inside while loops are handled) should make this verification fail.
+
+module main {
+    procedure p() {
+        var x: integer;
+        while (x < 10) {
+            var y: integer;
+            assume x + y < 10;
+            x = x + y;
+        }
+        assert x != 10;
+    }
+
+    control {
+        verify(p);
+        check;
+        print_results;
+    }
+}
