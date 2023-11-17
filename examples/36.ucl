@@ -1,1 +1,26 @@
-// Placeholder
+// Purpose: test enum and record combinations, as well as havocing and assumptions on these types.
+// Description: create a colour enum and a record to represent triples of colours. Create a variable of this type and assume that all three colours are the same. Then, havoc the variable and assert that all three colours are the same. Finally, do BMC.
+// Expectation: the assertion should fail, and BMC should find a counterexample.
+// Validation: inserting a bug into havocing should cause the test to fail. Inserting a bug into nested enum generation should cause the test to fail.
+
+module main {
+    type colour = enum {red, green, blue};
+    type triple = record { x: colour, y: colour, z: colour };
+
+    var t: triple;
+
+    init {
+        assume t.x == t.y && t.y == t.z;   
+    }
+
+    next {
+        havoc t;
+        assert t.x == t.y && t.y == t.z;
+    }
+
+    control {
+        bmc(3);
+        check;
+        print_results;
+    }
+}
