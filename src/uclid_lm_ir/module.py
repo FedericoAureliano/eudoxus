@@ -3,7 +3,7 @@ import inspect
 
 
 def induction(k=1):
-    return f"induction({k});"
+    return "induction(" + k + ");"
 
 
 def print_results():
@@ -15,7 +15,7 @@ def check():
 
 
 def declare_var(name: str, type: str):
-    return f"var {name}: {type};"
+    return "var " + name + ": " + type + ";"
 
 
 def int_type():
@@ -23,7 +23,7 @@ def int_type():
 
 
 def prime(name: str):
-    return f"{name}'"
+    return name + "'"
 
 
 op_names = {
@@ -82,7 +82,7 @@ class UclidPrinter(ast.NodeVisitor):
                 name = name[len("invariant_") :]
                 assert len(body) == 1
                 body = self.visit(body[0])
-                return f"invariant {name}: {body};\n"
+                return "invariant " + name + ": " + body + ";\n"
             case ast.Assign(targets, value, _) if isinstance(
                 value, ast.Call
             ) and value.func.id == "declare_var":
@@ -94,7 +94,7 @@ class UclidPrinter(ast.NodeVisitor):
                         targets,
                     )
                 )
-                return f"{targets} = {self.visit(value)};"
+                return targets + " = " + self.visit(value) + ";"
             case ast.Attribute(value, attr, _) if value.id == "self":
                 return attr
             case ast.Call(func, args, _):
@@ -119,9 +119,11 @@ class UclidPrinter(ast.NodeVisitor):
                 return f"{left} {ops} {comparators}"
             case ast.Expr(value):
                 return self.visit(value)
+            case ast.Pass():
+                return ""
             case _:
                 raise NotImplementedError(
-                    f"Node type {type(node)} not implemented:\n{ast.dump(node, indent=2)}"
+                    str(type(node)) + "not implemented:\n" + ast.dump(node, indent=2)
                 )
 
 

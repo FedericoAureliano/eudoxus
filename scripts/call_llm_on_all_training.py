@@ -12,12 +12,12 @@ openai.api_key = os.environ["OPENAI_API_KEY"]
 def extract_python_code(text):
     output = ""
     grabbing = False
-    for l in text.splitlines():
-        if l == "```":
+    for line in text.splitlines():
+        if line == "```":
             break
-        elif grabbing and l:
-            output += l + "\n"
-        elif l in [
+        elif grabbing and line:
+            output += line + "\n"
+        elif line in [
             "```Python",
             "```python",
             "```python3",
@@ -26,8 +26,8 @@ def extract_python_code(text):
             "```Python3",
         ]:
             grabbing = True
-        elif l:
-            output += "# " + l + "\n"
+        elif line:
+            output += "# " + line + "\n"
         else:
             output += "\n"
 
@@ -40,7 +40,13 @@ def extract_python_code(text):
 
 fake_name = "FormalVerificationLibrary"
 
-prompt_prefix = f"{fake_name} is a new Python API for the formal modeling and verification of transition systems (modules) and sequential code (procedures). The API does not use inheritance so you must avoid extending class. Please write Python code using the {fake_name} API that fits the description below.\n\n"
+prompt_prefix = f"""
+{fake_name} is a new Python API for the formal modeling
+and verification of transition systems (modules) and sequential code
+(procedures). The API does not use inheritance so you must avoid extending
+class. Please write Python code using the {fake_name} API that fits the
+description below.\n\n
+"""
 
 
 def gpt4_write_code(prompt, engine="gpt-4-0613"):

@@ -1,5 +1,10 @@
 from uclid_lm_ir import Module
 
 
+class EmptyModule(Module):
+    pass
+
+
 def test_empty_module():
-    assert True
+    expected = "module EmptyModule {\n\n}"
+    assert str(EmptyModule()) == expected
