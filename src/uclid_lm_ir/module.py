@@ -1,6 +1,7 @@
 import ast
 import inspect
 
+
 def induction(k=1):
     return f"induction({k});"
 
@@ -47,7 +48,7 @@ op_names = {
     "Or": "||",
     "Not": "!",
     "UAdd": "+",
-    "USub": "-"
+    "USub": "-",
 }
 
 
@@ -78,21 +79,27 @@ class UclidPrinter(ast.NodeVisitor):
                 return f"control {{\n{body}\n}}"
             case ast.FunctionDef(name, _, body, _, _) if name.startswith("invariant_"):
                 # get the name after invariant_
-                name = name[len("invariant_"):]
+                name = name[len("invariant_") :]
                 assert len(body) == 1
                 body = self.visit(body[0])
                 return f"invariant {name}: {body};\n"
-            case ast.Assign(targets, value, _) if isinstance(value, ast.Call) and value.func.id == "declare_var":
+            case ast.Assign(targets, value, _) if isinstance(
+                value, ast.Call
+            ) and value.func.id == "declare_var":
                 return self.visit(value)
             case ast.Assign(targets, value, _):
-                targets = ", ".join(map(lambda x: self.visit(
-                    x) + ("'" if self.should_prime else ""), targets))
+                targets = ", ".join(
+                    map(
+                        lambda x: self.visit(x) + ("'" if self.should_prime else ""),
+                        targets,
+                    )
+                )
                 return f"{targets} = {self.visit(value)};"
             case ast.Attribute(value, attr, _) if value.id == "self":
                 return attr
             case ast.Call(func, args, _):
                 func = self.visit(func)
-                args = ", ".join(map(lambda x: f"\"{self.visit(x)}\"", args))
+                args = ", ".join(map(lambda x: f'"{self.visit(x)}"', args))
                 return eval(f"{func}({args})")
             case ast.Name(id, _):
                 return id
@@ -107,15 +114,15 @@ class UclidPrinter(ast.NodeVisitor):
                 return f"{op_names[op.__class__.__name__]}{operand}"
             case ast.Compare(left, ops, comparators):
                 left = self.visit(left)
-                ops = " ".join(
-                    map(lambda x: op_names[x.__class__.__name__], ops))
+                ops = " ".join(map(lambda x: op_names[x.__class__.__name__], ops))
                 comparators = " ".join(map(self.visit, comparators))
                 return f"{left} {ops} {comparators}"
             case ast.Expr(value):
                 return self.visit(value)
             case _:
                 raise NotImplementedError(
-                    f"Node type {type(node)} not implemented:\n{ast.dump(node, indent=2)}")
+                    f"Node type {type(node)} not implemented:\n{ast.dump(node, indent=2)}"
+                )
 
 
 class Module:
