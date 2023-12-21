@@ -122,32 +122,3 @@ class Module:
     def __str__(self) -> str:
         tree = ast.parse(inspect.getsource(self.__class__))
         return UclidPrinter().visit(tree)
-
-# Below is an example of how to use the above module
-
-class Fib(Module):
-    def state(self):
-        self.x = declare_var("x", int_type())
-        self.y = declare_var("y", int_type())
-
-    def base(self):
-        self.x = 0
-        self.y = -1
-
-    def step(self):
-        self.x = prime(self.y)
-        self.y = self.x + self.y
-
-    def invariant_x_gte_y(self):
-        self.x >= self.y
-
-    def invariant_y_gte_0(self):
-        self.y >= 0
-
-    def control(self):
-        induction()
-        print_results()
-        check()
-
-
-print(Fib())
