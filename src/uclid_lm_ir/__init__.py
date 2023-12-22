@@ -11,10 +11,12 @@ finally:
 
 from .control import induction
 from .module import Module
+from .printer import print_uclid5
 from .types import integer_sort
 
 __all__ = [
     "Module",
     "integer_sort",
     "induction",
+    "print_uclid5",
 ]
