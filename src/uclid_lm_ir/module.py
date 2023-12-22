@@ -1,6 +1,6 @@
 import ast
 import inspect
-from _ast import Attribute, Call, FunctionDef, Pass
+from _ast import Attribute, BinOp, Call, FunctionDef, Pass
 from typing import Any
 
 from .types import integer_sort  # noqa: F401
@@ -33,6 +33,7 @@ operator_dict = {
 class UclidPrinter(ast.NodeVisitor):
     def __init__(self) -> None:
         super().__init__()
+        self.should_prime = False
 
     def visit_Module(self, node) -> str:
         """
@@ -107,15 +108,21 @@ class UclidPrinter(ast.NodeVisitor):
         """
         A Python next is a UCLID5 transition relation.
         """
-        body = node.body
-        return "\n".join(map(self.visit, body)) + "\n"
+        self.should_prime = True
+        body = "\n".join(map(self.visit, node.body))
+        self.should_prime = False
+        if body:
+            body = "\n" + body + "\n"
+        return f"next {{{body}}}"
 
     def visit_init(self, node: FunctionDef) -> str:
         """
         A Python init is a UCLID5 initialization block.
         """
-        body = node.body
-        return "\n".join(map(self.visit, body)) + "\n"
+        body = "\n".join(map(self.visit, node.body))
+        if body:
+            body = "\n" + body + "\n"
+        return f"init {{{body}}}"
 
     def visit_control(self, node: FunctionDef) -> str:
         """
@@ -150,6 +157,8 @@ class UclidPrinter(ast.NodeVisitor):
         A Python assignment is a UCLID5 assignment.
         """
         target = self.visit(node.targets[0])
+        if self.should_prime:
+            target = f"{target}'"
         value = self.visit(node.value)
         return f"{target} = {value};"
 
@@ -189,6 +198,22 @@ class UclidPrinter(ast.NodeVisitor):
                 return f"call {func[offset:]}({args})"
             case _:
                 return eval(f"{func}({args})")
+
+    def visit_Constant(self, node) -> str:
+        """
+        A Python constant is a UCLID5 literal
+        """
+        return str(node.value)
+
+    def visit_BinOp(self, node: BinOp) -> str:
+        left = self.visit(node.left)
+        right = self.visit(node.right)
+        op = node.op
+        if op.__class__.__name__ in operator_dict:
+            op = operator_dict[op.__class__.__name__]
+        else:
+            raise NotImplementedError(f"Operator {op} not implemented")
+        return f"{left} {op} {right}"
 
 
 class Module:
