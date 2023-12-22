@@ -26,3 +26,11 @@ class Module:
     def __str__(self) -> str:
         tree = ast.parse(inspect.getsource(self.__class__))
         return UclidPrinter().visit(tree)
+
+    def execute(self, k: int) -> str:
+        """
+        Execute the module for k steps.
+        """
+        self.init()
+        for _ in range(k):
+            self.next()
