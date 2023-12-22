@@ -10,7 +10,9 @@ finally:
     del version, PackageNotFoundError
 
 from .module import Module
+from .types import integer_sort
 
 __all__ = [
     "Module",
+    "integer_sort",
 ]

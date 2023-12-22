@@ -1,32 +1,11 @@
 import ast
 import inspect
+from _ast import Attribute, Call, FunctionDef, Pass
+from typing import Any
 
+from .types import integer_sort  # noqa: F401
 
-def induction(k=1):
-    return "induction(" + k + ");"
-
-
-def print_results():
-    return "print_results();"
-
-
-def check():
-    return "check();"
-
-
-def declare_var(name: str, type: str):
-    return "var " + name + ": " + type + ";"
-
-
-def int_type():
-    return "integer"
-
-
-def prime(name: str):
-    return name + "'"
-
-
-op_names = {
+operator_dict = {
     "Add": "+",
     "Sub": "-",
     "Mult": "*",
@@ -37,7 +16,6 @@ op_names = {
     "BitOr": "|",
     "BitXor": "^",
     "BitAnd": "&",
-    "Pow": "**",
     "Eq": "==",
     "NotEq": "!=",
     "Lt": "<",
@@ -55,76 +33,162 @@ op_names = {
 class UclidPrinter(ast.NodeVisitor):
     def __init__(self) -> None:
         super().__init__()
-        self.should_prime = False
 
-    def visit(self, node) -> str:
-        match node:
-            case ast.Module(body, _):
-                return "\n".join(map(self.visit, body))
-            case ast.ClassDef(name, _, _, body, _):
-                body = "\n".join(map(self.visit, body))
-                return f"module {name} {{\n{body}\n}}"
-            case ast.FunctionDef("state", _, body, _, _):
-                return "\n".join(map(self.visit, body)) + "\n"
-            case ast.FunctionDef("base", _, body, _, _):
-                body = "\n".join(map(self.visit, body))
-                return f"init {{\n{body}\n}}\n"
-            case ast.FunctionDef("step", _, body, _, _):
-                self.should_prime = True
-                body = "\n".join(map(self.visit, body))
-                self.should_prime = False
-                return f"next {{\n{body}\n}}\n"
-            case ast.FunctionDef("control", _, body, _, _):
-                body = "\n".join(map(self.visit, body))
-                return f"control {{\n{body}\n}}"
-            case ast.FunctionDef(name, _, body, _, _) if name.startswith("invariant_"):
-                # get the name after invariant_
-                name = name[len("invariant_") :]
-                assert len(body) == 1
-                body = self.visit(body[0])
-                return "invariant " + name + ": " + body + ";\n"
-            case ast.Assign(targets, value, _) if isinstance(
-                value, ast.Call
-            ) and value.func.id == "declare_var":
-                return self.visit(value)
-            case ast.Assign(targets, value, _):
-                targets = ", ".join(
-                    map(
-                        lambda x: self.visit(x) + ("'" if self.should_prime else ""),
-                        targets,
-                    )
-                )
-                return targets + " = " + self.visit(value) + ";"
-            case ast.Attribute(value, attr, _) if value.id == "self":
-                return attr
-            case ast.Call(func, args, _):
-                func = self.visit(func)
-                args = ", ".join(map(lambda x: f'"{self.visit(x)}"', args))
-                return eval(f"{func}({args})")
-            case ast.Name(id, _):
-                return id
-            case ast.Constant(value, _):
-                return str(value)
-            case ast.BinOp(left, op, right):
-                left = self.visit(left)
-                right = self.visit(right)
-                return f"{left} {op_names[op.__class__.__name__]} {right}"
-            case ast.UnaryOp(op, operand):
-                operand = self.visit(operand)
-                return f"{op_names[op.__class__.__name__]}{operand}"
-            case ast.Compare(left, ops, comparators):
-                left = self.visit(left)
-                ops = " ".join(map(lambda x: op_names[x.__class__.__name__], ops))
-                comparators = " ".join(map(self.visit, comparators))
-                return f"{left} {ops} {comparators}"
-            case ast.Expr(value):
-                return self.visit(value)
-            case ast.Pass():
-                return ""
+    def visit_Module(self, node) -> str:
+        """
+        A Python Module is a UCLID5 file.
+        """
+        return "\n".join(map(self.visit, node.body))
+
+    def visit_ClassDef(self, node) -> str:
+        """
+        A Python Class is a UCLID5 module.
+        """
+        body = "\n".join(map(self.visit, node.body))
+        if body:
+            body = "\n" + body + "\n"
+        return f"module {node.name} {{{body}}}"
+
+    def visit_Pass(self, _: Pass) -> str:
+        """
+        A Python Pass is a UCLID5 empty statement.
+        """
+        return ""
+
+    def visit_FunctionDef(self, node: FunctionDef) -> str:
+        """
+        A Python Function can be a few things in UCLID5:
+        - __init__ is where we declare variables
+        - function_<name> is a define
+        - procedure_<name> is a procedure
+        - next is the transition relation
+        - init is the initialization steps
+        - invariant_<name> is an invariant
+        - control is the control block
+        """
+        match node.name:
+            case "__init__":
+                return self.visit_state(node)
+            case "next":
+                return self.visit_next(node)
+            case "init":
+                return self.visit_init(node)
+            case "control":
+                return self.visit_control(node)
+            case _ if node.name.startswith("invariant_"):
+                return self.visit_invariant(node)
+            case _ if node.name.startswith("function_"):
+                return self.visit_define(node)
+            case _ if node.name.startswith("procedure_"):
+                return self.visit_procedure(node)
             case _:
-                raise NotImplementedError(
-                    str(type(node)) + "not implemented:\n" + ast.dump(node, indent=2)
-                )
+                raise NotImplementedError(f"Function {node.name} not implemented")
+
+    def visit_state(self, node: FunctionDef) -> str:
+        """
+        Python __init__ is where variables are declared.
+        """
+        body = node.body
+        return "\n".join(map(self.visit_decls, body)) + "\n"
+
+    def visit_decls(self, node: Any) -> str:
+        """
+        A Python declaration is a UCLID5 variable declaration.
+        """
+        match node:
+            case ast.Assign(targets, value, _):
+                target = self.visit(targets[0])
+                value = self.visit(value)
+                return f"var {target} : {value};"
+            case _:
+                raise NotImplementedError(f"Declaration {node} not implemented")
+
+    def visit_next(self, node: FunctionDef) -> str:
+        """
+        A Python next is a UCLID5 transition relation.
+        """
+        body = node.body
+        return "\n".join(map(self.visit, body)) + "\n"
+
+    def visit_init(self, node: FunctionDef) -> str:
+        """
+        A Python init is a UCLID5 initialization block.
+        """
+        body = node.body
+        return "\n".join(map(self.visit, body)) + "\n"
+
+    def visit_control(self, node: FunctionDef) -> str:
+        """
+        A Python control is a UCLID5 control block.
+        """
+        body = node.body
+        return "\n".join(map(self.visit, body)) + "\n"
+
+    def visit_invariant(self, node: FunctionDef) -> str:
+        """
+        A Python invariant is a UCLID5 invariant.
+        """
+        body = node.body
+        return "\n".join(map(self.visit, body)) + "\n"
+
+    def visit_define(self, node: FunctionDef) -> str:
+        """
+        A Python function is a UCLID5 define.
+        """
+        body = node.body
+        return "\n".join(map(self.visit, body)) + "\n"
+
+    def visit_procedure(self, node: FunctionDef) -> str:
+        """
+        A Python procedure is a UCLID5 procedure.
+        """
+        body = node.body
+        return "\n".join(map(self.visit, body)) + "\n"
+
+    def visit_Assign(self, node) -> str:
+        """
+        A Python assignment is a UCLID5 assignment.
+        """
+        target = self.visit(node.targets[0])
+        value = self.visit(node.value)
+        return f"{target} = {value};"
+
+    def visit_Attribute(self, node: Attribute) -> str:
+        """
+        A Python Attribute is a UCLID5 field access
+        or, if the attribute is self, then it is ignored.
+        """
+        value = self.visit(node.value)
+        attr = node.attr
+        if value == "self":
+            return attr
+        return f"{value}.{attr}"
+
+    def visit_Name(self, node) -> str:
+        """
+        A Python Name is a UCLID5 name
+        """
+        return node.id
+
+    def visit_Call(self, node: Call) -> str:
+        """
+        A Python Call can be a few things in UCLID5:
+        - a function call
+        - a procedure call
+        - a type constructor
+        - or just a Python call that we want to execute
+        """
+        func = self.visit(node.func)
+        args = ", ".join(map(self.visit, node.args))
+        match func:
+            case _ if func.startswith("function_"):
+                offset = len("function_")
+                return f"{func[offset:]}({args})"
+            case _ if func.startswith("procedure_"):
+                offset = len("procedure_")
+                return f"call {func[offset:]}({args})"
+            case _:
+                return eval(f"{func}({args})")
 
 
 class Module:
