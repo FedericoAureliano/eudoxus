@@ -10,13 +10,17 @@ finally:
     del version, PackageNotFoundError
 
 from .control import induction
+from .generate import get_prompt, gpt4_write_code
 from .module import Module
 from .printer import print_uclid5
-from .types import integer_sort
+from .types import BitVector, Integer
 
 __all__ = [
     "Module",
-    "integer_sort",
+    "Integer",
+    "BitVector",
     "induction",
     "print_uclid5",
+    "get_prompt",
+    "gpt4_write_code",
 ]

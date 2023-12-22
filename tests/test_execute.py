@@ -1,9 +1,9 @@
-from uclid_lm_ir import Module, integer_sort
+from uclid_lm_ir import Integer, Module
 
 
 class ModuleWithVarAndInitAndNext(Module):
-    def __init__(self):
-        self.x = integer_sort()
+    def state(self):
+        self.x = Integer()
 
     def init(self):
         self.x = 0

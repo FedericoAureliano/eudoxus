@@ -1,4 +1,4 @@
-from uclid_lm_ir import Module, induction, integer_sort
+from uclid_lm_ir import Integer, Module, induction
 
 
 def assert_equal(actual: str, expected: str):
@@ -19,8 +19,8 @@ def test_empty_module():
 
 
 class ModuleWithVar(Module):
-    def __init__(self):
-        self.x = integer_sort()
+    def state(self):
+        self.x = Integer()
 
 
 def test_module_with_var():
@@ -30,8 +30,8 @@ def test_module_with_var():
 
 
 class ModuleWithVarAndInit(Module):
-    def __init__(self):
-        self.x = integer_sort()
+    def state(self):
+        self.x = Integer()
 
     def init(self):
         self.x = 0
@@ -51,8 +51,8 @@ module ModuleWithVarAndInit {
 
 
 class ModuleWithVarAndInitAndNext(Module):
-    def __init__(self):
-        self.x = integer_sort()
+    def state(self):
+        self.x = Integer()
 
     def init(self):
         self.x = 0
@@ -78,8 +78,8 @@ module ModuleWithVarAndInitAndNext {
 
 
 class ModuleWithVarAndInitAndInvariants(Module):
-    def __init__(self):
-        self.x = integer_sort()
+    def state(self):
+        self.x = Integer()
 
     def init(self):
         self.x = 0
@@ -87,11 +87,8 @@ class ModuleWithVarAndInitAndInvariants(Module):
     def next(self):
         self.x = self.x + 1
 
-    def invariant_x_gte_0(self):
-        return self.x >= 0
-
-    def invariant_x_lte_10(self):
-        return self.x <= 10
+    def specification(self):
+        return self.x >= 0 and self.x <= 10
 
 
 def test_module_with_var_and_init_and_invariants():
@@ -104,8 +101,7 @@ module ModuleWithVarAndInitAndInvariants {
     next {
         x' = x + 1;
     }
-    invariant x_gte_0: x >= 0;
-    invariant x_lte_10: x <= 10;
+    invariant spec: x >= 0 && x <= 10;
 }
 """
     output = str(ModuleWithVarAndInitAndInvariants())
@@ -113,8 +109,8 @@ module ModuleWithVarAndInitAndInvariants {
 
 
 class ModuleWithVarAndInitAndInvariantsAndControl(Module):
-    def __init__(self):
-        self.x = integer_sort()
+    def state(self):
+        self.x = Integer()
 
     def init(self):
         self.x = 0
@@ -122,13 +118,10 @@ class ModuleWithVarAndInitAndInvariantsAndControl(Module):
     def next(self):
         self.x = self.x + 1
 
-    def invariant_x_gte_0(self):
-        return self.x >= 0
+    def specification(self):
+        return self.x >= 0 and self.x <= 10
 
-    def invariant_x_lte_10(self):
-        return self.x <= 10
-
-    def control(self):
+    def proof(self):
         induction(2)
 
 
@@ -142,8 +135,7 @@ module ModuleWithVarAndInitAndInvariantsAndControl {
     next {
         x' = x + 1;
     }
-    invariant x_gte_0: x >= 0;
-    invariant x_lte_10: x <= 10;
+    invariant spec: x >= 0 && x <= 10;
     control {
         induction(2);
         check;
