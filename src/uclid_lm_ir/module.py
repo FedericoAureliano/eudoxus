@@ -1,8 +1,20 @@
 import ast
 import inspect
-from _ast import Attribute, BinOp, Call, FunctionDef, Pass
-from typing import Any
+from _ast import (
+    Assign,
+    Attribute,
+    BinOp,
+    Call,
+    Compare,
+    Constant,
+    Expr,
+    FunctionDef,
+    Name,
+    Pass,
+    UnaryOp,
+)
 
+from .control import induction  # noqa: F401
 from .types import integer_sort  # noqa: F401
 
 operator_dict = {
@@ -92,7 +104,7 @@ class UclidPrinter(ast.NodeVisitor):
         body = node.body
         return "\n".join(map(self.visit_decls, body)) + "\n"
 
-    def visit_decls(self, node: Any) -> str:
+    def visit_decls(self, node) -> str:
         """
         A Python declaration is a UCLID5 variable declaration.
         """
@@ -106,7 +118,7 @@ class UclidPrinter(ast.NodeVisitor):
 
     def visit_next(self, node: FunctionDef) -> str:
         """
-        A Python next is a UCLID5 transition relation.
+        next is the UCLID5 transition relation.
         """
         self.should_prime = True
         body = "\n".join(map(self.visit, node.body))
@@ -117,7 +129,7 @@ class UclidPrinter(ast.NodeVisitor):
 
     def visit_init(self, node: FunctionDef) -> str:
         """
-        A Python init is a UCLID5 initialization block.
+        init is the UCLID5 initialization block.
         """
         body = "\n".join(map(self.visit, node.body))
         if body:
@@ -126,10 +138,12 @@ class UclidPrinter(ast.NodeVisitor):
 
     def visit_control(self, node: FunctionDef) -> str:
         """
-        A Python control is a UCLID5 control block.
+        control is the UCLID5 control block.
         """
-        body = node.body
-        return "\n".join(map(self.visit, body)) + "\n"
+        body = "\n".join(map(self.visit, node.body))
+        if body:
+            body = "\n" + body + "\n"
+        return f"control {{{body}}}"
 
     def visit_invariant(self, node: FunctionDef) -> str:
         """
@@ -161,7 +175,7 @@ class UclidPrinter(ast.NodeVisitor):
         body = node.body
         return "\n".join(map(self.visit, body)) + "\n"
 
-    def visit_Assign(self, node) -> str:
+    def visit_Assign(self, node: Assign) -> str:
         """
         A Python assignment is a UCLID5 assignment.
         """
@@ -182,7 +196,7 @@ class UclidPrinter(ast.NodeVisitor):
             return attr
         return f"{value}.{attr}"
 
-    def visit_Name(self, node) -> str:
+    def visit_Name(self, node: Name) -> str:
         """
         A Python Name is a UCLID5 name
         """
@@ -208,13 +222,16 @@ class UclidPrinter(ast.NodeVisitor):
             case _:
                 return eval(f"{func}({args})")
 
-    def visit_Constant(self, node) -> str:
+    def visit_Constant(self, node: Constant) -> str:
         """
         A Python constant is a UCLID5 literal
         """
         return str(node.value)
 
     def visit_BinOp(self, node: BinOp) -> str:
+        """
+        A Python binary operation is a UCLID5 binary operation
+        """
         left = self.visit(node.left)
         right = self.visit(node.right)
         op = node.op
@@ -224,7 +241,10 @@ class UclidPrinter(ast.NodeVisitor):
             raise NotImplementedError(f"Operator {op} not implemented")
         return f"{left} {op} {right}"
 
-    def visit_UnaryOp(self, node) -> str:
+    def visit_UnaryOp(self, node: UnaryOp) -> str:
+        """
+        A Python unary operation is a UCLID5 unary operation
+        """
         operand = self.visit(node.operand)
         op = node.op
         if op.__class__.__name__ in operator_dict:
@@ -233,7 +253,10 @@ class UclidPrinter(ast.NodeVisitor):
             raise NotImplementedError(f"Operator {op} not implemented")
         return f"{op} {operand}"
 
-    def visit_Compare(self, node) -> str:
+    def visit_Compare(self, node: Compare) -> str:
+        """
+        A Python comparison is a UCLID5 comparison
+        """
         left = self.visit(node.left)
         ops = node.ops
         comparators = node.comparators
@@ -246,6 +269,12 @@ class UclidPrinter(ast.NodeVisitor):
             raise NotImplementedError(f"Operator {op} not implemented")
         right = self.visit(comparators[0])
         return f"{left} {op} {right}"
+
+    def visit_Expr(self, node: Expr) -> str:
+        """
+        A Python expression is just a wrapper, so descend into the value.
+        """
+        return self.visit(node.value)
 
 
 class Module:

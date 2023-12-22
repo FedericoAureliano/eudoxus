@@ -9,10 +9,12 @@ except PackageNotFoundError:  # pragma: no cover
 finally:
     del version, PackageNotFoundError
 
+from .control import induction
 from .module import Module
 from .types import integer_sort
 
 __all__ = [
     "Module",
     "integer_sort",
+    "induction",
 ]
