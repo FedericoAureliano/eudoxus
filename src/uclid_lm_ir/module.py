@@ -134,9 +134,18 @@ class UclidPrinter(ast.NodeVisitor):
     def visit_invariant(self, node: FunctionDef) -> str:
         """
         A Python invariant is a UCLID5 invariant.
+        A Python invariant is a function that returns a boolean.
         """
         body = node.body
-        return "\n".join(map(self.visit, body)) + "\n"
+        match body:
+            case [ast.Return(value)]:
+                value = self.visit(value)
+                name = node.name[len("invariant_") :]
+                return f"invariant {name}: {value};"
+            case _:
+                raise ValueError(
+                    f"Invariant {node.name} must be a function that returns a boolean"
+                )
 
     def visit_define(self, node: FunctionDef) -> str:
         """
@@ -213,6 +222,29 @@ class UclidPrinter(ast.NodeVisitor):
             op = operator_dict[op.__class__.__name__]
         else:
             raise NotImplementedError(f"Operator {op} not implemented")
+        return f"{left} {op} {right}"
+
+    def visit_UnaryOp(self, node) -> str:
+        operand = self.visit(node.operand)
+        op = node.op
+        if op.__class__.__name__ in operator_dict:
+            op = operator_dict[op.__class__.__name__]
+        else:
+            raise NotImplementedError(f"Operator {op} not implemented")
+        return f"{op} {operand}"
+
+    def visit_Compare(self, node) -> str:
+        left = self.visit(node.left)
+        ops = node.ops
+        comparators = node.comparators
+        if len(ops) != 1:
+            raise NotImplementedError(f"Operator {ops} not implemented")
+        op = ops[0]
+        if op.__class__.__name__ in operator_dict:
+            op = operator_dict[op.__class__.__name__]
+        else:
+            raise NotImplementedError(f"Operator {op} not implemented")
+        right = self.visit(comparators[0])
         return f"{left} {op} {right}"
 
 

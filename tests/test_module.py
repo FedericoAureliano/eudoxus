@@ -75,3 +75,38 @@ module ModuleWithVarAndInitAndNext {
 """
     output = str(ModuleWithVarAndInitAndNext())
     assert_equal(output, expected)
+
+
+class ModuleWithVarAndInitAndInvariants(Module):
+    def __init__(self):
+        self.x = integer_sort()
+
+    def init(self):
+        self.x = 0
+
+    def next(self):
+        self.x = self.x + 1
+
+    def invariant_x_gte_0(self):
+        return self.x >= 0
+
+    def invariant_x_lte_10(self):
+        return self.x <= 10
+
+
+def test_module_with_var_and_init_and_invariants():
+    expected = """
+module ModuleWithVarAndInitAndInvariants {
+    var x : integer;
+    init {
+        x = 0;
+    }
+    next {
+        x' = x + 1;
+    }
+    invariant x_gte_0: x >= 0;
+    invariant x_lte_10: x <= 10;
+}
+"""
+    output = str(ModuleWithVarAndInitAndInvariants())
+    assert_equal(output, expected)
