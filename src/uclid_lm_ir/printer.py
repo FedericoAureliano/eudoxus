@@ -52,6 +52,7 @@ operator_dict = {
     "UAdd": "+",
     "USub": "-",
     "Pow": "^",
+    "In": "??",
 }
 
 
@@ -285,7 +286,11 @@ class UclidPrinter(ast.NodeVisitor):
 
     def visit_Constant(self, node: Constant) -> str:
         """A Python constant is a UCLID5 literal"""
-        if isinstance(node.value, str):
+        if (
+            isinstance(node.value, str)
+            and not node.value.startswith('"')
+            and not node.value.startswith("'")
+        ):
             return f'"{node.value}"'
         return str(node.value)
 
