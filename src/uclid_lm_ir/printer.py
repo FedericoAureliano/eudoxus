@@ -51,6 +51,7 @@ operator_dict = {
     "Not": "!",
     "UAdd": "+",
     "USub": "-",
+    "Pow": "^",
 }
 
 
@@ -71,11 +72,11 @@ class UclidPrinter(ast.NodeVisitor):
 
     def visit_Module(self, node) -> str:
         """A Python Module is a UCLID5 file."""
-        return "\n".join(map(self.visit, node.body))
+        return "\n".join(map(self.visit_toplevel, node.body))
 
     def visit_ClassDef(self, node) -> str:
         """A Python Class is a UCLID5 module."""
-        body = "\n".join(map(self.visit, node.body))
+        body = "\n".join(map(self.visit_toplevel, node.body))
         if body:
             body = "\n" + body + "\n"
         return f"module {node.name} {{{body}}}"
@@ -134,8 +135,8 @@ class UclidPrinter(ast.NodeVisitor):
                 value = self.visit(value)
                 value = infer_type(value)
                 return f"type {target} = {value};"
-            case ast.Expr(ast.Constant(_)):  # should be a comment
-                return self.visit(node.value)
+            case ast.Expr(ast.Constant(_)):
+                return self.visit_comment(node.value)
             case _:
                 log(
                     f'`visit_type_decls` will return "" on {dump(node)}.',
@@ -151,8 +152,8 @@ class UclidPrinter(ast.NodeVisitor):
                 value = self.visit(value)
                 value = infer_type(value)
                 return f"var {target} : {value};"
-            case ast.Expr(ast.Constant(_)):  # should be a comment
-                return self.visit(node.value)
+            case ast.Expr(ast.Constant(_)):
+                return self.visit_comment(node.value)
             case _:
                 log(
                     f'`visit_decls` will return "" on {dump(node)}.',
@@ -165,7 +166,7 @@ class UclidPrinter(ast.NodeVisitor):
         next is the UCLID5 transition relation.
         """
         self.should_prime = True
-        body = "\n".join(map(self.visit, node.body))
+        body = "\n".join(map(self.visit_statements, node.body))
         self.should_prime = False
         if body:
             body = "\n" + body + "\n"
@@ -175,7 +176,7 @@ class UclidPrinter(ast.NodeVisitor):
         """
         init is the UCLID5 initialization block.
         """
-        body = "\n".join(map(self.visit, node.body))
+        body = "\n".join(map(self.visit_statements, node.body))
         if body:
             body = "\n" + body + "\n"
         return f"init {{{body}}}"
@@ -194,14 +195,30 @@ class UclidPrinter(ast.NodeVisitor):
         match node:
             case ast.Expr(ast.Call(func, _, _)) if self.visit(func) in control_dict:
                 return self.visit(node)
-            case ast.Expr(ast.Constant(_)):  # should be a comment
-                return self.visit(node.value)
+            case ast.Expr(ast.Constant(_)):
+                return self.visit_comment(node.value)
             case _:
                 log(
                     f'`visit_control_cmds` will return "" on {dump(node)}.',
                     Kind.WARNING,
                 )
                 return ""
+
+    def visit_statements(self, node) -> str:
+        """A Python statement is a UCLID5 statement."""
+        match node:
+            case ast.Expr(ast.Constant(_)):
+                return self.visit_comment(node.value)
+            case _:
+                return self.visit(node)
+
+    def visit_toplevel(self, node) -> str:
+        """These are comments, type declarations, variable declarations, etc..."""
+        match node:
+            case ast.Expr(ast.Constant(_)):
+                return self.visit_comment(node.value)
+            case _:
+                return self.visit(node)
 
     def visit_specification(self, node: FunctionDef) -> str:
         """A Python specification is a function that returns a boolean."""
@@ -210,10 +227,10 @@ class UclidPrinter(ast.NodeVisitor):
             case [ast.Return(value)]:
                 value = self.visit(value)
                 return f"invariant spec: {value};"
-            case [v1, ast.Return(v2)] if self.visit(v1).startswith("//"):
-                comment = self.visit(v1)
-                value = self.visit(v2)
-                return f"{comment}\ninvariant spec: {value};"
+            case [ast.Expr(ast.Constant(_)), ast.Return(value)]:
+                comment = self.visit_comment(body[0].value)
+                value = self.visit(value)
+                return f"{comment}invariant spec: {value};"
             case _:
                 log(
                     f'`visit_specification` will return "" on {dump(node)}',
@@ -269,14 +286,14 @@ class UclidPrinter(ast.NodeVisitor):
     def visit_Constant(self, node: Constant) -> str:
         """A Python constant is a UCLID5 literal"""
         if isinstance(node.value, str):
-            log(
-                f"`visit_Constant` will write a comment on {dump(node)}.",
-                Kind.WARNING,
-            )
-            comment = "//"
-            lines = node.value.split("\n")
-            return "\n".join(map(lambda line: f"{comment} {line.strip()}", lines))
+            return f'"{node.value}"'
         return str(node.value)
+
+    def visit_comment(self, node: Constant) -> str:
+        """A Python comment is a UCLID5 comment"""
+        comment = node.value.split("\n")
+        comment = "\n".join(map(lambda line: f"// {line}", comment))
+        return f"{comment}\n"
 
     def visit_BinOp(self, node: BinOp) -> str:
         """A Python binary operation is a UCLID5 binary operation"""
@@ -350,6 +367,13 @@ class UclidPrinter(ast.NodeVisitor):
             return f"if ({test}) {{\n{body}\n}} else {{\n{orelse}\n}}\n"
         else:
             return f"if ({test}) {{\n{body}\n}}\n"
+
+    def visit_IfExp(self, node) -> str:
+        """A Python if expression is a UCLID5 if expression."""
+        test = self.visit(node.test)
+        body = self.visit(node.body)
+        orelse = self.visit(node.orelse)
+        return expr.Ite(test, body, orelse)
 
     def visit_AugAssign(self, node: AugAssign) -> str:
         """A Python AugAssign is a UCLID5 assignment with an addition"""

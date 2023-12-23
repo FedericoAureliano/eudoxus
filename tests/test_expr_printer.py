@@ -29,3 +29,10 @@ def test_multiple_compare():
     expected = "a < b && b < c"
     output = print_uclid5(python)
     assert output == expected
+
+
+def test_ifexpr():
+    python = ast.parse("a if b else c")
+    expected = "if (b) then {a} else {c}"
+    output = print_uclid5(python)
+    assert output == expected

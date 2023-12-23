@@ -187,3 +187,61 @@ module ModuleWithTypeDeclsAndUses {
 """
     output = str(ModuleWithTypeDeclsAndUses())
     assert_equal(output, expected)
+
+
+class ModuleWithComments(Module):
+    """Comment 0"""
+
+    def types(self):
+        """Comment 1"""
+        self.T = Integer()
+
+    def state(self):
+        """Comment 2"""
+        self.x = self.T
+
+    def init(self):
+        """Comment 3"""
+        self.x = 0
+
+    def next(self):
+        """Comment 4"""
+        self.x = self.x + 1
+
+    def specification(self):
+        """Comment 5"""
+        return self.x >= 0 and self.x <= 10
+
+    def proof(self):
+        """Comment 6"""
+        induction(2)
+
+
+def test_module_with_comments():
+    expected = """
+module ModuleWithComments {
+    // Comment 0
+    // Comment 1
+    type T = integer;
+    // Comment 2
+    var x : T;
+    init {
+        // Comment 3
+        x = 0;
+    }
+    next {
+        // Comment 4
+        x' = x + 1;
+    }
+    // Comment 5
+    invariant spec: x >= 0 && x <= 10;
+    control {
+        // Comment 6
+        induction(2);
+        check;
+        print_results();
+    }
+}
+"""
+    output = str(ModuleWithComments())
+    assert_equal(output, expected)
