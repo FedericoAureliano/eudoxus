@@ -14,10 +14,18 @@ from _ast import (
     Name,
     Pass,
     UnaryOp,
+    With,
 )
 
+from . import control as control
+from . import expr as expr
+from . import types as types
 from .control import *  # noqa: F401, F403
+from .expr import *  # noqa: F401, F403
 from .types import *  # noqa: F401, F403
+from .utils import Kind, dump, log
+
+support_dict = control.__dict__ | types.__dict__ | expr.__dict__
 
 operator_dict = {
     "Add": "+",
@@ -52,7 +60,11 @@ class UclidPrinter(ast.NodeVisitor):
     def visit(self, node) -> str:
         out = super().visit(node)
         if out is None:
-            raise NotImplementedError(f"Node {node} not implemented")
+            log(
+                f'`visit` will return "" on {dump(node)}',
+                Kind.WARNING,
+            )
+            return ""
         return out
 
     def visit_Module(self, node) -> str:
@@ -96,7 +108,11 @@ class UclidPrinter(ast.NodeVisitor):
             case _ if node.name.startswith("procedure_"):
                 return self.visit_procedure(node)
             case _:
-                raise NotImplementedError(f"Function {node.name} not implemented")
+                log(
+                    f'`visit_FunctionDef` will return "" on {dump(node)}.',
+                    Kind.WARNING,
+                )
+                return ""
 
     def visit_state(self, node: FunctionDef) -> str:
         """
@@ -113,7 +129,11 @@ class UclidPrinter(ast.NodeVisitor):
                 value = self.visit(value)
                 return f"var {target} : {value};"
             case _:
-                raise NotImplementedError(f"Declaration {node} not implemented")
+                log(
+                    f'`visit_decls` will return "" on {dump(node)}.',
+                    Kind.WARNING,
+                )
+                return ""
 
     def visit_next(self, node: FunctionDef) -> str:
         """
@@ -151,10 +171,16 @@ class UclidPrinter(ast.NodeVisitor):
             case [ast.Return(value)]:
                 value = self.visit(value)
                 return f"invariant spec: {value};"
+            case [ast.Constant(v1), ast.Return(v2)]:
+                comment = self.visit(v1)
+                value = self.visit(v2)
+                return f"{comment}\ninvariant spec: {value};"
             case _:
-                raise ValueError(
-                    f"Invariant {node.name} must be a function that returns a boolean"
+                log(
+                    f'`visit_specification` will return "" on {dump(node)}',
+                    Kind.WARNING,
                 )
+                return ""
 
     def visit_define(self, node: FunctionDef) -> str:
         """A Python function is a UCLID5 define."""
@@ -204,11 +230,25 @@ class UclidPrinter(ast.NodeVisitor):
             case _ if func.startswith("procedure_"):
                 offset = len("procedure_")
                 return f"call {func[offset:]}({args})"
-            case _:
+            case _ if func in support_dict:
                 return eval(f"{func}({args})")
+            case _:
+                log(
+                    f'`visit_Call` will return "" on {dump(node)}.',
+                    Kind.WARNING,
+                )
+                return ""
 
     def visit_Constant(self, node: Constant) -> str:
         """A Python constant is a UCLID5 literal"""
+        if isinstance(node.value, str):
+            log(
+                f"`visit_Constant` will write a comment on {dump(node)}.",
+                Kind.WARNING,
+            )
+            comment = r"\\"
+            lines = node.value.split("\n")
+            return "\n".join(map(lambda line: f"{comment} {line.strip()}", lines))
         return str(node.value)
 
     def visit_BinOp(self, node: BinOp) -> str:
@@ -219,7 +259,11 @@ class UclidPrinter(ast.NodeVisitor):
         if op.__class__.__name__ in operator_dict:
             op = operator_dict[op.__class__.__name__]
         else:
-            raise NotImplementedError(f"Operator {op} not implemented")
+            log(
+                f'`visit_BinOp` will return "" on {dump(node)}.',
+                Kind.WARNING,
+            )
+            return ""
         return f"{left} {op} {right}"
 
     def visit_BoolOp(self, node: BoolOp) -> str:
@@ -229,7 +273,11 @@ class UclidPrinter(ast.NodeVisitor):
         if op.__class__.__name__ in operator_dict:
             op = operator_dict[op.__class__.__name__]
         else:
-            raise NotImplementedError(f"Operator {op} not implemented")
+            log(
+                f'`visit_BoolOp` will return "" on {dump(node)}.',
+                Kind.WARNING,
+            )
+            return ""
         return f" {op} ".join(map(self.visit, values))
 
     def visit_UnaryOp(self, node: UnaryOp) -> str:
@@ -239,7 +287,11 @@ class UclidPrinter(ast.NodeVisitor):
         if op.__class__.__name__ in operator_dict:
             op = operator_dict[op.__class__.__name__]
         else:
-            raise NotImplementedError(f"Operator {op} not implemented")
+            log(
+                f'`visit_UnaryOp` will return "" on {dump(node)}.',
+                Kind.WARNING,
+            )
+            return ""
         return f"{op} {operand}"
 
     def visit_Compare(self, node: Compare) -> str:
@@ -248,12 +300,20 @@ class UclidPrinter(ast.NodeVisitor):
         ops = node.ops
         comparators = node.comparators
         if len(ops) != 1:
-            raise NotImplementedError(f"Operator {ops} not implemented")
+            log(
+                f'`visit_Compare` will return "" on {dump(node)}.',
+                Kind.WARNING,
+            )
+            return ""
         op = ops[0]
         if op.__class__.__name__ in operator_dict:
             op = operator_dict[op.__class__.__name__]
         else:
-            raise NotImplementedError(f"Operator {op} not implemented")
+            log(
+                f'`visit_Compare` will return "" on {dump(node)}.',
+                Kind.WARNING,
+            )
+            return ""
         right = self.visit(comparators[0])
         return f"{left} {op} {right}"
 
@@ -286,8 +346,21 @@ class UclidPrinter(ast.NodeVisitor):
         if op.__class__.__name__ in operator_dict:
             op = operator_dict[op.__class__.__name__]
         else:
-            raise NotImplementedError(f"Operator {op} not implemented")
+            log(
+                f'`visit_AugAssing` will return "" on {dump(node)}.',
+                Kind.WARNING,
+            )
+            return ""
         return f"{target} = {target} {op} {value};"
+
+    def visit_With(self, node: With):
+        """With statements are ignored."""
+        log(
+            f"`visit_With` will skip to the body of {dump(node)}.",
+            Kind.WARNING,
+        )
+        body = "\n".join(map(self.visit, node.body))
+        return body
 
 
 def print_uclid5(node) -> str:

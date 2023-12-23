@@ -1,4 +1,6 @@
-from uclid_lm_ir import Integer, Module, induction
+from uclid_lm_ir import Module
+from uclid_lm_ir.control import induction
+from uclid_lm_ir.types import Integer
 
 
 def assert_equal(actual: str, expected: str):

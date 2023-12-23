@@ -16,7 +16,7 @@ class Module:
             self.y = BitVector(8)
         ```
         """
-        raise NotImplementedError("state block not defined")
+        pass
 
     def init(self):
         """Defines how state variables are initialized.
@@ -27,7 +27,7 @@ class Module:
             self.y = 1
         ```
         """
-        raise NotImplementedError("init block not defined")
+        pass
 
     def next(self):
         """Defines the transition relation.
@@ -38,7 +38,7 @@ class Module:
             self.y = self.y - 1
         ```
         """
-        raise NotImplementedError("next block not defined")
+        pass
 
     def specification(self):
         """Defines the specification in terms of invariant properties.
@@ -51,18 +51,18 @@ class Module:
         def specification(self):
             return self.x < 10 and self.y > 0
         """
-        raise NotImplementedError("specification block not defined")
+        pass
 
     def proof(self):
         """Defines the control block.
-        For example, the following implementation uses 2-induction to prove
+        For example, the following implementation uses 1-induction to prove
         that the specification always holds:
         ```
         def proof(self):
-            induction(2)
+            induction(1)
         ```
         """
-        raise NotImplementedError("proof block not defined")
+        pass
 
     def __str__(self) -> str:
         """Returns the UCLID5 representation of the Python class."""

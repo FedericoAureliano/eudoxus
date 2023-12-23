@@ -1,6 +1,6 @@
 import ast
 
-from uclid_lm_ir import print_uclid5
+from uclid_lm_ir.printer import print_uclid5
 
 
 def test_simple_expr():

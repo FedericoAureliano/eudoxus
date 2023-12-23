@@ -1,15 +1,10 @@
+import ast
 import inspect
 import os
-import subprocess
-
-import openai
 
 from .module import Module
-
-if "OPENAI_API_KEY" not in os.environ:
-    openai.api_key = "NONE"
-else:
-    openai.api_key = os.environ["OPENAI_API_KEY"]
+from .printer import print_uclid5
+from .utils import Kind, log
 
 
 def get_api_description() -> str:
@@ -26,6 +21,7 @@ def get_prompt(task) -> str:
     preamble = "Extend the `Module` class below to complete the following tasks:"
     module_class = "```python3\n" + get_api_description() + "\n```\n"
     prompt = f"{preamble} {task}\n\n{module_class}\n```python3\n#Your code goes here!\n"
+    log(prompt, Kind.GENERATOR, "generated prompt")
     return prompt
 
 
@@ -33,39 +29,49 @@ def extract_code(output) -> str:
     """Extracts the code from the GPT-4 API response."""
     # find the last instance of ```python3
     index = output.rfind("```python3")
-    # find the first instance of ``` after the index
-    index2 = output.find("```", index + 1)
+
+    if index == -1:
+        log("No ```python3 found!", Kind.WARNING)
+        # find the last two instances of ``` and extract the code
+        index2 = output.rfind("```")
+        index = output.rfind("```", 0, index2)
+    else:
+        # find the first instance of ``` after the index
+        index2 = output.find("```", index + 1)
+
     # extract the code
     code = output[index + 10 : index2]
     # remove trailing new lines
     code = code.rstrip()
+
+    log(code, Kind.GENERATOR, "extracted code")
     return code
 
 
 def process_code(code) -> str:
-    index = code.find("class")
-    index2 = code.find("(", index + 1)
-    class_name = code[index + 6 : index2].strip()
-
-    code = "from uclid_lm_ir import *\n" + code
-    code += "\n\nprint(" + class_name + "())\n"
-
-    # write the code to a temporary file
-    with open("temp.py", "w") as f:
-        f.write(code)
-    # execute temp.py in a subprocess and capture the output
-    output = subprocess.check_output(["python3", "temp.py"]).decode("utf-8")
-
+    parsed = ast.parse(code)
+    output = print_uclid5(parsed)
+    log(output, Kind.GENERATOR, "processed UCLID5 code")
     return output
 
 
 def gpt4_write_code(task, engine="gpt-4-0613"):
     """Generates code for a given task using the GPT-4 API."""
+
+    log(task, Kind.USER, "task")
+
+    import openai
+
+    openai.api_key = os.environ["OPENAI_API_KEY"]
+
     prompt = get_prompt(task)
+
     response = openai.ChatCompletion.create(
         model=engine, messages=[{"role": "user", "content": prompt}]
     )
     response = response["choices"][0]["message"]["content"]
+    log(response, Kind.LLM, "response from GPT-4")
+
     code = extract_code(response)
     code = process_code(code)
     return code

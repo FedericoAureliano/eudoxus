@@ -1,4 +1,5 @@
-from uclid_lm_ir import Integer, Module
+from uclid_lm_ir import Module
+from uclid_lm_ir.types import Integer
 
 
 class ModuleWithVarAndInitAndNext(Module):
