@@ -25,7 +25,9 @@ from .expr import *  # noqa: F401, F403
 from .types import *  # noqa: F401, F403
 from .utils import Kind, dump, infer_type, log
 
-support_dict = control.__dict__ | types.__dict__ | expr.__dict__
+control_dict = control.__dict__
+expr_dict = expr.__dict__
+types_dict = types.__dict__
 
 operator_dict = {
     "Add": "+",
@@ -85,14 +87,14 @@ class UclidPrinter(ast.NodeVisitor):
     def visit_FunctionDef(self, node: FunctionDef) -> str:
         """A Python Function can be a few things in UCLID5:
         - state is where we declare variables
-        - function_<name> is a define
-        - procedure_<name> is a procedure
         - next is the transition relation
         - init is the initialization steps
         - specification holds all the invariants
         - proof is the control block
         """
         match node.name:
+            case "types":
+                return self.visit_types(node)
             case "state":
                 return self.visit_state(node)
             case "next":
@@ -103,10 +105,6 @@ class UclidPrinter(ast.NodeVisitor):
                 return self.visit_specification(node)
             case "proof":
                 return self.visit_proof(node)
-            case _ if node.name.startswith("function_"):
-                return self.visit_define(node)
-            case _ if node.name.startswith("procedure_"):
-                return self.visit_procedure(node)
             case _:
                 log(
                     f'`visit_FunctionDef` will return "" on {dump(node)}.',
@@ -114,12 +112,36 @@ class UclidPrinter(ast.NodeVisitor):
                 )
                 return ""
 
+    def visit_types(self, node: FunctionDef) -> str:
+        """
+        Python types is where types are declared.
+        """
+        body = node.body
+        return "\n".join(map(self.visit_type_decls, body)) + "\n"
+
     def visit_state(self, node: FunctionDef) -> str:
         """
-        Python __init__ is where variables are declared.
+        Python state is where variables are declared.
         """
         body = node.body
         return "\n".join(map(self.visit_decls, body)) + "\n"
+
+    def visit_type_decls(self, node) -> str:
+        """A Python declaration is a UCLID5 type declaration."""
+        match node:
+            case ast.Assign(targets, value, _):
+                target = self.visit(targets[0])
+                value = self.visit(value)
+                value = infer_type(value)
+                return f"type {target} = {value};"
+            case ast.Expr(ast.Constant(_)):  # should be a comment
+                return self.visit(node.value)
+            case _:
+                log(
+                    f'`visit_type_decls` will return "" on {dump(node)}.',
+                    Kind.WARNING,
+                )
+                return ""
 
     def visit_decls(self, node) -> str:
         """A Python declaration is a UCLID5 variable declaration."""
@@ -129,6 +151,8 @@ class UclidPrinter(ast.NodeVisitor):
                 value = self.visit(value)
                 value = infer_type(value)
                 return f"var {target} : {value};"
+            case ast.Expr(ast.Constant(_)):  # should be a comment
+                return self.visit(node.value)
             case _:
                 log(
                     f'`visit_decls` will return "" on {dump(node)}.',
@@ -160,10 +184,24 @@ class UclidPrinter(ast.NodeVisitor):
         """
         proof is the UCLID5 control block.
         """
-        body = "\n".join(map(self.visit, node.body))
+        body = "\n".join(map(self.visit_control_cmds, node.body))
         if body:
             body = "\n" + body + "\n"
         return f"control {{{body}}}"
+
+    def visit_control_cmds(self, node) -> str:
+        """UCLID5 control commands are Python function calls, but a small subset."""
+        match node:
+            case ast.Expr(ast.Call(func, _, _)) if self.visit(func) in control_dict:
+                return self.visit(node)
+            case ast.Expr(ast.Constant(_)):  # should be a comment
+                return self.visit(node.value)
+            case _:
+                log(
+                    f'`visit_control_cmds` will return "" on {dump(node)}.',
+                    Kind.WARNING,
+                )
+                return ""
 
     def visit_specification(self, node: FunctionDef) -> str:
         """A Python specification is a function that returns a boolean."""
@@ -182,16 +220,6 @@ class UclidPrinter(ast.NodeVisitor):
                     Kind.WARNING,
                 )
                 return ""
-
-    def visit_define(self, node: FunctionDef) -> str:
-        """A Python function is a UCLID5 define."""
-        body = node.body
-        return "\n".join(map(self.visit, body)) + "\n"
-
-    def visit_procedure(self, node: FunctionDef) -> str:
-        """A Python procedure is a UCLID5 procedure."""
-        body = node.body
-        return "\n".join(map(self.visit, body)) + "\n"
 
     def visit_Assign(self, node: Assign) -> str:
         """A Python assignment is a UCLID5 assignment."""
@@ -222,17 +250,21 @@ class UclidPrinter(ast.NodeVisitor):
         - a type constructor
         - or just a Python call that we want to execute
         """
-        func = self.visit(node.func)
-        match func:
-            case _ if func in support_dict:
+        match node.func:
+            case Attribute(value, attr) if self.visit(value) == "self" and len(
+                node.args
+            ) == 0:
+                return attr
+            case func if self.visit(func) in expr_dict | types_dict | control_dict:
+                func = self.visit(func)
                 args = ", ".join(map(lambda arg: f'"{self.visit(arg)}"', node.args))
                 return eval(f"{func}({args})")
             case _:
                 log(
-                    f'`visit_Call` will return "" on {dump(node)}.',
+                    f'`visit_Call` will return "??" on {dump(node)}.',
                     Kind.WARNING,
                 )
-                return ""
+                return "??"
 
     def visit_Constant(self, node: Constant) -> str:
         """A Python constant is a UCLID5 literal"""

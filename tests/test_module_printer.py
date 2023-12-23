@@ -1,6 +1,6 @@
 from uclid_lm_ir import Module
 from uclid_lm_ir.control import induction
-from uclid_lm_ir.types import Integer
+from uclid_lm_ir.types import BitVector, Integer
 
 
 def assert_equal(actual: str, expected: str):
@@ -146,4 +146,44 @@ module ModuleWithVarAndInitAndInvariantsAndControl {
 }
 """
     output = str(ModuleWithVarAndInitAndInvariantsAndControl())
+    assert_equal(output, expected)
+
+
+class ModuleWithTypeDecls(Module):
+    def types(self):
+        self.T = Integer()
+        self.U = BitVector(32)
+
+
+def test_module_with_type_decls():
+    expected = """
+module ModuleWithTypeDecls {
+    type T = integer;
+    type U = bv32;
+}
+"""
+    output = str(ModuleWithTypeDecls())
+    assert_equal(output, expected)
+
+
+class ModuleWithTypeDeclsAndUses(Module):
+    def types(self):
+        self.T = Integer()
+        self.U = BitVector(32)
+
+    def state(self):
+        self.x = self.T()
+        self.y = self.U()
+
+
+def test_module_with_type_decls_and_uses():
+    expected = """
+module ModuleWithTypeDeclsAndUses {
+    type T = integer;
+    type U = bv32;
+    var x : T;
+    var y : U;
+}
+"""
+    output = str(ModuleWithTypeDeclsAndUses())
     assert_equal(output, expected)

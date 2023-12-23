@@ -7,6 +7,16 @@ from .printer import UclidPrinter
 class Module:
     """An abstract class to represent a UCLID5 module."""
 
+    def types(self):
+        """(Optional) Defines the type declarations.
+        For example, the following implementation defines a 8-bit type called T:
+        ```
+        def types(self):
+            self.T = BitVector(8)
+        ```
+        """
+        pass
+
     def state(self):
         """Defines the state variables and their types.
         For example, the following implementation defines an 8-bit variable x
@@ -42,7 +52,7 @@ class Module:
         pass
 
     def specification(self):
-        """Defines the specification in terms of invariant properties.
+        """(Optional) Defines the specification in terms of invariant properties.
 
         Returns:
             bool: True if the specification is satisfied, False otherwise.
@@ -55,7 +65,7 @@ class Module:
         pass
 
     def proof(self):
-        """Defines the control block.
+        """(Optional) Defines the control block.
         For example, the following implementation uses 1-induction to prove
         that the specification always holds:
         ```

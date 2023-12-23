@@ -54,4 +54,5 @@ def infer_type(value: str) -> str:
     elif value == "True" or value == "False":
         return "Boolean"
     else:
-        return "BitVector"
+        log(f"Could not infer type of {value}, leaving as is.", Kind.WARNING)
+        return value
