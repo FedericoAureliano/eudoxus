@@ -222,15 +222,9 @@ class UclidPrinter(ast.NodeVisitor):
         - or just a Python call that we want to execute
         """
         func = self.visit(node.func)
-        args = ", ".join(map(self.visit, node.args))
         match func:
-            case _ if func.startswith("function_"):
-                offset = len("function_")
-                return f"{func[offset:]}({args})"
-            case _ if func.startswith("procedure_"):
-                offset = len("procedure_")
-                return f"call {func[offset:]}({args})"
             case _ if func in support_dict:
+                args = ", ".join(map(lambda arg: f'"{self.visit(arg)}"', node.args))
                 return eval(f"{func}({args})")
             case _:
                 log(
