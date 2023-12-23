@@ -8,12 +8,13 @@ class Module:
     """An abstract class to represent a UCLID5 module."""
 
     def state(self):
-        """Defines the state variables.
-        For example, the following implementation defines two 8-bit variables x and y:
+        """Defines the state variables and their types.
+        For example, the following implementation defines an 8-bit variable x
+        and an integer variable y:
         ```
         def state(self):
             self.x = BitVector(8)
-            self.y = BitVector(8)
+            self.y = Integer()
         ```
         """
         pass

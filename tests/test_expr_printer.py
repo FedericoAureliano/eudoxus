@@ -22,3 +22,10 @@ def test_record_select():
     expected = "a.b"
     output = print_uclid5(python)
     assert output == expected
+
+
+def test_multiple_compare():
+    python = ast.parse("a < b < c")
+    expected = "a < b && b < c"
+    output = print_uclid5(python)
+    assert output == expected

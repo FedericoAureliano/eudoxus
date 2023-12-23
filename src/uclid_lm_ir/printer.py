@@ -23,7 +23,7 @@ from . import types as types
 from .control import *  # noqa: F401, F403
 from .expr import *  # noqa: F401, F403
 from .types import *  # noqa: F401, F403
-from .utils import Kind, dump, log
+from .utils import Kind, dump, infer_type, log
 
 support_dict = control.__dict__ | types.__dict__ | expr.__dict__
 
@@ -127,6 +127,7 @@ class UclidPrinter(ast.NodeVisitor):
             case ast.Assign(targets, value, _):
                 target = self.visit(targets[0])
                 value = self.visit(value)
+                value = infer_type(value)
                 return f"var {target} : {value};"
             case _:
                 log(
@@ -171,7 +172,7 @@ class UclidPrinter(ast.NodeVisitor):
             case [ast.Return(value)]:
                 value = self.visit(value)
                 return f"invariant spec: {value};"
-            case [ast.Constant(v1), ast.Return(v2)]:
+            case [v1, ast.Return(v2)] if self.visit(v1).startswith("//"):
                 comment = self.visit(v1)
                 value = self.visit(v2)
                 return f"{comment}\ninvariant spec: {value};"
@@ -240,7 +241,7 @@ class UclidPrinter(ast.NodeVisitor):
                 f"`visit_Constant` will write a comment on {dump(node)}.",
                 Kind.WARNING,
             )
-            comment = r"\\"
+            comment = "//"
             lines = node.value.split("\n")
             return "\n".join(map(lambda line: f"{comment} {line.strip()}", lines))
         return str(node.value)
@@ -290,26 +291,12 @@ class UclidPrinter(ast.NodeVisitor):
 
     def visit_Compare(self, node: Compare) -> str:
         """A Python comparison is a UCLID5 comparison"""
-        left = self.visit(node.left)
-        ops = node.ops
-        comparators = node.comparators
-        if len(ops) != 1:
-            log(
-                f'`visit_Compare` will return "" on {dump(node)}.',
-                Kind.WARNING,
-            )
-            return ""
-        op = ops[0]
-        if op.__class__.__name__ in operator_dict:
-            op = operator_dict[op.__class__.__name__]
-        else:
-            log(
-                f'`visit_Compare` will return "" on {dump(node)}.',
-                Kind.WARNING,
-            )
-            return ""
-        right = self.visit(comparators[0])
-        return f"{left} {op} {right}"
+        ops = list(map(lambda op: operator_dict[op.__class__.__name__], node.ops))
+        args = [self.visit(node.left)] + list(map(self.visit, node.comparators))
+        outputs = []
+        for i in range(len(args) - 1):
+            outputs.append(f"{args[i]} {ops[i]} {args[i + 1]}")
+        return " && ".join(outputs)
 
     def visit_Expr(self, node: Expr) -> str:
         """A Python expression is just a wrapper, so descend into the value."""
@@ -335,6 +322,10 @@ class UclidPrinter(ast.NodeVisitor):
     def visit_AugAssign(self, node: AugAssign) -> str:
         """A Python AugAssign is a UCLID5 assignment with an addition"""
         target = self.visit(node.target)
+        if self.should_prime:
+            target_lhs = f"{target}'"
+        else:
+            target_lhs = target
         value = self.visit(node.value)
         op = node.op
         if op.__class__.__name__ in operator_dict:
@@ -345,7 +336,7 @@ class UclidPrinter(ast.NodeVisitor):
                 Kind.WARNING,
             )
             return ""
-        return f"{target} = {target} {op} {value};"
+        return f"{target_lhs} = {target} {op} {value};"
 
     def visit_With(self, node: With):
         """With statements are ignored."""

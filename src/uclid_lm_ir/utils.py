@@ -41,3 +41,17 @@ def log(text, kind: Kind, note=""):
 
 def dump(node):
     return ast.dump(node, indent=2)
+
+
+def infer_type(value: str) -> str:
+    """Infers the type of a string value."""
+    if value in ["integer", "boolean"]:
+        return value
+    elif value.startswith("bv"):
+        return value
+    elif value.isdigit():
+        return "Integer"
+    elif value == "True" or value == "False":
+        return "Boolean"
+    else:
+        return "BitVector"

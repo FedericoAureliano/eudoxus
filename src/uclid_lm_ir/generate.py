@@ -20,27 +20,20 @@ def get_prompt(task) -> str:
     """Returns the prompt for the GPT-4 API."""
     preamble = "Extend the `Module` class below to complete the following tasks:"
     module_class = "```python3\n" + get_api_description() + "\n```\n"
-    prompt = f"{preamble} {task}\n\n{module_class}\n```python3\n#Your code goes here!\n"
+    prompt = f"{preamble} {task}\n\n{module_class}\n```python3\n#TODO\n"
     log(prompt, Kind.GENERATOR, "generated prompt")
     return prompt
 
 
 def extract_code(output) -> str:
     """Extracts the code from the GPT-4 API response."""
-    # find the last instance of ```python3
-    index = output.rfind("```python3")
-
-    if index == -1:
-        log("No ```python3 found!", Kind.WARNING)
-        # find the last two instances of ``` and extract the code
-        index2 = output.rfind("```")
-        index = output.rfind("```", 0, index2)
-    else:
-        # find the first instance of ``` after the index
-        index2 = output.find("```", index + 1)
+    end_index = output.rfind("```")
+    before_start = output.rfind("```", 0, end_index)
+    # find the newline after the index
+    start_index = output.find("\n", before_start + 1)
 
     # extract the code
-    code = output[index + 10 : index2]
+    code = output[start_index:end_index]
     # remove trailing new lines
     code = code.rstrip()
 
