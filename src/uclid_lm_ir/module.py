@@ -18,7 +18,7 @@ class Module:
         pass
 
     def state(self):
-        """Defines the state variables and their types.
+        """(Optional) Defines the state variables and their types.
         For example, the following implementation defines an 8-bit variable x
         and an integer variable y:
         ```
@@ -30,7 +30,7 @@ class Module:
         pass
 
     def init(self):
-        """Defines how state variables are initialized.
+        """(Optional) Defines how state variables are initialized.
         For example, the following implementation initializes x to 0 and y to 1:
         ```
         def init(self):
@@ -41,7 +41,7 @@ class Module:
         pass
 
     def next(self):
-        """Defines the transition relation.
+        """(Optional) Defines the transition relation.
         For example, the following implementation increments x and decrements y:
         ```
         def next(self):

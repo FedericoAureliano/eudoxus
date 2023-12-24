@@ -11,6 +11,7 @@ from _ast import (
     Expr,
     FunctionDef,
     If,
+    Lambda,
     Name,
     Pass,
     UnaryOp,
@@ -278,7 +279,19 @@ class UclidPrinter(ast.NodeVisitor):
                 args = ", ".join(
                     map(lambda arg: self.quote(self.visit(arg)), node.args)
                 )
-                return eval(f"{func}({args})")
+                keyword_args = ", ".join(
+                    map(
+                        lambda k: f"{k.arg}={self.quote(self.visit(k.value))}",
+                        node.keywords,
+                    )
+                )
+                if args and keyword_args:
+                    args += ", " + keyword_args
+                elif keyword_args:
+                    args = keyword_args
+                to_eval = f"{func}({args})"
+                log(f"About to eval `{to_eval}`", Kind.INFO)
+                return eval(to_eval)
             case _:
                 log(
                     f'`visit_Call` will return "??" on {dump(node)}.',
@@ -411,6 +424,17 @@ class UclidPrinter(ast.NodeVisitor):
         )
         body = "\n".join(map(self.visit, node.body))
         return body
+
+    def visit_Lambda(self, node: Lambda):
+        """Lambda expressions are array constructors."""
+        if len(node.args.args) != 1 and node.args.args[0].arg != "_":
+            log(
+                f"`visit_Lambda` will return ?? on {dump(node)}.",
+                Kind.WARNING,
+            )
+            return "??"
+        body = self.visit(node.body)
+        return f"const({body})"
 
 
 def print_uclid5(node) -> str:

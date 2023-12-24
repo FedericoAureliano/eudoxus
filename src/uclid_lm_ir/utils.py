@@ -9,6 +9,7 @@ class Kind(Enum):
     LLM = 2
     GENERATOR = 3
     WARNING = 4
+    INFO = 5
 
 
 class bcs:
@@ -37,6 +38,8 @@ def log(text, kind: Kind, note=""):
             )
         case Kind.WARNING:
             print(f"{bcs.BF}Warning{bcs.END}{note}: {bcs.WARNING}{text}{bcs.END}\n")
+        case Kind.INFO:
+            print(f"{bcs.BF}Info{bcs.END}{note}: {bcs.WARNING}{text}{bcs.END}\n")
 
 
 def dump(node):

@@ -58,3 +58,24 @@ module IntersectionModule {
     python = ast.parse(code)
     output = print_uclid5(python)
     assert_equal(output, expected)
+
+
+def test_regression_2():
+    code = """
+class Module:
+    def types(self):
+        self.T = BitVector(8)
+
+    def state(self):
+        self.x = Array(index=BitVector(8), value=self.T)
+"""
+
+    expected = """
+module Module {
+    type T = bv8;
+    var x : [bv8]T;
+}
+"""
+    python = ast.parse(code)
+    output = print_uclid5(python)
+    assert_equal(output, expected)
