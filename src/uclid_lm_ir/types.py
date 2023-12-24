@@ -29,7 +29,10 @@ boolean = Boolean()
 
 def Enum(*args):
     """Returns a UCLID5 enum type."""
-    return "enum {" + ", ".join(args) + "}"
+    if len(args) == 2 and " " not in args[0] and " " in args[1]:
+        cases = args[1].split()
+        return "enum { " + ", ".join(cases) + " }"
+    return "enum { " + ", ".join(args) + " }"
 
 
 enum = Enum

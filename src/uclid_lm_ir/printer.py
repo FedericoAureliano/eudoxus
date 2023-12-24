@@ -275,7 +275,9 @@ class UclidPrinter(ast.NodeVisitor):
                 return attr
             case func if self.visit(func) in expr_dict | types_dict | control_dict:
                 func = self.visit(func)
-                args = ", ".join(map(lambda arg: f'"{self.visit(arg)}"', node.args))
+                args = ", ".join(
+                    map(lambda arg: self.quote(self.visit(arg)), node.args)
+                )
                 return eval(f"{func}({args})")
             case _:
                 log(
@@ -284,14 +286,16 @@ class UclidPrinter(ast.NodeVisitor):
                 )
                 return "??"
 
+    def quote(self, x: str) -> str:
+        """A Python string is a UCLID5 string"""
+        if not x.startswith('"') and not x.startswith("'"):
+            return f'"{x}"'
+        return x
+
     def visit_Constant(self, node: Constant) -> str:
         """A Python constant is a UCLID5 literal"""
-        if (
-            isinstance(node.value, str)
-            and not node.value.startswith('"')
-            and not node.value.startswith("'")
-        ):
-            return f'"{node.value}"'
+        if isinstance(node.value, str):
+            return self.quote(node.value)
         return str(node.value)
 
     def visit_comment(self, node: Constant) -> str:

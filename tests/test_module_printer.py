@@ -1,14 +1,7 @@
 from uclid_lm_ir import Module
 from uclid_lm_ir.control import induction
 from uclid_lm_ir.types import BitVector, Integer
-
-
-def assert_equal(actual: str, expected: str):
-    print("Expected:\n")
-    print(expected)
-    print("\n\nActual:\n")
-    print(actual)
-    assert actual.split() == expected.split()
+from uclid_lm_ir.utils import assert_equal
 
 
 class EmptyModule(Module):

@@ -1,3 +1,4 @@
+import argparse
 from importlib.metadata import PackageNotFoundError, version  # pragma: no cover
 
 try:
@@ -16,3 +17,18 @@ __all__ = [
     "Module",
     "gpt4_write_code",
 ]
+
+
+def eudoxus():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--task", help="task name", required=True)
+    parser.add_argument("--output", help="output file name", required=False)
+    args = parser.parse_args()
+
+    task = args.task
+    output = args.output
+
+    code = gpt4_write_code(task)
+    if output:
+        with open(output, "w") as f:
+            f.write(code)

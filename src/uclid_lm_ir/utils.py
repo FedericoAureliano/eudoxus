@@ -43,6 +43,25 @@ def dump(node):
     return ast.dump(node, indent=2)
 
 
+def assert_equal(actual: str, expected: str):
+    print("Expected:\n")
+    print(expected)
+    print("\n\nActual:\n")
+    print(actual)
+    answer = actual.split() == expected.split()
+    # find the first difference
+    if not answer:
+        actual = actual.split()
+        expected = expected.split()
+        for i in range(len(actual)):
+            if actual[i] != expected[i]:
+                print(f"First difference at index {i}:")
+                print(f"Expected: {expected[i]}")
+                print(f"Actual: {actual[i]}")
+                break
+    assert answer
+
+
 def infer_type(value: str) -> str:
     """Infers the type of a string value."""
     if value in ["integer", "boolean"]:
@@ -53,6 +72,10 @@ def infer_type(value: str) -> str:
         return "Integer"
     elif value == "True" or value == "False":
         return "Boolean"
+    elif value.startswith("enum"):
+        return value
+    elif value.startswith("record"):
+        return value
     else:
         log(f"Could not infer type of {value}, leaving as is.", Kind.WARNING)
         return value
