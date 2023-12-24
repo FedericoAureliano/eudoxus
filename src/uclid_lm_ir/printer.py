@@ -99,13 +99,13 @@ class UclidPrinter(ast.NodeVisitor):
                 return self.visit_types(node)
             case "state":
                 return self.visit_state(node)
-            case "next":
+            case f if f.startswith("next") or f in ["transition", "next_state"]:
                 return self.visit_next(node)
-            case "init":
+            case f if f.startswith("init") or f in ["initialization", "init_state"]:
                 return self.visit_init(node)
-            case "specification":
+            case f if f in ["specification", "invariant", "invariants", "spec"]:
                 return self.visit_specification(node)
-            case "proof":
+            case f if f in ["proof", "control"]:
                 return self.visit_proof(node)
             case _:
                 log(
