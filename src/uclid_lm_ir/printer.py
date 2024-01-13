@@ -24,7 +24,7 @@ from . import types as types
 from .control import *  # noqa: F401, F403
 from .expr import *  # noqa: F401, F403
 from .types import *  # noqa: F401, F403
-from .utils import Kind, dump, infer_type, log
+from .utils import dump, generator_log, infer_type
 
 control_dict = control.__dict__
 expr_dict = expr.__dict__
@@ -65,10 +65,7 @@ class UclidPrinter(ast.NodeVisitor):
     def visit(self, node) -> str:
         out = super().visit(node)
         if out is None:
-            log(
-                f'`visit` will return "" on {dump(node)}',
-                Kind.WARNING,
-            )
+            generator_log(f'`visit` will return "" on {dump(node)}')
             return ""
         return out
 
@@ -109,10 +106,7 @@ class UclidPrinter(ast.NodeVisitor):
             case f if f in ["proof", "control"]:
                 return self.visit_proof(node)
             case _:
-                log(
-                    f'`visit_FunctionDef` will return "" on {dump(node)}.',
-                    Kind.WARNING,
-                )
+                generator_log(f'`visit_FunctionDef` will return "" on {dump(node)}.')
                 return ""
 
     def visit_types(self, node: FunctionDef) -> str:
@@ -140,10 +134,7 @@ class UclidPrinter(ast.NodeVisitor):
             case ast.Expr(ast.Constant(_)):
                 return self.visit_comment(node.value)
             case _:
-                log(
-                    f'`visit_type_decls` will return "" on {dump(node)}.',
-                    Kind.WARNING,
-                )
+                generator_log(f'`visit_type_decls` will return "" on {dump(node)}.')
                 return ""
 
     def visit_decls(self, node) -> str:
@@ -157,10 +148,7 @@ class UclidPrinter(ast.NodeVisitor):
             case ast.Expr(ast.Constant(_)):
                 return self.visit_comment(node.value)
             case _:
-                log(
-                    f'`visit_decls` will return "" on {dump(node)}.',
-                    Kind.WARNING,
-                )
+                generator_log(f'`visit_decls` will return "" on {dump(node)}.')
                 return ""
 
     def visit_next(self, node: FunctionDef) -> str:
@@ -200,10 +188,7 @@ class UclidPrinter(ast.NodeVisitor):
             case ast.Expr(ast.Constant(_)):
                 return self.visit_comment(node.value)
             case _:
-                log(
-                    f'`visit_control_cmds` will return "" on {dump(node)}.',
-                    Kind.WARNING,
-                )
+                generator_log(f'`visit_control_cmds` will return "" on {dump(node)}.')
                 return ""
 
     def visit_statements(self, node) -> str:
@@ -234,10 +219,7 @@ class UclidPrinter(ast.NodeVisitor):
                 value = self.visit(value)
                 return f"{comment}invariant spec: {value};"
             case _:
-                log(
-                    f'`visit_specification` will return "" on {dump(node)}',
-                    Kind.WARNING,
-                )
+                generator_log(f'`visit_specification` will return "" on {dump(node)}')
                 return ""
 
     def visit_Assign(self, node: Assign) -> str:
@@ -290,12 +272,11 @@ class UclidPrinter(ast.NodeVisitor):
                 elif keyword_args:
                     args = keyword_args
                 to_eval = f"{func}({args})"
-                log(f"About to eval `{to_eval}`", Kind.INFO)
+                generator_log(f"About to eval `{to_eval}`")
                 return eval(to_eval)
             case _:
-                log(
-                    f'`visit_Call` will return "??" on {dump(node)}.',
-                    Kind.WARNING,
+                generator_log(
+                    f':warning: `visit_Call` will return "??" on {dump(node)}.'
                 )
                 return "??"
 
@@ -325,10 +306,7 @@ class UclidPrinter(ast.NodeVisitor):
         if op.__class__.__name__ in operator_dict:
             op = operator_dict[op.__class__.__name__]
         else:
-            log(
-                f'`visit_BinOp` will return "" on {dump(node)}.',
-                Kind.WARNING,
-            )
+            generator_log(f'`visit_BinOp` will return "" on {dump(node)}.')
             return ""
         return f"{left} {op} {right}"
 
@@ -339,10 +317,7 @@ class UclidPrinter(ast.NodeVisitor):
         if op.__class__.__name__ in operator_dict:
             op = operator_dict[op.__class__.__name__]
         else:
-            log(
-                f'`visit_BoolOp` will return "" on {dump(node)}.',
-                Kind.WARNING,
-            )
+            generator_log(f'`visit_BoolOp` will return "" on {dump(node)}.')
             return ""
         return f" {op} ".join(map(self.visit, values))
 
@@ -353,10 +328,7 @@ class UclidPrinter(ast.NodeVisitor):
         if op.__class__.__name__ in operator_dict:
             op = operator_dict[op.__class__.__name__]
         else:
-            log(
-                f'`visit_UnaryOp` will return "" on {dump(node)}.',
-                Kind.WARNING,
-            )
+            generator_log(f'`visit_UnaryOp` will return "" on {dump(node)}.')
             return ""
         return f"{op} {operand}"
 
@@ -409,29 +381,20 @@ class UclidPrinter(ast.NodeVisitor):
         if op.__class__.__name__ in operator_dict:
             op = operator_dict[op.__class__.__name__]
         else:
-            log(
-                f'`visit_AugAssing` will return "" on {dump(node)}.',
-                Kind.WARNING,
-            )
+            generator_log(f'`visit_AugAssing` will return "" on {dump(node)}.')
             return ""
         return f"{target_lhs} = {target} {op} {value};"
 
     def visit_With(self, node: With):
         """With statements are ignored."""
-        log(
-            f"`visit_With` will skip to the body of {dump(node)}.",
-            Kind.WARNING,
-        )
+        generator_log(f"`visit_With` will skip to the body of {dump(node)}.")
         body = "\n".join(map(self.visit, node.body))
         return body
 
     def visit_Lambda(self, node: Lambda):
         """Lambda expressions are array constructors."""
         if len(node.args.args) != 1 and node.args.args[0].arg != "_":
-            log(
-                f"`visit_Lambda` will return ?? on {dump(node)}.",
-                Kind.WARNING,
-            )
+            generator_log(f':warning: `visit_Lambda` will return "??" on {dump(node)}.')
             return "??"
         body = self.visit(node.body)
         return f"const({body})"

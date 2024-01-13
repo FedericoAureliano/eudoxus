@@ -4,7 +4,7 @@ import os
 
 from .module import Module
 from .printer import print_uclid5
-from .utils import Kind, log
+from .utils import generator_log, llm_log
 
 
 def get_api_description() -> str:
@@ -18,6 +18,9 @@ def get_api_description() -> str:
 
 def get_prompt(task) -> str:
     """Returns the prompt for the GPT-4 API."""
+
+    generator_log("Getting prompt...")
+
     if task.endswith("."):
         task = task[:-1]
 
@@ -25,12 +28,16 @@ def get_prompt(task) -> str:
     prompt += " " + task + ". Reply with your code inside one unique code block."
     module_class = "```python3\n" + get_api_description() + "\n```\n"
     prompt += f"\n\n{module_class}\n```python3\n#TODO\n"
-    log(prompt, Kind.GENERATOR, "generated prompt")
+
+    generator_log("Prompt:", prompt)
+
     return prompt
 
 
 def extract_code(output) -> str:
     """Extracts the code from the GPT-4 API response."""
+    generator_log("Extracting code...")
+
     # replace any occurrences of "``````" with "```"
     output = output.replace("``````", "```")
 
@@ -44,25 +51,28 @@ def extract_code(output) -> str:
     # remove trailing new lines
     code = code.rstrip()
 
-    log(code, Kind.GENERATOR, "extracted code")
+    generator_log("Code:", code)
     return code
 
 
 def process_code(code) -> str:
+    """Processes the code to remove unwanted lines."""
+    generator_log("Processing code...")
+
     parsed = ast.parse(code)
     # extract all the classes and nothing else
     parsed.body = [node for node in parsed.body if isinstance(node, ast.ClassDef)]
     output = print_uclid5(parsed)
     # remove empty lines
     output = "\n".join([line for line in output.split("\n") if line.strip()])
-    log(output, Kind.GENERATOR, "processed UCLID5 code")
+
+    generator_log("Processed code:", output)
     return output
 
 
-def gpt4_write_code(task, engine="gpt-4-0613"):
+def sketch_api(task, engine="gpt-4-0613"):
     """Generates code for a given task using the GPT-4 API."""
-
-    log(task, Kind.USER, "task")
+    generator_log("Generating code...")
 
     import openai
 
@@ -74,26 +84,30 @@ def gpt4_write_code(task, engine="gpt-4-0613"):
         model=engine, messages=[{"role": "user", "content": prompt}]
     )
     response = response["choices"][0]["message"]["content"]
-    log(response, Kind.LLM, "response from GPT-4")
+    llm_log("Response:", response)
 
     code = extract_code(response)
     code = process_code(code)
-
-    def remove_question_marks(code) -> str:
-        """Ask the llm to remove the question marks."""
-        if "??" not in code:
-            return code
-
-        prompt = "Fix the UCLID5 code below by replacing every occurrence of `??` "
-        prompt += f"with the correct value:\n```uclid5\n{code}\n```\n"
-        log(prompt, Kind.GENERATOR, "prompt to remove question marks")
-        response = openai.ChatCompletion.create(
-            model=engine, messages=[{"role": "user", "content": prompt}]
-        )
-        response = response["choices"][0]["message"]["content"]
-        log(response, Kind.LLM, "response from GPT-4")
-        code = extract_code(response)
-        return code
-
-    code = remove_question_marks(code)
     return code
+
+
+def complete_api(code_with_holes, engine="gpt-4-0613") -> str:
+    """Ask the llm to remove the question marks."""
+    generator_log("Asking the llm to remove the question marks...")
+
+    import openai
+
+    openai.api_key = os.environ["OPENAI_API_KEY"]
+
+    if "??" not in code_with_holes:
+        return code_with_holes
+
+    prompt = "Fix the UCLID5 code below by replacing every occurrence of `??` "
+    prompt += f"with the correct value:\n```uclid5\n{code_with_holes}\n```\n"
+    response = openai.ChatCompletion.create(
+        model=engine, messages=[{"role": "user", "content": prompt}]
+    )
+    response = response["choices"][0]["message"]["content"]
+    llm_log("Response:", response)
+    code_with_holes = extract_code(response)
+    return code_with_holes

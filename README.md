@@ -1,5 +1,12 @@
 # Synthetic Programming Elicitation
 
+## Usage
+```sh
+eudoxus --help
+eudoxus sketch --help
+eudoxus complete --help
+```
+
 ## Installing
 ```sh
 pip3 install . # use -e flag when developing
