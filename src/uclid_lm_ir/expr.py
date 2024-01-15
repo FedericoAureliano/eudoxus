@@ -227,3 +227,30 @@ constArray = ConstArray
 const = ConstArray
 CONST = ConstArray
 Const = ConstArray
+
+
+def Assume(expr):
+    """Construct an assume statement."""
+    return f"assume({expr});"
+
+
+assume = Assume
+ASSUME = Assume
+
+
+def Axiom(expr):
+    """Construct an axiom statement."""
+    return f"axiom({expr});"
+
+
+axiom = Axiom
+AXIOM = Axiom
+
+
+def Assert(expr):
+    """Construct an assert statement."""
+    return f"assert({expr});"
+
+
+assert_ = Assert
+ASSERT = Assert

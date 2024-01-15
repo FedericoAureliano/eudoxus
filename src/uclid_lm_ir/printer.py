@@ -1,5 +1,6 @@
 import ast
 from _ast import (
+    Assert,
     Assign,
     Attribute,
     AugAssign,
@@ -450,6 +451,11 @@ class UclidPrinter(ast.NodeVisitor):
             return "??"
         body = self.visit(node.body)
         return f"const({body})"
+
+    def visit_Assert(self, node: Assert):
+        """Python assert statements are assert statements in UCLID5."""
+        test = self.visit(node.test)
+        return f"assert({test});"
 
 
 def print_uclid5(node) -> str:

@@ -36,3 +36,17 @@ def test_ifexpr():
     expected = "if (b) then {a} else {c}"
     output = print_uclid5(python)
     assert output == expected
+
+
+def test_assert_stmt():
+    python = ast.parse("assert a == b")
+    expected = "assert(a == b);"
+    output = print_uclid5(python)
+    assert output == expected
+
+
+def test_assume_stmt():
+    python = ast.parse("assume(a == b)")
+    expected = "assume(a == b);"
+    output = print_uclid5(python)
+    assert output == expected
