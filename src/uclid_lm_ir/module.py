@@ -29,6 +29,42 @@ class Module:
         """
         pass
 
+    def inputs(self):
+        """(Optional) Defines the input variables and their types.
+        For example, the following implementation defines an input variable x,
+        which is an array of 8-bit bitvectors indexed by 2-bit bitvectors:
+        ```
+        def inputs(self):
+            self.x = Array(BitVector(2), BitVector(8))
+        ```
+        """
+        pass
+
+    def outputs(self):
+        """(Optional) Defines the output variables and their types.
+        For example, the following implementation defines an output variable y,
+        which is a real number:
+        ```
+        def outputs(self):
+            self.y = Real()
+        ```
+        """
+        pass
+
+    def instances(self):
+        """(Optional) Defines the instances of other modules, relating their
+        inputs and outputs to local variables. For example, let M be another
+        module with inputs x and y, and output z. The following implementation
+        defines an instance of M called m, and connects M's input variable x to
+        self.a M's input variable y to self.b, and M's output variable z to
+        self.c:
+        ```
+        def instances(self):
+            self.m = M(x=self.a, y=self.b, z=self.c)
+        ```
+        """
+        pass
+
     def init(self):
         """(Optional) Defines how state variables are initialized.
         For example, the following implementation initializes x to 0 and y to 1:

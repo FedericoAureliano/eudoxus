@@ -97,6 +97,12 @@ class UclidPrinter(ast.NodeVisitor):
                 return self.visit_types(node)
             case "state":
                 return self.visit_state(node)
+            case "inputs":
+                return self.visit_inputs(node)
+            case "outputs":
+                return self.visit_outputs(node)
+            case "instances":
+                return self.visit_instances(node)
             case f if f.startswith("next") or f in ["transition", "next_state"]:
                 return self.visit_next(node)
             case f if f.startswith("init") or f in ["initialization", "init_state"]:
@@ -118,10 +124,31 @@ class UclidPrinter(ast.NodeVisitor):
 
     def visit_state(self, node: FunctionDef) -> str:
         """
-        Python state is where variables are declared.
+        Python state function is where variables are declared.
         """
         body = node.body
-        return "\n".join(map(self.visit_decls, body)) + "\n"
+        return "\n".join(map(lambda x: self.visit_decl(x, "var"), body)) + "\n"
+
+    def visit_inputs(self, node: FunctionDef) -> str:
+        """
+        Python inputs function is where input variables are declared.
+        """
+        body = node.body
+        return "\n".join(map(lambda x: self.visit_decl(x, "input"), body)) + "\n"
+
+    def visit_outputs(self, node: FunctionDef) -> str:
+        """
+        Python outputs function is where output variables are declared.
+        """
+        body = node.body
+        return "\n".join(map(lambda x: self.visit_decl(x, "output"), body)) + "\n"
+
+    def visit_instances(self, node: FunctionDef) -> str:
+        """
+        Python instances function is where modules are instantiated.
+        """
+        body = node.body
+        return "\n".join(map(self.visit_instance_decl, body)) + "\n"
 
     def visit_type_decls(self, node) -> str:
         """A Python declaration is a UCLID5 type declaration."""
@@ -137,18 +164,43 @@ class UclidPrinter(ast.NodeVisitor):
                 generator_log(f'`visit_type_decls` will return "" on {dump(node)}.')
                 return ""
 
-    def visit_decls(self, node) -> str:
+    def visit_decl(self, node, kind) -> str:
         """A Python declaration is a UCLID5 variable declaration."""
         match node:
             case ast.Assign(targets, value, _):
                 target = self.visit(targets[0])
                 value = self.visit(value)
                 value = infer_type(value)
-                return f"var {target} : {value};"
+                return f"{kind} {target} : {value};"
             case ast.Expr(ast.Constant(_)):
                 return self.visit_comment(node.value)
             case _:
-                generator_log(f'`visit_decls` will return "" on {dump(node)}.')
+                generator_log(f'`visit_decl` will return "" on {dump(node)}.')
+                return ""
+
+    def visit_instance_decl(self, node) -> str:
+        """A Python instance declaration is a UCLID5 instance declaration."""
+        match node:
+            case ast.Assign(targets, value, _):
+                target = self.visit(targets[0])
+                match value:
+                    case ast.Call(func, args, keywords):
+                        args = []
+                        for keyword in keywords:
+                            args.append(
+                                f"{keyword.arg} : ({self.visit(keyword.value)})"
+                            )
+                        args = ", ".join(args)
+                        return f"instance {target} : {func.id}({args});"
+                    case _:
+                        generator_log(
+                            f'`visit_instance_decl` will return "??" on {dump(value)}.'
+                        )
+                        return f"instance {target} : ??;"
+            case ast.Expr(ast.Constant(_)):
+                return self.visit_comment(node.value)
+            case _:
+                generator_log(f'`visit_isntance_decl` will return "" on {dump(node)}.')
                 return ""
 
     def visit_next(self, node: FunctionDef) -> str:

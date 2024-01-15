@@ -42,8 +42,8 @@ def sketch(
         code = sketch_api(task)
         if output:
             if samples > 1:
-                output = output.parent / f"{output.stem}_{i}{output.suffix}"
-            with open(output, "w") as f:
+                output_i = output.parent / f"{output.stem}_{i}{output.suffix}"
+            with open(output_i, "w") as f:
                 f.write(code)
         else:
             syntax = Syntax(code, "scala", theme="monokai", line_numbers=True)
@@ -68,8 +68,8 @@ def complete(
         code = complete_api(code_with_holes)
         if output:
             if samples > 1:
-                output = output.parent / f"{output.stem}_{i}{output.suffix}"
-            with open(output, "w") as f:
+                output_i = output.parent / f"{output.stem}_{i}{output.suffix}"
+            with open(output_i, "w") as f:
                 f.write(code)
         else:
             syntax = Syntax(code, "scala", theme="monokai", line_numbers=True)
