@@ -30,35 +30,48 @@ eudoxus = typer.Typer()
 
 
 @eudoxus.command()
-def sketch(task: str, output: Annotated[Optional[Path], typer.Option()] = None):
+def sketch(
+    task: str,
+    output: Annotated[Optional[Path], typer.Option()] = None,
+    samples: int = 1,
+):
     """
     Write UCLID5 code for the given task. The output may contain holes (??).
     """
-    code = sketch_api(task)
-    if output:
-        with open(output, "w") as f:
-            f.write(code)
-    else:
-        syntax = Syntax(code, "scala", theme="monokai", line_numbers=True)
-        console = Console()
-        console.print(Panel(syntax, title="UCLID5 Output", expand=False))
+    for i in range(samples):
+        code = sketch_api(task)
+        if output:
+            if samples > 1:
+                output = output.parent / f"{output.stem}_{i}{output.suffix}"
+            with open(output, "w") as f:
+                f.write(code)
+        else:
+            syntax = Syntax(code, "scala", theme="monokai", line_numbers=True)
+            console = Console()
+            console.print(Panel(syntax, title="UCLID5 Output", expand=False))
 
 
 @eudoxus.command()
 def complete(
-    task: str,
+    code: Path,
     embeddings: bool = False,
     output: Annotated[Optional[Path], typer.Option()] = None,
+    samples: int = 1,
 ):
     """
     Take a UCLID5 model with holes (??) and complete it using the language model.
     """
-    code_with_holes = task
-    code = complete_api(code_with_holes)
-    if output:
-        with open(output, "w") as f:
-            f.write(code)
-    else:
-        syntax = Syntax(code, "scala", theme="monokai", line_numbers=True)
-        console = Console()
-        console.print(Panel(syntax, title="UCLID5 Output", expand=False))
+    with open(code, "r") as f:
+        code_with_holes = f.read()
+
+    for i in range(samples):
+        code = complete_api(code_with_holes)
+        if output:
+            if samples > 1:
+                output = output.parent / f"{output.stem}_{i}{output.suffix}"
+            with open(output, "w") as f:
+                f.write(code)
+        else:
+            syntax = Syntax(code, "scala", theme="monokai", line_numbers=True)
+            console = Console()
+            console.print(Panel(syntax, title="UCLID5 Output", expand=False))
