@@ -137,6 +137,7 @@ def find_nearest_neighbours(code_with_holes, examples, k):
 
     generator_log("Nearest neighbours:", results["ids"][0])
 
+    client.delete_collection(name="uclid5-examples")
     return results["documents"][0]
 
 
