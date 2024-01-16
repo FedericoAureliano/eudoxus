@@ -1,5 +1,5 @@
 from uclid_lm_ir import Module
-from uclid_lm_ir.types import Integer
+from uclid_lm_ir.type import Integer
 from uclid_lm_ir.utils import assert_equal
 
 

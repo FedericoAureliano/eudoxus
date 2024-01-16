@@ -66,22 +66,3 @@ def assert_equal(actual: str, expected: str):
                 print(f"Actual: {actual[i]}")
                 break
     assert answer
-
-
-def infer_type(value: str) -> str:
-    """Infers the type of a string value."""
-    if value in ["integer", "boolean"]:
-        return value
-    elif value.startswith("bv"):
-        return value
-    elif value.isdigit():
-        return "Integer"
-    elif value == "True" or value == "False":
-        return "Boolean"
-    elif value.startswith("enum"):
-        return value
-    elif value.startswith("record"):
-        return value
-    else:
-        generator_log(f"Could not infer type of {value}, leaving as is.")
-        return value

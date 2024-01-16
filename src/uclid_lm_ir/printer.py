@@ -21,15 +21,11 @@ from _ast import (
 
 from . import control as control
 from . import expr as expr
-from . import types as types
+from . import type as type
 from .control import *  # noqa: F401, F403
 from .expr import *  # noqa: F401, F403
-from .types import *  # noqa: F401, F403
-from .utils import dump, generator_log, infer_type
-
-control_dict = control.__dict__
-expr_dict = expr.__dict__
-types_dict = types.__dict__
+from .type import *  # noqa: F401, F403
+from .utils import dump, generator_log
 
 operator_dict = {
     "Add": "+",
@@ -58,10 +54,26 @@ operator_dict = {
 }
 
 
+class Context:
+    def __init__(
+        self, types={}, vars={}, modules={}, instances={}, constructors={}, selectors={}
+    ) -> None:
+        self.types = types
+        self.vars = vars
+        self.modules = modules
+        self.instances = instances
+        self.constructors = constructors
+        self.selectors = selectors
+        self.types_dict = type.__dict__
+        self.expr_dict = expr.__dict__
+        self.control_dict = control.__dict__
+
+
 class UclidPrinter(ast.NodeVisitor):
-    def __init__(self) -> None:
+    def __init__(self, context: Context = Context()) -> None:
         super().__init__()
         self.should_prime = False
+        self.ctx = context
 
     def visit(self, node) -> str:
         out = super().visit(node)
@@ -79,6 +91,7 @@ class UclidPrinter(ast.NodeVisitor):
         body = "\n".join(map(self.visit_toplevel, node.body))
         if body:
             body = "\n" + body + "\n"
+        self.ctx.modules[node.name] = node.name
         return f"module {node.name} {{{body}}}"
 
     def visit_Pass(self, _: Pass) -> str:
@@ -149,15 +162,60 @@ class UclidPrinter(ast.NodeVisitor):
         Python instances function is where modules are instantiated.
         """
         body = node.body
-        return "\n".join(map(self.visit_instance_decl, body)) + "\n"
+        return "\n".join(map(self.visit_inst_decl, body)) + "\n"
+
+    def process_type(self, node) -> str:
+        """Takes an AST node representing a type and returns a string"""
+        match node:
+            case ast.Attribute(ast.Name("self"), attr) if attr in self.ctx.types:
+                return attr
+            case ast.Name(id) if id in self.ctx.types | self.ctx.types_dict:
+                return id
+            case ast.Call(func, _, _) if self.visit(func) in self.ctx.types:
+                func = self.visit(func)
+                return f"{func}"
+            case ast.Call(func, _, keywords) if self.visit(func) in self.ctx.modules:
+                func = self.visit(func)
+                args = ", ".join(
+                    map(lambda k: f"{k.arg}: ({self.process_type(k.value)})", keywords)
+                )
+                return f"{func}({args})"
+            case ast.Call(func, args, _):
+                # need to intercept enums and records here to add type information
+                func = self.visit(func)
+                if "enum" in func.lower():
+                    generator_log(f"Found enum `{dump(node)}`")
+                    args = list(map(self.visit, args))
+                    if len(args) == 2 and " " not in args[0] and " " in args[1]:
+                        cases = args[1].replace('"', "").split()
+                        for c in cases:
+                            generator_log(f"Found constructor `{c}`")
+                            self.ctx.constructors[c] = func
+                    else:
+                        for c in args:
+                            generator_log(f"Found constructor `{c}`")
+                            self.ctx.constructors[c] = func
+                elif "rec" in func.lower() or "struc" in func.lower():
+                    generator_log(f"Found record `{dump(node)}`")
+                    args = list(map(self.visit, args))
+                    if len(args) == 2:
+                        names = args[0].split()
+                        types = args[1].split()
+                        for i in range(len(names)):
+                            self.ctx.selectors[names[i]] = types[i]
+
+                return self.visit(node)
+            case _:
+                generator_log(f'`process_type` will return "??" on {dump(node)}.')
+                return "??"
 
     def visit_type_decls(self, node) -> str:
         """A Python declaration is a UCLID5 type declaration."""
         match node:
             case ast.Assign(targets, value, _):
                 target = self.visit(targets[0])
-                value = self.visit(value)
-                value = infer_type(value)
+                value = self.process_type(value)
+                self.ctx.types[target] = value
                 return f"type {target} = {value};"
             case ast.Expr(ast.Constant(_)):
                 return self.visit_comment(node.value)
@@ -170,16 +228,16 @@ class UclidPrinter(ast.NodeVisitor):
         match node:
             case ast.Assign(targets, value, _):
                 target = self.visit(targets[0])
-                value = self.visit(value)
-                value = infer_type(value)
-                return f"{kind} {target} : {value};"
+                type_value = self.process_type(value)
+                self.ctx.vars[target] = type_value
+                return f"{kind} {target} : {type_value};"
             case ast.Expr(ast.Constant(_)):
                 return self.visit_comment(node.value)
             case _:
                 generator_log(f'`visit_decl` will return "" on {dump(node)}.')
                 return ""
 
-    def visit_instance_decl(self, node) -> str:
+    def visit_inst_decl(self, node) -> str:
         """A Python instance declaration is a UCLID5 instance declaration."""
         match node:
             case ast.Assign(targets, value, _):
@@ -192,10 +250,17 @@ class UclidPrinter(ast.NodeVisitor):
                                 f"{keyword.arg} : ({self.visit(keyword.value)})"
                             )
                         args = ", ".join(args)
-                        return f"instance {target} : {func.id}({args});"
+                        self.ctx.instances[target] = func.id
+                        if func.id in self.ctx.modules:
+                            return f"instance {target} : {func.id}({args});"
+                        else:
+                            generator_log(
+                                f'`visit_inst_decl` will return "??" on {dump(value)}.'
+                            )
+                            return f"instance {target} : ??;"
                     case _:
                         generator_log(
-                            f'`visit_instance_decl` will return "??" on {dump(value)}.'
+                            f'`visit_inst_decl` will return "??" on {dump(value)}.'
                         )
                         return f"instance {target} : ??;"
             case ast.Expr(ast.Constant(_)):
@@ -236,7 +301,9 @@ class UclidPrinter(ast.NodeVisitor):
     def visit_control_cmds(self, node) -> str:
         """UCLID5 control commands are Python function calls, but a small subset."""
         match node:
-            case ast.Expr(ast.Call(func, _, _)) if self.visit(func) in control_dict:
+            case ast.Expr(ast.Call(func, _, _)) if self.visit(
+                func
+            ) in self.ctx.control_dict:
                 return self.visit(node)
             case ast.Expr(ast.Constant(_)):
                 return self.visit_comment(node.value)
@@ -278,10 +345,14 @@ class UclidPrinter(ast.NodeVisitor):
     def visit_Assign(self, node: Assign) -> str:
         """A Python assignment is a UCLID5 assignment."""
         target = self.visit(node.targets[0])
-        if self.should_prime:
-            target = f"{target}'"
         value = self.visit(node.value)
-        return f"{target} = {value};"
+        if target in self.ctx.vars:
+            if self.should_prime:
+                target = f"{target}'"
+            return f"{target} = {value};"
+        else:
+            generator_log(f'`visit_Assign` will return "??" on {target}')
+            return f"?? = {value};"
 
     def visit_Attribute(self, node: Attribute) -> str:
         """A Python Attribute is a UCLID5 field access
@@ -289,13 +360,41 @@ class UclidPrinter(ast.NodeVisitor):
         """
         value = self.visit(node.value)
         attr = node.attr
-        if value == "self":
+        if value == "":
             return attr
-        return f"{value}.{attr}"
+        if value in self.ctx.instances:
+            return f"{value}.{attr}"
+        elif value in self.ctx.vars:
+            return f"{value}.{attr}"
+        else:
+            generator_log(f'`visit_Attribute` will return "??" on {value}')
+            return "??"
 
     def visit_Name(self, node: Name) -> str:
         """A Python Name is a UCLID5 name"""
-        return node.id
+        if node.id in self.ctx.vars:
+            return node.id
+        elif node.id in self.ctx.instances:
+            return node.id
+        elif node.id in self.ctx.modules:
+            return node.id
+        elif node.id in self.ctx.types:
+            return node.id
+        elif node.id in self.ctx.types_dict:
+            return node.id
+        elif node.id in self.ctx.expr_dict:
+            return node.id
+        elif node.id in self.ctx.control_dict:
+            return node.id
+        elif node.id in self.ctx.constructors:
+            return node.id
+        elif node.id in self.ctx.selectors:
+            return node.id
+        elif node.id == "self":
+            return ""
+        else:
+            generator_log(f'`visit_Name` will return "??" on {node.id}')
+            return "??"
 
     def visit_Call(self, node: Call) -> str:
         """A Python Call can be a few things in UCLID5:
@@ -311,7 +410,9 @@ class UclidPrinter(ast.NodeVisitor):
                 return attr
             case Attribute(value, attr) if attr == "next":
                 return f"{attr}({self.visit(value)});"
-            case func if self.visit(func) in expr_dict | types_dict | control_dict:
+            case func if self.visit(
+                func
+            ) in self.ctx.expr_dict | self.ctx.control_dict | self.ctx.types_dict:
                 func = self.visit(func)
                 args = ", ".join(
                     map(lambda arg: self.quote(self.visit(arg)), node.args)
@@ -328,7 +429,13 @@ class UclidPrinter(ast.NodeVisitor):
                     args = keyword_args
                 to_eval = f"{func}({args})"
                 generator_log(f"About to eval `{to_eval}`")
-                return eval(to_eval)
+                try:
+                    return eval(to_eval)
+                except Exception:
+                    generator_log(
+                        f':warning: `visit_Call` will return "??" on {to_eval}.'
+                    )
+                    return "??"
             case _:
                 generator_log(
                     f':warning: `visit_Call` will return "??" on {dump(node)}.'
@@ -406,7 +513,11 @@ class UclidPrinter(ast.NodeVisitor):
         """A Python subscript is a UCLID5 array access."""
         value = self.visit(node.value)
         slice = self.visit(node.slice)
-        return f"{value}[{slice}]"
+        if value in self.ctx.vars:
+            return f"{value}[{slice}]"
+        else:
+            generator_log(f'`visit_Subscript` will return "??" on {value}')
+            return f"??[{slice}]"
 
     def visit_If(self, node: If) -> str:
         """A Python if statement is a UCLID5 if statement."""
@@ -429,6 +540,11 @@ class UclidPrinter(ast.NodeVisitor):
     def visit_AugAssign(self, node: AugAssign) -> str:
         """A Python AugAssign is a UCLID5 assignment with an addition"""
         target = self.visit(node.target)
+
+        if target not in self.ctx.vars:
+            generator_log(f'`visit_AugAssign` will return "??" on {target}')
+            target = "??"
+
         if self.should_prime:
             target_lhs = f"{target}'"
         else:
@@ -440,12 +556,13 @@ class UclidPrinter(ast.NodeVisitor):
         else:
             generator_log(f'`visit_AugAssing` will return "" on {dump(node)}.')
             return ""
+
         return f"{target_lhs} = {target} {op} {value};"
 
     def visit_With(self, node: With):
         """With statements are ignored."""
         generator_log(
-            f"`visit_With` will give an unkown guard for the body of {dump(node)}."
+            f'`visit_With` will return "??" in condition gaurding body of {dump(node)}.'
         )
         body = "\n".join(map(self.visit, node.body))
         body = "if (??) {\n" + body + "\n}\n"
@@ -465,6 +582,17 @@ class UclidPrinter(ast.NodeVisitor):
         return f"assert({test});"
 
 
-def print_uclid5(node) -> str:
+def print_uclid5(
+    node, types={}, vars={}, modules={}, instances={}, constructors={}, selectors={}
+) -> str:
     """Print a UCLID5 expression."""
-    return UclidPrinter().visit(node)
+    return UclidPrinter(
+        Context(
+            types=types,
+            vars=vars,
+            modules=modules,
+            instances=instances,
+            constructors=constructors,
+            selectors=selectors,
+        )
+    ).visit(node)

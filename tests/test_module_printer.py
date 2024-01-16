@@ -1,6 +1,6 @@
 from uclid_lm_ir import Module
 from uclid_lm_ir.control import induction
-from uclid_lm_ir.types import BitVector, Integer
+from uclid_lm_ir.type import BitVector, Integer
 from uclid_lm_ir.utils import assert_equal
 
 

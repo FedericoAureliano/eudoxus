@@ -1,6 +1,7 @@
 import ast
 
 from uclid_lm_ir.printer import print_uclid5
+from uclid_lm_ir.type import integer
 from uclid_lm_ir.utils import assert_equal
 
 
@@ -14,46 +15,46 @@ def test_simple_expr():
 def test_array_access():
     python = ast.parse("a[1]")
     expected = "a[1]"
-    output = print_uclid5(python)
+    output = print_uclid5(python, vars={"a": integer})
     assert_equal(output, expected)
 
 
 def test_record_select():
     python = ast.parse("a.b")
     expected = "a.b"
-    output = print_uclid5(python)
+    output = print_uclid5(python, vars={"a": integer, "b": integer})
     assert_equal(output, expected)
 
 
 def test_multiple_compare():
     python = ast.parse("a < b < c")
     expected = "a < b && b < c"
-    output = print_uclid5(python)
+    output = print_uclid5(python, vars={"a": integer, "b": integer, "c": integer})
     assert_equal(output, expected)
 
 
 def test_ifexpr():
     python = ast.parse("a if b else c")
     expected = "if (b) then {a} else {c}"
-    output = print_uclid5(python)
+    output = print_uclid5(python, vars={"a": integer, "b": integer, "c": integer})
     assert_equal(output, expected)
 
 
 def test_assert_stmt():
     python = ast.parse("assert a == b")
     expected = "assert(a == b);"
-    output = print_uclid5(python)
+    output = print_uclid5(python, vars={"a": integer, "b": integer})
     assert_equal(output, expected)
 
 
 def test_assume_stmt():
     python = ast.parse("assume(a == b)")
     expected = "assume(a == b);"
-    output = print_uclid5(python)
+    output = print_uclid5(python, vars={"a": integer, "b": integer})
     assert_equal(output, expected)
 
 
-def test_werid_with():
+def test_weird_with():
     # We treat with statements as gaurds but it is too broad to parse so we just
     # print a hole for the condition.
     python = """
@@ -63,4 +64,11 @@ with ite(true):
     python = ast.parse(python)
     expected = "if (??) { assert(true); }"
     output = print_uclid5(python)
+    assert_equal(output, expected)
+
+
+def test_missing_context():
+    python = ast.parse("assume(a == b)")
+    expected = "assume(a == ??);"
+    output = print_uclid5(python, vars={"a": integer})
     assert_equal(output, expected)

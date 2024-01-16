@@ -254,3 +254,21 @@ def Assert(expr):
 
 assert_ = Assert
 ASSERT = Assert
+
+
+def true():
+    """Construct a true expression."""
+    return "true"
+
+
+True_ = true
+TRUE = true
+
+
+def false():
+    """Construct a false expression."""
+    return "false"
+
+
+False_ = false
+FALSE = false
