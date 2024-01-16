@@ -11,6 +11,7 @@ eudoxus complete --help
 
 ### Requirements (for MacOS)
 ```sh
+export OPENAI_API_KEY='<YOUR OPENAI API KEY GOES HERE>'
 brew install pyenv
 pyenv install 3.11.7
 pyenv local 3.11.7
@@ -20,7 +21,7 @@ pipx install pre-commit
 
 ### Installation (for development)
 ```sh
-pipx install -e .
+pipx install -e . # remove -e if not for development
 ```
 
 ## Testing

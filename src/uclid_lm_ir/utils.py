@@ -4,7 +4,7 @@ from rich.console import Console
 from rich.panel import Panel
 
 console = Console()
-GENERATOR_STYLE = "green"
+GENERATOR_STYLE = "blue"
 LLM_STYLE = "bold magenta"
 
 
