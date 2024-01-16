@@ -444,8 +444,11 @@ class UclidPrinter(ast.NodeVisitor):
 
     def visit_With(self, node: With):
         """With statements are ignored."""
-        generator_log(f"`visit_With` will skip to the body of {dump(node)}.")
+        generator_log(
+            f"`visit_With` will give an unkown guard for the body of {dump(node)}."
+        )
         body = "\n".join(map(self.visit, node.body))
+        body = "if (??) {\n" + body + "\n}\n"
         return body
 
     def visit_Lambda(self, node: Lambda):
