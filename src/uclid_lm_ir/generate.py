@@ -74,7 +74,12 @@ def process_code(code) -> str:
     """Processes the code to remove unwanted lines."""
     generator_log("Processing code...")
 
-    parsed = ast.parse(code)
+    try:
+        parsed = ast.parse(code)
+    except SyntaxError:
+        generator_log("Python syntax error. Returning empty string.")
+        return ""
+
     # extract all the classes and nothing else
     parsed.body = [node for node in parsed.body if isinstance(node, ast.ClassDef)]
     output = print_uclid5(parsed)
