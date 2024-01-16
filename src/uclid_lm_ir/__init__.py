@@ -31,9 +31,14 @@ eudoxus = typer.Typer()
 
 @eudoxus.command()
 def sketch(
-    task: str,
-    output: Annotated[Optional[Path], typer.Option()] = None,
-    samples: int = 1,
+    task: Annotated[
+        str,
+        typer.Argument(
+            help="Description of the desired UCLID5 code in natural language"
+        ),
+    ],
+    output: Annotated[Optional[Path], typer.Option(help="File to write to")] = None,
+    samples: Annotated[int, typer.Option(help="Number of times to query the LLM")] = 1,
 ):
     """
     Write UCLID5 code for the given task. The output may contain holes (??).
@@ -55,14 +60,19 @@ def sketch(
 
 @eudoxus.command()
 def complete(
-    code: Path,
-    examples: Annotated[Optional[Path], typer.Option()] = None,
-    neighbours: int = 1,
-    output: Annotated[Optional[Path], typer.Option()] = None,
-    samples: int = 1,
+    code: Annotated[Path, typer.Argument(help="Path to input file with UCLID5 code")],
+    output: Annotated[Optional[Path], typer.Option(help="File to write to")] = None,
+    samples: Annotated[int, typer.Option(help="Number of times to query the LLM")] = 1,
+    examples: Annotated[
+        Optional[Path],
+        typer.Option(help="Directory with example UCLID5 files to use for RAG"),
+    ] = None,
+    neighbours: Annotated[
+        int, typer.Option(help="Number of neighbours to consider for RAG")
+    ] = 1,
 ):
     """
-    Take a UCLID5 model with holes (??) and complete it using the language model.
+    Take a UCLID5 model with holes (??) and complete it using a language model.
     """
     with open(code, "r") as f:
         code_with_holes = f.read()
