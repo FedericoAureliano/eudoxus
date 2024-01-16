@@ -43,6 +43,8 @@ def sketch(
         if output:
             if samples > 1:
                 output_i = output.parent / f"{output.stem}_{i}{output.suffix}"
+            else:
+                output_i = output
             with open(output_i, "w") as f:
                 f.write(code)
         else:
@@ -54,7 +56,8 @@ def sketch(
 @eudoxus.command()
 def complete(
     code: Path,
-    embeddings: bool = False,
+    examples: Annotated[Optional[Path], typer.Option()] = None,
+    neighbours: int = 1,
     output: Annotated[Optional[Path], typer.Option()] = None,
     samples: int = 1,
 ):
@@ -65,10 +68,12 @@ def complete(
         code_with_holes = f.read()
 
     for i in range(samples):
-        code = complete_api(code_with_holes)
+        code = complete_api(code_with_holes, examples, neighbours)
         if output:
             if samples > 1:
                 output_i = output.parent / f"{output.stem}_{i}{output.suffix}"
+            else:
+                output_i = output
             with open(output_i, "w") as f:
                 f.write(code)
         else:

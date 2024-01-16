@@ -11,9 +11,9 @@ def Integer(*args, **kwargs):
     return "integer"
 
 
-integer = Integer()
-Int = Integer()
-int_ = Integer()
+integer = Integer
+Int = Integer
+int_ = Integer
 
 
 def BitVector(*args, **kwargs):
@@ -46,9 +46,9 @@ def Boolean(*args, **kwargs):
     return "boolean"
 
 
-bool_ = Boolean()
-Bool = Boolean()
-boolean = Boolean()
+bool_ = Boolean
+Bool = Boolean
+boolean = Boolean
 
 
 def Enum(*args):

@@ -309,6 +309,8 @@ class UclidPrinter(ast.NodeVisitor):
                 node.args
             ) == 0:
                 return attr
+            case Attribute(value, attr) if attr == "next":
+                return f"{attr}({self.visit(value)});"
             case func if self.visit(func) in expr_dict | types_dict | control_dict:
                 func = self.visit(func)
                 args = ", ".join(
@@ -343,6 +345,8 @@ class UclidPrinter(ast.NodeVisitor):
         """A Python constant is a UCLID5 literal"""
         if isinstance(node.value, str):
             return self.quote(node.value)
+        if isinstance(node.value, bool):
+            return str(node.value).lower()
         return str(node.value)
 
     def visit_comment(self, node: Constant) -> str:

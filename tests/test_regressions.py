@@ -79,3 +79,191 @@ module Module {
     python = ast.parse(code)
     output = print_uclid5(python)
     assert_equal(output, expected)
+
+
+def test_regression_3():
+    code = """
+class Clock(Module):
+    def outputs(self):
+        self.tick = Bool()
+
+    def next(self):
+        self.tick = Not(self.tick)
+
+class TickCounter(Module):
+    def state(self):
+        self.count = BitVector(3)
+
+    def inputs(self):
+        self.clock_tick = Bool()
+
+    def init(self):
+        self.count = 0
+
+    def next(self):
+        if And(self.clock_tick, self.count < 7):
+            self.count = self.count + 1
+        else:
+            self.count = 0
+
+    def instances(self):
+        self.clock = Clock(tick=self.clock_tick)
+
+    def specification(self):
+        return And(self.count >= 0, self.count <= 7)
+
+class System(Module):
+    def instances(self):
+        self.tick_counter = TickCounter()
+
+    def specification(self):
+        return self.tick_counter.specification()
+
+    def proof(self):
+        induction(1)
+"""
+
+    expected = """
+module Clock {
+    output tick : boolean;
+
+    next {
+        tick' = !tick;
+    }
+}
+
+module TickCounter {
+    var count : bv3;
+    input clock_tick : boolean;
+
+    init {
+        count = 0;
+    }
+
+    next {
+        if (clock_tick && count < 7) {
+            count' = count + 1;
+        } else {
+            count' = 0;
+        }
+    }
+
+    instance clock : Clock(tick : (clock_tick));
+
+    invariant spec: count >= 0 && count <= 7;
+}
+
+module System {
+    instance tick_counter : TickCounter();
+
+    invariant spec: ??;
+
+    control {
+        induction(1);
+        check;
+        print_results();
+    }
+}
+"""
+    python = ast.parse(code)
+    output = print_uclid5(python)
+    assert_equal(output, expected)
+
+
+def test_regression_4():
+    code = """
+class Clock(Module):
+    def outputs(self):
+        self.tick = Boolean()
+
+    def init(self):
+        self.tick = False
+
+    def next(self):
+        self.tick = Not(self.tick)
+
+class TickCounter(Module):
+    def types(self):
+        self.T = BitVector(3)
+
+    def state(self):
+        self.count = self.T
+
+    def inputs(self):
+        self.tick = Boolean()
+
+    def init(self):
+        self.count = 0
+
+    def specification(self):
+        return self.count <= 7
+
+
+# Connecting the modules
+
+class Main(Module):
+    def instances(self):
+        self.clock = Clock()
+        self.counter = TickCounter(tick=self.clock.tick)
+
+    def proof(self):
+        induction(1)
+
+    def init(self):
+        self.clock.init()
+        self.counter.init()
+
+    def next(self):
+        self.clock.next()
+        self.counter.next()
+"""
+
+    expected = """
+module Clock {
+    output tick : boolean;
+
+    init {
+        tick = false;
+    }
+
+    next {
+        tick' = !tick;
+    }
+}
+
+module TickCounter {
+    type T = bv3;
+    var count : T;
+    input tick : boolean;
+
+    init {
+        count = 0;
+    }
+
+    invariant spec: count <= 7;
+}
+
+module Main {
+    instance clock : Clock();
+    instance counter : TickCounter(tick : (clock.tick));
+
+    control {
+        induction(1);
+        check;
+        print_results();
+    }
+
+    init {
+        ??
+        ??
+    }
+
+    next {
+        next(clock);
+        next(counter);
+    }
+}
+"""
+    python = ast.parse(code)
+    output = print_uclid5(python)
+    assert_equal(output, expected)
