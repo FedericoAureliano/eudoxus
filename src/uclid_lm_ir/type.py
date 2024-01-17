@@ -14,6 +14,11 @@ def Integer(*args, **kwargs):
 integer = Integer
 Int = Integer
 int_ = Integer
+natural = Integer
+natural_number = Integer
+Natural = Integer
+Nat = Integer
+nat = Integer
 
 
 def BitVector(*args, **kwargs):
@@ -53,10 +58,14 @@ boolean = Boolean
 
 def Enum(*args):
     """Returns a UCLID5 enum type."""
-    if len(args) == 2 and " " not in args[0] and " " in args[1]:
-        cases = args[1].split()
-        return "enum { " + ", ".join(cases) + " }"
-    return "enum { " + ", ".join(args) + " }"
+    match args:
+        case [a1, a2] if isinstance(a2, str) and " " not in a1 and " " in a2:
+            cases = args[1].replace('"', "").split(" ")
+            return "enum { " + ", ".join(cases) + " }"
+        case [a1, a2] if isinstance(a2, list) and " " not in a1:
+            return "enum { " + ", ".join(a2) + " }"
+        case _:
+            return "enum { " + ", ".join(args) + " }"
 
 
 enum = Enum

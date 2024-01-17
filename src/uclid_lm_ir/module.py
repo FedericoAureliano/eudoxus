@@ -51,13 +51,26 @@ class Module:
         """
         pass
 
+    def shared_vars(self):
+        """(Optional) Defines the shared variables and their types.
+        For example, the following implementation defines a shared variable z,
+        which is an array of booleans indexed by integers:
+        ```
+        def shared_vars(self):
+            self.z = Array(Integer(), Boolean())
+        ```
+        """
+        pass
+
     def instances(self):
-        """(Optional) Defines the instances of other modules, relating their
-        inputs and outputs to local variables. For example, let M be another
-        module with inputs x and y, and output z. The following implementation
-        defines an instance of M called m, and connects M's input variable x to
-        self.a M's input variable y to self.b, and M's output variable z to
-        self.c:
+        """(Optional) Defines the instances of other modules and relates their
+        input, output, and shared variables to local variables. Every instance
+        variable must be related to a local variable. For example, let M be
+        another module with inputs x and y, and output z. The following
+        implementation defines an instance of M called m, and connects M's
+        input variable x to the local variable self.a, M's input variable y to
+        the local variable self.b, and M's output variable z to the local
+        variable self.c:
         ```
         def instances(self):
             self.m = M(x=self.a, y=self.b, z=self.c)
