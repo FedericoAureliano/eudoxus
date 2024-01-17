@@ -15,21 +15,22 @@ export OPENAI_API_KEY='<YOUR OPENAI API KEY GOES HERE>'
 brew install pyenv
 pyenv install 3.11.7
 pyenv local 3.11.7
-pip install pipx
-pipx install pre-commit
+pyenv exec pip install pre-commit
+pyenv exec pre-commit install
 ```
 
 ### Installation (for development)
 ```sh
-pipx install -e . # remove -e if not for development
+pyenv exec pip install -e . # remove -e if not for development
 ```
 
 ## Testing
 ```sh
-pipx run tox
+pyenv exec tox
+open htmlcov/index.html # to see coverage report
 ```
 
 ## Formatting
 ```sh
-pre-commit run --all-files --show-diff-on-failure
+pyenv exec pre-commit run --all-files --show-diff-on-failure
 ```
