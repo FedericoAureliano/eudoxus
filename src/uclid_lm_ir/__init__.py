@@ -45,12 +45,19 @@ def sketch(
     Write UCLID5 code for the given task. The output may contain holes (??).
     """
     for i in range(samples):
-        code = sketch_api(task, save_ir=save_ir)
+        if save_ir and samples > 1:
+            save_ir_i = save_ir.parent / f"{save_ir.stem}_{i}{save_ir.suffix}"
+        else:
+            save_ir_i = save_ir
+
+        if output and samples > 1:
+            output_i = output.parent / f"{output.stem}_{i}{output.suffix}"
+        else:
+            output_i = output
+
+        code = sketch_api(task, save_ir=save_ir_i)
+
         if output:
-            if samples > 1:
-                output_i = output.parent / f"{output.stem}_{i}{output.suffix}"
-            else:
-                output_i = output
             with open(output_i, "w") as f:
                 f.write(code)
         else:
