@@ -1,6 +1,7 @@
 import ast
 import inspect
 import os
+from pathlib import Path
 
 import chromadb
 from openai import OpenAI
@@ -90,7 +91,7 @@ def process_code(code) -> str:
     return output
 
 
-def sketch_api(task, engine="gpt-4-0613"):
+def sketch_api(task, engine="gpt-4-0613", save_ir: Path = None):
     """Generates code for a given task using the GPT-4 API."""
     generator_log("Generating code...")
 
@@ -100,6 +101,10 @@ def sketch_api(task, engine="gpt-4-0613"):
     llm_log("Response:", response)
 
     code = extract_code(response)
+    if save_ir:
+        with open(save_ir, "w") as f:
+            f.write(code)
+
     code = process_code(code)
     return code
 

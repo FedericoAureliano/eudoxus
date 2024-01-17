@@ -39,12 +39,13 @@ def sketch(
     ],
     output: Annotated[Optional[Path], typer.Option(help="File to write to")] = None,
     samples: Annotated[int, typer.Option(help="Number of times to query the LLM")] = 1,
+    save_ir: Annotated[Path, typer.Option(help="Save the IR to a file")] = None,
 ):
     """
     Write UCLID5 code for the given task. The output may contain holes (??).
     """
     for i in range(samples):
-        code = sketch_api(task)
+        code = sketch_api(task, save_ir=save_ir)
         if output:
             if samples > 1:
                 output_i = output.parent / f"{output.stem}_{i}{output.suffix}"
