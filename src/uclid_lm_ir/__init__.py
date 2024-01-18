@@ -98,3 +98,43 @@ def complete(
             syntax = Syntax(code, "scala", theme="monokai", line_numbers=True)
             console = Console()
             console.print(Panel(syntax, title="UCLID5 Output", expand=False))
+
+
+@eudoxus.command()
+def add_to_tests(
+    python_file: Annotated[Path, typer.Argument(help="Path to file with Python IR")],
+    uclid_file: Annotated[
+        Path, typer.Argument(help="Path file with desired UCLID5 output")
+    ],
+    name: Annotated[str, typer.Argument(help="Name of the test")],
+    tests_file: Annotated[
+        Path, typer.Option(help="Path to regression tests file")
+    ] = "tests/test_regressions.py",
+):
+    """
+    Add a new regression test to the test suite.
+    """
+    with open(python_file, "r") as f:
+        python_ir = f.read()
+    with open(uclid_file, "r") as f:
+        uclid_ir = f.read()
+
+    with open(tests_file, "a") as f:
+        f.write(
+            f"""\n
+def test_{name}():
+    code = \"""{python_ir}\"""
+    expected = \"""{uclid_ir}\"""
+    python = ast.parse(code)
+    output = print_uclid5(python)
+    assert_equal(output, expected)
+"""
+        )
+    console = Console()
+    console.print(
+        Panel(
+            f"Added test_{name} to tests/test_regression.py",
+            title="Success",
+            expand=False,
+        )
+    )
