@@ -1,32 +1,8 @@
 import ast
-from _ast import (
-    Assert,
-    Assign,
-    Attribute,
-    AugAssign,
-    BinOp,
-    BoolOp,
-    Call,
-    Compare,
-    Constant,
-    Expr,
-    For,
-    FunctionDef,
-    If,
-    Lambda,
-    Name,
-    Pass,
-    UnaryOp,
-    With,
-)
 
-from . import control as control
-from . import expr as expr
-from . import type as type
-from .control import *  # noqa: F401, F403
-from .expr import *  # noqa: F401, F403
-from .type import *  # noqa: F401, F403
 from .utils import dump, generator_log
+
+log = generator_log
 
 operator_dict = {
     "Add": "+",
@@ -55,611 +31,819 @@ operator_dict = {
 }
 
 
-class Context:
-    def __init__(
-        self, types={}, vars={}, modules={}, instances={}, constructors={}, selectors={}
-    ) -> None:
-        self.types = types
+class Stmt:
+    pass
+
+
+class AssignmentStmt(Stmt):
+    """
+    Assignment is a class that represents an assignment statement.
+    """
+
+    def __init__(self, lhs, rhs, primed=False):
+        self.lhs = lhs
+        self.rhs = rhs
+        self.primed = primed
+
+    __match_args__ = ("lhs", "rhs", "primed")
+
+    def __str__(self, indent=0):
+        space = "  " * indent
+        prime = "'" if self.primed else ""
+        return f"{space}{self.lhs}{prime} = {self.rhs};"
+
+
+class IfStmt(Stmt):
+    """
+    IfStmt is a class that represents an if statement.
+    """
+
+    def __init__(self, cond, true_stmt, false_stmt):
+        self.cond = cond
+        self.true_stmt = true_stmt
+        self.false_stmt = false_stmt
+
+    __match_args__ = ("cond", "true_stmt", "false_stmt")
+
+    def __str__(self, indent=0):
+        space = "  " * indent
+        t = self.true_stmt.__str__(indent + 1)
+        f = self.false_stmt.__str__(indent + 1)
+        return f"{space}if ({self.cond}) {{\n{t}\n{space}}} else {{\n{f}\n{space}}}"
+
+
+class NextStmt(Stmt):
+    """
+    NextStmt is a class that represents a next statement.
+    """
+
+    def __init__(self, instance):
+        self.instance = instance
+
+    def __str__(self, indent=0):
+        space = "  " * indent
+        return f"{space}next({self.instance});"
+
+
+class AssumeStmt(Stmt):
+    """
+    AssumeStmt is a class that represents an assume statement.
+    """
+
+    def __init__(self, expr):
+        self.expr = expr
+
+    def __str__(self, indent=0):
+        space = "  " * indent
+        return f"{space}assume({self.expr});"
+
+
+class AssertStmt(Stmt):
+    """
+    AssertStmt is a class that represents an assert statement.
+    """
+
+    def __init__(self, expr):
+        self.expr = expr
+
+    def __str__(self, indent=0):
+        space = "  " * indent
+        return f"{space}assert({self.expr});"
+
+
+class HavocStmt(Stmt):
+    """
+    HavocStmt is a class that represents a havoc statement.
+    """
+
+    def __init__(self, vars):
         self.vars = vars
-        self.modules = modules
-        self.instances = instances
+
+    def __str__(self, indent=0):
+        space = "  " * indent
+        return f"{space}havoc({', '.join(self.vars)});"
+
+
+class BlockStmt(Stmt):
+    """
+    BlockStmt is a class that represents a block statement.
+    """
+
+    def __init__(self, stmts):
+        self.stmts = stmts
+
+    __match_args__ = ("stmts",)
+
+    def __str__(self, indent=0):
+        filtered = list(filter(lambda stmt: not isinstance(stmt, Skip), self.stmts))
+        return "\n".join([stmt.__str__(indent) for stmt in filtered])
+
+
+class CommentStmt(Stmt):
+    """
+    Comment is a class that represents a comment statement.
+    """
+
+    def __init__(self, comment):
+        self.comment = comment
+
+    def __str__(self, indent=0):
+        space = "  " * indent
+        return f"{space}// {self.comment}"
+
+
+class HoleStmt(Stmt):
+    """
+    HoleStmt is a class that represents a hole statement.
+    """
+
+    def __init__(self):
+        pass
+
+    def __str__(self, indent=0):
+        space = "  " * indent
+        return f"{space}??;"
+
+
+class Skip:
+    pass
+
+
+class Cmd:
+    pass
+
+
+class InductionCmd(Cmd):
+    def __init__(self, k=1):
+        self.k = k
+
+    def __str__(self, indent=0):
+        space = "  " * indent
+        return f"{space}induction({self.k});\n{space}check;\n{space}print_results();"
+
+
+class BoundedModelCheckingCmd(Cmd):
+    def __init__(self, k=1):
+        self.k = k
+
+    def __str__(self, indent=0):
+        space = "  " * indent
+        return f"{space}bmc({self.k});\n{space}check;\n{space}print_results();"
+
+
+class Decl:
+    pass
+
+
+class InstanceDecl(Decl):
+    """
+    Instance is a class that represents an instance of a module.
+    """
+
+    def __init__(self, name, module, kwargs=None):
+        self.name = name
+        self.module = module
+        self.kwargs = kwargs if kwargs is not None else []
+
+    def __str__(self, indent=0):
+        space = "  " * indent
+        m = self.module.name
+        return f"{space}instance {self.name} : {m}({', '.join(self.kwargs)});"
+
+
+class TyepDecl(Decl):
+    """
+    TypeDecl is a class that represents a type declaration.
+    """
+
+    def __init__(self, name, type):
+        self.name = name
+        self.type = type
+
+    def __str__(self, indent=0):
+        space = "  " * indent
+        return f"{space}type {self.name} = {self.type};"
+
+
+class VarDecl(Decl):
+    """
+    VarDecl is a class that represents a variable declaration.
+    """
+
+    def __init__(self, name, type, kind):
+        self.name = name
+        self.type = type
+        self.kind = kind
+
+    def __str__(self, indent=0):
+        space = "  " * indent
+        return f"{space}{self.kind} {self.name} : {self.type};"
+
+
+class TransitionDecl(Decl):
+    """
+    TransitionDecl is a class that represents an init, next, or control declaration.
+    """
+
+    def __init__(self, stmts, kind):
+        self.stmts = stmts
+        self.kind = kind
+
+    def __str__(self, indent=0):
+        space = "  " * indent
+        inner = BlockStmt(self.stmts).__str__(indent + 1)
+        return f"{space}{self.kind} {{\n{inner}\n{space}}}\n"
+
+
+class InvariantDecl(Decl):
+    """
+    InvariantDecl is a class that represents an invariant declaration.
+    """
+
+    def __init__(self, name, formula):
+        self.name = name
+        self.formula = formula
+
+    def __str__(self, indent=0):
+        space = "  " * indent
+        return f"{space}invariant {self.name}: {self.formula};"
+
+
+class Type:
+    pass
+
+
+class AlgebraicDataType(Type):
+    """
+    AlgebraicDataType is a class that represents an algebraic data type.
+    """
+
+    def __init__(self, name, constructors):
+        self.name = name
+        # a selector is a pair (name, type)
+        # a constructor is a pair (name, list of selectors)
+        # constructors is a list of constructors
         self.constructors = constructors
-        self.selectors = selectors
-        self.types_dict = type.__dict__
-        self.expr_dict = expr.__dict__
-        self.control_dict = control.__dict__
 
 
-class UclidPrinter(ast.NodeVisitor):
-    def __init__(self, context: Context = Context()) -> None:
-        super().__init__()
-        self.should_prime = False
-        self.ctx = context
-        self.indent = ""
+class ModuleType(Type):
+    """
+    ModuleType is a class that represents the type of a module.
+    """
 
-    def visit(self, node) -> str:
-        out = super().visit(node)
-        if out is None:
-            generator_log(f'`visit` will return "" on {dump(node)}')
-            return ""
-        return out
+    def __init__(self, name):
+        self.name = name
+        self.toplevel = []
+        self.init = None
+        self.next = None
+        self.proof = None
 
-    def visit_Module(self, node) -> str:
-        """A Python Module is a UCLID5 file."""
-        return "\n".join(map(self.visit_toplevel, node.body))
+    def add_input(self, name, type):
+        self.toplevel.append(VarDecl(name, type, "input"))
 
-    def visit_ClassDef(self, node) -> str:
-        """A Python Class is a UCLID5 module."""
-        self.indent += "  "
-        body = "\n".join(map(self.visit_toplevel, node.body))
-        if body:
-            body = "\n" + body + "\n"
-        self.ctx.modules[node.name] = node.name
-        self.indent = self.indent[:-2]
-        return f"{self.indent}module {node.name} {{{body}}}"
+    def add_output(self, name, type):
+        self.toplevel.append(VarDecl(name, type, "output"))
 
-    def visit_Pass(self, _: Pass) -> str:
-        """A Python Pass is a UCLID5 empty statement."""
-        return ""
+    def add_sharedvar(self, name, type):
+        self.toplevel.append(VarDecl(name, type, "sharedvar"))
 
-    def visit_FunctionDef(self, node: FunctionDef) -> str:
-        """A Python Function can be a few things in UCLID5:
-        - state is where we declare variables
-        - next is the transition relation
-        - init is the initialization steps
-        - specification holds all the invariants
-        - proof is the control block
-        """
-        match node.name:
-            case "types":
-                return self.visit_types(node)
-            case "state":
-                return self.visit_state(node)
-            case "inputs":
-                return self.visit_inputs(node)
-            case "outputs":
-                return self.visit_outputs(node)
-            case f if f in ["shared", "shared_vars", "shared_var"]:
-                return self.visit_shared_vars(node)
-            case "instances":
-                return self.visit_instances(node)
-            case f if f.startswith("next") or f in ["transition", "next_state"]:
-                return self.visit_next(node)
-            case f if f.startswith("init") or f in ["initialization", "init_state"]:
-                return self.visit_init(node)
-            case f if f in ["specification", "invariant", "invariants", "spec"]:
-                return self.visit_specification(node)
-            case f if f in ["proof", "control"]:
-                return self.visit_proof(node)
+    def add_local(self, name, type):
+        self.toplevel.append(VarDecl(name, type, "var"))
+
+    def add_type(self, name, type):
+        self.toplevel.append(TyepDecl(name, type))
+
+    def add_spec(self, name, formula):
+        self.toplevel.append(InvariantDecl(name, formula))
+
+    def add_init_statement(self, statement):
+        self.init.append(statement)
+
+    def add_next_statement(self, statement):
+        self.prime_statments(statement)
+        self.next.append(statement)
+
+    def prime_statments(self, stmt):
+        match stmt:
+            case AssignmentStmt(_, _, _):
+                stmt.primed = True
+            case IfStmt(_, true_stmt, false_stmt):
+                self.prime_statments(true_stmt)
+                self.prime_statments(false_stmt)
+            case BlockStmt(stmts):
+                for stmt in stmts:
+                    self.prime_statments(stmt)
             case _:
-                generator_log(f'`visit_FunctionDef` will return "" on {dump(node)}.')
-                return ""
+                pass
 
-    def visit_types(self, node: FunctionDef) -> str:
-        """
-        Python types is where types are declared.
-        """
-        body = node.body
-        return "\n".join(map(self.visit_type_decls, body)) + "\n"
+    def add_proof_statement(self, statement):
+        self.proof.append(statement)
 
-    def visit_state(self, node: FunctionDef) -> str:
-        """
-        Python state function is where variables are declared.
-        """
-        body = node.body
-        return "\n".join(map(lambda x: self.visit_decl(x, "var"), body)) + "\n"
+    def add_instance(self, instance):
+        self.toplevel.append(instance)
 
-    def visit_inputs(self, node: FunctionDef) -> str:
-        """
-        Python inputs function is where input variables are declared.
-        """
-        body = node.body
-        return "\n".join(map(lambda x: self.visit_decl(x, "input"), body)) + "\n"
+    def get_inputs(self):
+        return [
+            decl
+            for decl in self.toplevel
+            if isinstance(decl, VarDecl) and decl.kind == "input"
+        ]
 
-    def visit_outputs(self, node: FunctionDef) -> str:
-        """
-        Python outputs function is where output variables are declared.
-        """
-        body = node.body
-        return "\n".join(map(lambda x: self.visit_decl(x, "output"), body)) + "\n"
+    def get_outputs(self):
+        return [
+            decl
+            for decl in self.toplevel
+            if isinstance(decl, VarDecl) and decl.kind == "output"
+        ]
 
-    def visit_shared_vars(self, node: FunctionDef) -> str:
-        """
-        Python shared_vars function is where output variables are declared.
-        """
-        body = node.body
-        return "\n".join(map(lambda x: self.visit_decl(x, "shared_var"), body)) + "\n"
+    def get_sharedvars(self):
+        return [
+            decl
+            for decl in self.toplevel
+            if isinstance(decl, VarDecl) and decl.kind == "sharedvar"
+        ]
 
-    def visit_instances(self, node: FunctionDef) -> str:
-        """
-        Python instances function is where modules are instantiated.
-        """
-        body = node.body
-        return "\n".join(map(self.visit_inst_decl, body)) + "\n"
+    def get_locals(self):
+        return [
+            decl
+            for decl in self.toplevel
+            if isinstance(decl, VarDecl) and decl.kind == "var"
+        ]
 
-    def process_type(self, node) -> str:
-        """Takes an AST node representing a type and returns a string"""
-        match node:
-            case ast.Attribute(ast.Name("self"), attr) if attr in self.ctx.types:
-                return attr
-            case ast.Name(id) if id in self.ctx.types | self.ctx.types_dict:
-                return id
-            case ast.Call(func, _, _) if self.visit(func) in self.ctx.types:
-                func = self.visit(func)
-                return f"{func}"
-            case ast.Call(func, args, _):
-                # need to intercept enums and records here to add type information
-                func = self.visit(func)
-                if "enum" in func.lower():
-                    generator_log(f"Found enum `{dump(node)}`")
-                    args = list(map(self.visit, args))
-                    # Matches Enum in type.py
-                    match args:
-                        case [a1, a2] if isinstance(
-                            a2, str
-                        ) and " " not in a1 and " " in a2:
-                            cases = args[1].replace('"', "").split(" ")
-                            for c in cases:
-                                generator_log(f"Found constructor `{c}`")
-                                self.ctx.constructors[c] = func
-                        case [_, a2] if isinstance(a2, list):
-                            for c in a2:
-                                generator_log(f"Found constructor `{c}`")
-                                self.ctx.constructors[c] = func
-                        case _:
-                            for c in args:
-                                generator_log(f"Found constructor `{c}`")
-                                self.ctx.constructors[c] = func
-                elif "rec" in func.lower() or "struc" in func.lower():
-                    generator_log(f"Found record `{dump(node)}`")
-                    args = list(map(self.visit, args))
-                    if len(args) == 2:
-                        names = args[0].split()
-                        types = args[1].split()
-                        for i in range(len(names)):
-                            self.ctx.selectors[names[i]] = types[i]
+    def get_types(self):
+        return [decl for decl in self.toplevel if isinstance(decl, TyepDecl)]
 
-                return self.visit(node)
-            case _:
-                generator_log(
-                    f':warning: `process_type` will return "??" on {dump(node)}.'
-                )
-                return "??"
+    def get_specs(self):
+        return [decl for decl in self.toplevel if isinstance(decl, InvariantDecl)]
 
-    def visit_type_decls(self, node) -> str:
-        """A Python declaration is a UCLID5 type declaration."""
-        match node:
-            case ast.Assign(targets, value, _):
-                target = self.visit(targets[0])
-                value = self.process_type(value)
-                self.ctx.types[target] = value
-                return f"{self.indent}type {target} = {value};"
-            case ast.Expr(ast.Constant(_)):
-                return self.visit_comment(node.value)
-            case _:
-                generator_log(
-                    f':warning: `visit_type_decls` will return "" on {dump(node)}.'
-                )
-                return ""
+    def get_instances(self):
+        return [decl for decl in self.toplevel if isinstance(decl, InstanceDecl)]
 
-    def visit_decl(self, node, kind) -> str:
-        """A Python declaration is a UCLID5 variable declaration."""
-        match node:
-            case ast.Assign(targets, value, _):
-                target = self.visit(targets[0])
-                type_value = self.process_type(value)
-                if type_value == "??":
-                    generator_log(
-                        f':warning: `visit_decl` will return "??" on {dump(node)}.'
-                    )
-                    self.ctx.vars[target] = "??"
-                    return f"{self.indent}?? {target} : ??;"
-                self.ctx.vars[target] = type_value
-                return f"{self.indent}{kind} {target} : {type_value};"
-            case ast.Expr(ast.Constant(_)):
-                return self.visit_comment(node.value)
-            case _:
-                generator_log(f':warning: `visit_decl` will return "" on {dump(node)}.')
-                return ""
+    def get_signature(self):
+        return (self.name, self.get_inputs(), self.get_outputs(), self.get_sharedvars())
 
-    def visit_inst_decl(self, node) -> str:
-        """A Python instance declaration is a UCLID5 instance declaration."""
-        m = "`visit_inst_decl`"
-        match node:
-            case ast.Assign(targets, value, _):
-                target = self.visit(targets[0])
-                if "." in target:
-                    generator_log(f':warning: {m} will return "??" on {dump(node)}.')
-                    return "??"
-                match value:
-                    case ast.Call(func, args, keywords):
-                        args = []
-                        for keyword in keywords:
-                            args.append(
-                                f"{keyword.arg} : ({self.visit(keyword.value)})"
-                            )
-                        args = ", ".join(args)
-                        func_id = self.visit(func)
-                        self.ctx.instances[target] = func_id
-                        if func_id in self.ctx.modules:
-                            return (
-                                f"{self.indent}instance {target} : {func_id}({args});"
-                            )
-                        else:
-                            generator_log(
-                                f':warning: {m} will return "??" on {dump(value)}.'
-                            )
-                            return f"{self.indent}?? {target} : ??;"
+    def get_vars(self):
+        return (
+            self.get_inputs()
+            + self.get_outputs()
+            + self.get_sharedvars()
+            + self.get_locals()
+        )
+
+    def get_var(self, name):
+        for var in self.get_vars():
+            if var[0] == name:
+                return var
+        return None
+
+    def is_var(self, name):
+        return self.get_var(name) is not None
+
+    def get_var_type(self, name):
+        return self.get_var(name)[1] if self.is_var(name) else None
+
+    def get_type(self, name):
+        for type in self.get_types():
+            if type.name == name:
+                return type
+        return None
+
+    def is_type(self, name):
+        return self.get_type(name) is not None
+
+    def get_constructor(self, name):
+        for type in self.get_types():
+            match type:
+                case AlgebraicDataType(_, constructors):
+                    for constructor in constructors:
+                        if constructor[0] == name:
+                            return constructor
+        return None
+
+    def is_constructor(self, name):
+        return self.get_constructor(name) is not None
+
+    def get_constructor_type(self, name):
+        (name, selectors) = self.get_constructor(name)
+        return list(map(lambda x: x[1], selectors))
+
+    def get_selector(self, name):
+        for type in self.get_types():
+            match type:
+                case AlgebraicDataType(_, constructors):
+                    for constructor in constructors:
+                        for selector in constructor[1]:
+                            if selector[0] == name:
+                                return selector
+        return None
+
+    def is_selector(self, name):
+        return self.get_selector(name) is not None
+
+    def get_selector_type(self, name):
+        (name, type) = self.get_selector(name)
+        return type
+
+    def parse_uclid5_module_decl(self, stmt):
+        match stmt:
+            case ast.Expr(ast.Constant(value, _)) if isinstance(value, str):
+                self.add_comment(value)
+
+            case ast.FunctionDef("types", _, body, _, _, _):
+                for decl in body:
+                    self.parse_type_decl(decl)
+
+            case ast.FunctionDef("inputs", _, body, _, _, _):
+                for decl in body:
+                    self.parse_input_decl(decl)
+            case ast.FunctionDef("locals", _, body, _, _, _):
+                for decl in body:
+                    self.parse_local_decl(decl)
+            case ast.FunctionDef("outputs", _, body, _, _, _):
+                for decl in body:
+                    self.parse_output_decl(decl)
+            case ast.FunctionDef("sharedvars", _, body, _, _, _):
+                for decl in body:
+                    self.parse_sharedvar_decl(decl)
+
+            case ast.FunctionDef("instances", _, body, _, _, _):
+                for decl in body:
+                    self.parse_instance_decl(decl)
+
+            case ast.FunctionDef("init", _, body, _, _, _):
+                if self.init is None:
+                    self.toplevel.append(TransitionDecl([], "init"))
+                    self.init = self.toplevel[-1].stmts
+                for stmt in body:
+                    self.parse_init_stmt(stmt)
+                self.toplevel.append(Skip())
+            case ast.FunctionDef("next", _, body, _, _, _):
+                if self.next is None:
+                    self.toplevel.append(TransitionDecl([], "next"))
+                    self.next = self.toplevel[-1].stmts
+                for stmt in body:
+                    self.parse_next_stmt(stmt)
+                self.toplevel.append(Skip())
+
+            case ast.FunctionDef("specification", _, body, _, _, _):
+                for inv in body:
+                    self.parse_invariant(inv)
+
+            case ast.FunctionDef("proof", _, body, _, _, _):
+                if self.proof is None:
+                    self.toplevel.append(TransitionDecl([], "control"))
+                    self.proof = self.toplevel[-1].stmts
+                for cmd in body:
+                    self.parse_proof_cmd(cmd)
+                self.toplevel.append(Skip())
+
+    def parse_type_decl(self, type_decl):
+        match type_decl:
+            case ast.Assign(type_names, value, _):
+                match type_names[0]:
+                    case ast.Name(name, _):
+                        lhs = name
+                    case ast.Attribute(ast.Name("self", _), attr, _):
+                        lhs = attr
                     case _:
-                        generator_log(
-                            f':warning: {m} will return "??" on {dump(value)}.'
-                        )
-                        return f"{self.indent}instance {target} : ??;"
-            case ast.Expr(ast.Constant(_)):
-                return self.visit_comment(node.value)
+                        log(f"type_names[0] is ??: {dump(type_decl)}")
+                        lhs = "??"
+                rhs = self.parse_type(value)
+                self.add_type(lhs, rhs)
+            case ast.Expr(ast.Constant(value, _)) if isinstance(value, str):
+                self.add_comment(value)
             case _:
-                generator_log(
-                    f':warning: `visit_isnt_decl` will return "" on {dump(node)}.'
-                )
-                return ""
-
-    def visit_next(self, node: FunctionDef) -> str:
-        """
-        next is the UCLID5 transition relation.
-        """
-        self.indent += "  "
-        self.should_prime = True
-        body = "\n".join(map(self.visit_statements, node.body))
-        self.should_prime = False
-        if body:
-            body = "\n" + body + "\n"
-        self.indent = self.indent[:-2]
-        return f"{self.indent}next {{{body}{self.indent}}}"
-
-    def visit_init(self, node: FunctionDef) -> str:
-        """
-        init is the UCLID5 initialization block.
-        """
-        self.indent += "  "
-        body = "\n".join(map(self.visit_statements, node.body))
-        if body:
-            body = "\n" + body + "\n"
-        self.indent = self.indent[:-2]
-        return f"{self.indent}init {{{body}{self.indent}}}"
-
-    def visit_proof(self, node: FunctionDef) -> str:
-        """
-        proof is the UCLID5 control block.
-        """
-        self.indent += "  "
-        body = "\n".join(map(self.visit_control_cmds, node.body))
-        if body:
-            body = "\n" + body + "\n"
-        self.indent = self.indent[:-2]
-        return f"{self.indent}control {{{body}{self.indent}}}"
-
-    def visit_control_cmds(self, node) -> str:
-        """UCLID5 control commands are Python function calls, but a small subset."""
-        match node:
-            case ast.Expr(ast.Call(func, _, _)) if self.visit(
-                func
-            ) in self.ctx.control_dict:
-                return self.visit(node)
-            case ast.Expr(ast.Constant(_)):
-                return self.visit_comment(node.value)
-            case _:
-                generator_log(f'`visit_control_cmds` will return "" on {dump(node)}.')
-                return ""
-
-    def visit_statements(self, node) -> str:
-        """A Python statement is a UCLID5 statement."""
-        match node:
-            case ast.Expr(ast.Constant(_)):
-                return self.visit_comment(node.value)
-            case _:
-                return self.visit(node)
-
-    def visit_toplevel(self, node) -> str:
-        """These are comments, type declarations, variable declarations, etc..."""
-        match node:
-            case ast.Expr(ast.Constant(_)):
-                return self.visit_comment(node.value)
-            case _:
-                return self.visit(node)
-
-    def visit_specification(self, node: FunctionDef) -> str:
-        """A Python specification is a function that returns a boolean."""
-        body = node.body
-        match body:
-            case [ast.Return(value)]:
-                value = self.visit(value)
-                return f"{self.indent}invariant spec: {value};"
-            case [ast.Expr(ast.Constant(_)), ast.Return(value)]:
-                comment = self.visit_comment(body[0].value)
-                value = self.visit(value)
-                return f"{comment}{self.indent}invariant spec: {value};"
-            case _:
-                generator_log(f'`visit_specification` will return "" on {dump(node)}')
-                return ""
-
-    def visit_Assign(self, node: Assign) -> str:
-        """A Python assignment is a UCLID5 assignment."""
-        target = self.visit(node.targets[0])
-        value = self.visit(node.value)
-        # TODO: do a more thorough left-hand-side check
-        if target in self.ctx.vars or "." in target or "[" in target:
-            if self.should_prime and "." not in target and "[" not in target:
-                target = f"{target}'"
-            return f"{self.indent}{target} = {value};"
-        else:
-            generator_log(f':warning: `visit_Assign` will return "??" on {target}')
-            return f"{self.indent}?? = {value};"
-
-    def visit_Attribute(self, node: Attribute) -> str:
-        """A Python Attribute is a UCLID5 field access
-        or, if the attribute is self, then it is ignored.
-        """
-        value = self.visit(node.value)
-        attr = node.attr
-        if value == "":
-            return attr
-        if value in self.ctx.instances:
-            return f"{value}.{attr}"
-        elif value in self.ctx.vars:
-            return f"{value}.{attr}"
-        else:
-            generator_log(
-                f':warning: `visit_Attribute` will return "??" on {dump(node)}'
-            )
-            return "??"
-
-    def visit_Name(self, node: Name) -> str:
-        """A Python Name is a UCLID5 name"""
-        if node.id in self.ctx.vars:
-            return node.id
-        elif node.id in self.ctx.instances:
-            return node.id
-        elif node.id in self.ctx.modules:
-            return node.id
-        elif node.id in self.ctx.types:
-            return node.id
-        elif node.id in self.ctx.types_dict:
-            return node.id
-        elif node.id in self.ctx.expr_dict:
-            return node.id
-        elif node.id in self.ctx.control_dict:
-            return node.id
-        elif node.id in self.ctx.constructors:
-            return node.id
-        elif node.id in self.ctx.selectors:
-            return node.id
-        elif node.id == "self":
-            return ""
-        else:
-            generator_log(f':warning: `visit_Name` will return "??" on {node.id}')
-            return "??"
-
-    def visit_Call(self, node: Call) -> str:
-        """A Python Call can be a few things in UCLID5:
-        - a function call
-        - a procedure call
-        - a type constructor
-        - or just a Python call that we want to execute
-        """
-        match node.func:
-            case Attribute(value, attr) if self.visit(value) == "self" and len(
-                node.args
-            ) == 0:
-                return attr
-            case Attribute(value, attr) if attr == "next":
-                value = self.visit(value)
-                if value in self.ctx.instances:
-                    return f"{self.indent}{attr}({value});"
-                else:
-                    generator_log(
-                        f':warning: `visit_Call` will return "??" on {dump(node)}.'
-                    )
-                    return f"{self.indent}next(??);"
-            case func if self.visit(
-                func
-            ) in self.ctx.expr_dict | self.ctx.control_dict | self.ctx.types_dict:
-                func = self.visit(func)
-                args = ", ".join(
-                    map(lambda arg: self.quote(self.visit(arg)), node.args)
-                )
-                keyword_args = ", ".join(
-                    map(
-                        lambda k: f"{k.arg}={self.quote(self.visit(k.value))}",
-                        node.keywords,
-                    )
-                )
-                if args and keyword_args:
-                    args += ", " + keyword_args
-                elif keyword_args:
-                    args = keyword_args
-                to_eval = f"{func}({args})"
-                generator_log(f"About to eval `{to_eval}`")
-                try:
-                    return eval(to_eval)
-                except Exception:
-                    generator_log(
-                        f':warning: `visit_Call` will return "??" on {to_eval}.'
-                    )
-                    return "??"
-            case _:
-                generator_log(
-                    f':warning: `visit_Call` will return "??" on {dump(node)}.'
-                )
+                log(f"type_decl is ??: {dump(type_decl)}")
                 return "??"
 
-    def quote(self, x: str) -> str:
-        """A Python string is a UCLID5 string"""
-        if not x.startswith('"') and not x.startswith("'"):
-            return f'"{x}"'
-        return x
+    def add_comment(self, comment):
+        if len(self.toplevel) == 0:
+            self.toplevel.append(CommentStmt(comment))
+            return
 
-    def visit_Constant(self, node: Constant) -> str:
-        """A Python constant is a UCLID5 literal"""
-        if isinstance(node.value, str):
-            return self.quote(node.value)
-        if isinstance(node.value, bool):
-            return str(node.value).lower()
-        return str(node.value)
-
-    def visit_comment(self, node: Constant) -> str:
-        """A Python comment is a UCLID5 comment"""
-        comment = node.value.split("\n")
-        comment = "\n".join(map(lambda line: f"{self.indent}// {line}", comment))
-        return f"{comment}\n"
-
-    def visit_BinOp(self, node: BinOp) -> str:
-        """A Python binary operation is a UCLID5 binary operation"""
-        left = self.visit(node.left)
-        right = self.visit(node.right)
-        op = node.op
-        if op.__class__.__name__ in operator_dict:
-            op = operator_dict[op.__class__.__name__]
+        last = self.toplevel[-1]
+        if isinstance(last, TransitionDecl):
+            last.stmts.append(CommentStmt(comment))
         else:
-            generator_log(f'`visit_BinOp` will return "" on {dump(node)}.')
-            return ""
-        return f"{left} {op} {right}"
+            self.toplevel.append(CommentStmt(comment))
 
-    def visit_BoolOp(self, node: BoolOp) -> str:
-        """A Python boolean operation is a UCLID5 boolean operation"""
-        values = node.values
-        op = node.op
-        if op.__class__.__name__ in operator_dict:
-            op = operator_dict[op.__class__.__name__]
-        else:
-            generator_log(f'`visit_BoolOp` will return "" on {dump(node)}.')
-            return ""
-        return f" {op} ".join(map(self.visit, values))
+    def parse_type(self, type_expr):
+        match type_expr:
+            case ast.Name(name, _):
+                return name
+            case ast.Attribute(ast.Name("self", _), attr, _):
+                return attr
+            case ast.Call(ast.Name(t, _), args, kwargs):
+                if t.lower() in ["integer", "int", "natural", "nat"]:
+                    return "integer"
+                elif t.lower() in ["boolean", "bool"]:
+                    return "boolean"
+                elif t.lower() in ["real"]:
+                    return "real"
+                elif t.lower() in ["array"] and len(args) == 2:
+                    return f"[{self.parse_type(args[0])}]{self.parse_type(args[1])}"
+                elif t.lower() in ["array"] and len(kwargs) == 2:
+                    index = "??"
+                    element = "??"
+                    for k in kwargs:
+                        if k.arg.lower() in ["index", "idx", "in"]:
+                            index = self.parse_type(k.value)
+                        elif k.arg.lower() in [
+                            "element",
+                            "elements",
+                            "elem",
+                            "out",
+                            "value",
+                        ]:
+                            element = self.parse_type(k.value)
+                    if index == "??":
+                        log(f"index is ??: {dump(type_expr)}")
+                    if element == "??":
+                        log(f"element is ??: {dump(type_expr)}")
+                    return f"[{index}]{element}"
+                elif t.lower() in ["bv", "bitvector"]:
+                    if len(args) == 1:
+                        return f"bv{self.parse_expr(args[0])}"
+                    elif len(kwargs) == 1:
+                        _, k = self.parse_expr(kwargs[0].value)
+                        return f"bv{k}"
+                    else:
+                        log(f"bv args is ??: {dump(type_expr)}")
+                        return "bv??"
+                elif t.lower() in ["enum", "enumerated"]:
+                    args = list(map(self.parse_expr, args))
+                    if len(args) == 2 and " " in args[1]:
+                        variants = args[1].split(" ")
+                        return f"enum {{ {', '.join(variants)} }}"
+                    if len(kwargs) > 0:
+                        log(f"enum with kwargs is ??: {dump(type_expr)}")
+                        return "enum { ?? }"
+                    return f"enum {{ {', '.join(args)} }}"
+                elif self.is_type(t):
+                    return t
+                else:
+                    log(f"type_expr is ??: {dump(type_expr)}")
+                    return "??"
+            case ast.Call(ast.Attribute(ast.Name("self", _), attr, ctx), args, kwargs):
+                return self.parse_type(ast.Call(ast.Name(attr, ctx), args, kwargs))
+            case _:
+                log(f"type_expr is ??: {dump(type_expr)}")
+                return "??"
 
-    def visit_UnaryOp(self, node: UnaryOp) -> str:
-        """A Python unary operation is a UCLID5 unary operation"""
-        operand = self.visit(node.operand)
-        op = node.op
-        if op.__class__.__name__ in operator_dict:
-            op = operator_dict[op.__class__.__name__]
-        else:
-            generator_log(f'`visit_UnaryOp` will return "" on {dump(node)}.')
-            return ""
-        return f"{op} {operand}"
+    def parse_var_decl(self, var_decl, action):
+        match var_decl:
+            case ast.Assign(var_names, value, _):
+                match var_names[0]:
+                    case ast.Name(name, _):
+                        lhs = name
+                    case ast.Attribute(ast.Name("self", _), attr, _):
+                        lhs = attr
+                    case _:
+                        log(f"var_names[0] is ??: {dump(var_decl)}")
+                        lhs = "??"
+                rhs = self.parse_type(value)
+                action(lhs, rhs)
+            case ast.Expr(ast.Constant(value, _)) if isinstance(value, str):
+                self.add_comment(value)
+            case _:
+                log(f"var_decl is ??: {dump(var_decl)}")
+                return "??"
 
-    def visit_Compare(self, node: Compare) -> str:
-        """A Python comparison is a UCLID5 comparison"""
-        ops = list(map(lambda op: operator_dict[op.__class__.__name__], node.ops))
-        args = [self.visit(node.left)] + list(map(self.visit, node.comparators))
-        outputs = []
-        for i in range(len(args) - 1):
-            outputs.append(f"{args[i]} {ops[i]} {args[i + 1]}")
-        return " && ".join(outputs)
+    def parse_input_decl(self, decl):
+        self.parse_var_decl(decl, self.add_input)
 
-    def visit_Expr(self, node: Expr) -> str:
-        """A Python expression is just a wrapper, so descend into the value."""
-        return self.visit(node.value)
+    def parse_local_decl(self, decl):
+        self.parse_var_decl(decl, self.add_local)
 
-    def visit_Subscript(self, node) -> str:
-        """A Python subscript is a UCLID5 array access."""
-        value = self.visit(node.value)
-        slice = self.visit(node.slice)
-        if value in self.ctx.vars:
-            return f"{value}[{slice}]"
-        else:
-            generator_log(f'`visit_Subscript` will return "??" on {value}')
-            return f"??[{slice}]"
+    def parse_output_decl(self, decl):
+        self.parse_var_decl(decl, self.add_output)
 
-    def visit_If(self, node: If) -> str:
-        """A Python if statement is a UCLID5 if statement."""
-        self.indent += "  "
-        post = self.indent[:-2]
+    def parse_sharedvar_decl(self, decl):
+        self.parse_var_decl(decl, self.add_sharedvar)
 
-        test = self.visit(node.test)
-        body = "\n".join(map(self.visit, node.body))
-        orelse = "\n".join(map(self.visit, node.orelse))
+    def parse_instance_decl(self, inst_decl):
+        match inst_decl:
+            case ast.Assign(inst_names, inst_expr, _):
+                match inst_names[0]:
+                    case ast.Name(name, _):
+                        lhs = name
+                    case ast.Attribute(ast.Name("self", _), attr, _):
+                        lhs = attr
+                    case _:
+                        log(f"inst_names[0] is ??: {dump(inst_decl)}")
+                        lhs = "??"
+                match inst_expr:
+                    case ast.Call(func, _, keywords):
+                        match func:
+                            case ast.Name(name, _):
+                                rhs = name
+                            case _:
+                                log(f"func is ??: {dump(inst_expr)}")
+                                rhs = "??"
+                        kwargs = []
+                        for keyword in keywords:
+                            match keyword:
+                                case ast.keyword(arg, expr):
+                                    expr = self.parse_expr(expr)
+                                    kwargs.append(f"{arg} : ({expr})")
+                                case _:
+                                    log(f"keyword is ??: {dump(keyword)}")
+                                    kwargs.append("??")
+                        self.add_instance(InstanceDecl(lhs, ModuleType(rhs), kwargs))
+                    case _:
+                        log(f"inst_expr is ??: {dump(inst_decl)}")
+                        return "??"
+            case ast.Expr(ast.Constant(value, _)) if isinstance(value, str):
+                self.add_comment(value)
+            case _:
+                log(f"inst_decl is ??: {dump(inst_decl)}")
+                return "??"
 
-        if orelse:
-            output = (
-                f"{post}if ({test}) {{\n{body}\n{post}}} else {{\n{orelse}\n{post}}}\n"
-            )
-            self.indent = post
-            return output
-        else:
-            output = f"{post}if ({test}) {{\n{body}\n{post}}}\n"
-            self.indent = post
-            return output
+    def parse_stmt(self, stmt):
+        match stmt:
+            case ast.Assign(lhs_exprs, value, _):
+                match lhs_exprs[0]:
+                    case ast.Name(name, _):
+                        lhs = name
+                    case ast.Attribute(ast.Name("self", _), attr, _):
+                        lhs = attr
+                    case _:
+                        log(f"lhs_exprs[0] is ??: {dump(stmt)}")
+                        lhs = "??"
+                rhs = self.parse_expr(value)
+                return AssignmentStmt(lhs, rhs)
+            case ast.AugAssign(lhs, op, rhs):
+                lhs = self.parse_expr(lhs)
+                rhs = self.parse_expr(rhs)
+                return AssignmentStmt(
+                    lhs, f"{lhs} {operator_dict[op.__class__.__name__]} {rhs}"
+                )
+            case ast.Expr(ast.Constant(value, _)) if isinstance(value, str):
+                return CommentStmt(value)
+            case ast.Expr(
+                ast.Call(
+                    ast.Attribute(
+                        ast.Attribute(ast.Name("self", _), instance), "next", _
+                    ),
+                    _,
+                    _,
+                )
+            ):
+                return NextStmt(instance)
+            case ast.Expr(ast.Call(ast.Name("assume"), args, kwargs)):
+                if len(args) == 1:
+                    k = self.parse_expr(args[0])
+                elif len(kwargs) == 1:
+                    _, k = self.parse_expr(kwargs[0].value)
+                else:
+                    k = "??"
+                return AssumeStmt(k)
+            case ast.Expr(ast.Call(ast.Name("havoc"), args, kwargs)):
+                if len(args) == 1:
+                    k = self.parse_expr(args[0])
+                elif len(kwargs) == 1:
+                    _, k = self.parse_expr(kwargs[0].value)
+                else:
+                    k = "??"
+                return HavocStmt(k)
+            case ast.Expr(ast.Call(ast.Name("assert"), args, kwargs)):
+                if len(args) == 1:
+                    k = self.parse_expr(args[0])
+                elif len(kwargs) == 1:
+                    _, k = self.parse_expr(kwargs[0].value)
+                else:
+                    k = "??"
+                return AssertStmt(k)
+            case ast.Assert(test, msg):
+                if msg:
+                    self.add_comment(msg)
+                return AssertStmt(self.parse_expr(test))
+            case ast.If(test, body, orelse):
+                return IfStmt(
+                    self.parse_expr(test),
+                    BlockStmt(list(map(self.parse_stmt, body))),
+                    BlockStmt(list(map(self.parse_stmt, orelse))),
+                )
+            case _:
+                log(f"stmt is ??: {dump(stmt)}")
+                return HoleStmt()
 
-    def visit_IfExp(self, node) -> str:
-        """A Python if expression is a UCLID5 if expression."""
-        test = self.visit(node.test)
-        body = self.visit(node.body)
-        orelse = self.visit(node.orelse)
-        return expr.Ite(test, body, orelse)
+    def parse_init_stmt(self, stmt):
+        self.add_init_statement(self.parse_stmt(stmt))
 
-    def visit_AugAssign(self, node: AugAssign) -> str:
-        """A Python AugAssign is a UCLID5 assignment with an addition"""
-        target = self.visit(node.target)
+    def parse_next_stmt(self, stmt):
+        self.add_next_statement(self.parse_stmt(stmt))
 
-        if target not in self.ctx.vars:
-            generator_log(f'`visit_AugAssign` will return "??" on {target}')
-            target = "??"
+    def parse_invariant(self, inv):
+        match inv:
+            case ast.Return(value):
+                self.add_spec("spec", self.parse_expr(value))
+            case ast.Expr(ast.Constant(value, _)) if isinstance(value, str):
+                self.add_comment(value)
+            case _:
+                log(f"inv is ??: {dump(inv)}")
+                return "??"
 
-        if self.should_prime:
-            target_lhs = f"{target}'"
-        else:
-            target_lhs = target
-        value = self.visit(node.value)
-        op = node.op
-        if op.__class__.__name__ in operator_dict:
-            op = operator_dict[op.__class__.__name__]
-        else:
-            generator_log(f'`visit_AugAssing` will return "" on {dump(node)}.')
-            return ""
+    def parse_proof_cmd(self, cmd):
+        match cmd:
+            case ast.Expr(ast.Call(ast.Name(cmd), args, kwargs)):
+                if len(args) == 1:
+                    k = self.parse_expr(args[0])
+                elif len(kwargs) == 1:
+                    _, k = self.parse_expr(kwargs[0].value)
+                else:
+                    k = "??"
 
-        return f"{self.indent}{target_lhs} = {target} {op} {value};"
+                if cmd.lower() in ["induction"]:
+                    self.add_proof_statement(InductionCmd(k))
+                elif cmd.lower() in ["bmc", "boundedmodelchecking", "unroll"]:
+                    self.add_proof_statement(BoundedModelCheckingCmd(k))
+            case ast.Expr(ast.Constant(value, _)) if isinstance(value, str):
+                self.add_comment(value)
+            case _:
+                log(f"cmd is ??: {dump(cmd)}")
+                return "??"
 
-    def visit_With(self, node: With):
-        """With statements are ignored."""
-        generator_log(
-            f'`visit_With` will return "??" in condition gaurding body of {dump(node)}.'
-        )
-        self.indent += "  "
-        post = self.indent[:-2]
-        body = "\n".join(map(self.visit, node.body))
-        body = f"{post}if (??) {{\n" + body + f"\n{post}}}\n"
-        self.indent = post
-        return body
+    def parse_expr(self, expr):
+        match expr:
+            case ast.Name(name, _):
+                return name
+            case ast.Constant(value, _):
+                if isinstance(value, bool):
+                    return "true" if value else "false"
+                else:
+                    return str(value)
+            case ast.Attribute(ast.Name("self", _), attr, _):
+                return attr
+            case ast.Attribute(value, attr, _):
+                return f"{self.parse_expr(value)}.{attr}"
+            case ast.Subscript(value, slice, _):
+                return f"{self.parse_expr(value)}[{self.parse_expr(slice)}]"
+            case ast.IfExp(test, body, orelse):
+                c = self.parse_expr(test)
+                t = self.parse_expr(body)
+                f = self.parse_expr(orelse)
+                return f"if {c} then {t} else {f}"
+            case ast.Compare(left, [op], [right]):
+                op = operator_dict[op.__class__.__name__]
+                return f"{self.parse_expr(left)} {op} {self.parse_expr(right)}"
+            case ast.BinOp(left, op, right):
+                op = operator_dict[op.__class__.__name__]
+                return f"{self.parse_expr(left)} {op} {self.parse_expr(right)}"
+            case ast.BoolOp(op, [x, y]):
+                op = operator_dict[op.__class__.__name__]
+                return f"{self.parse_expr(x)} {op} {self.parse_expr(y)}"
+            case ast.BoolOp(op, [x]):
+                return f"{operator_dict[op.__class__.__name__]}{self.parse_expr(x)}"
+            case ast.UnaryOp(op, operand):
+                return (
+                    f"{operator_dict[op.__class__.__name__]}{self.parse_expr(operand)}"
+                )
+            case ast.Call(func, args, kwargs):
+                match func:
+                    case ast.Name(name, _):
+                        f = name
+                    case ast.Attribute(ast.Name("self", _), attr, _):
+                        f = attr
+                    case _:
+                        log(f"func is ??: {dump(expr)}")
+                        f = "??"
 
-    def visit_Lambda(self, node: Lambda):
-        """Lambda expressions are array constructors."""
-        if len(node.args.args) != 1 and node.args.args[0].arg != "_":
-            generator_log(f':warning: `visit_Lambda` will return "??" on {dump(node)}.')
+                if f in operator_dict:
+                    f = operator_dict[f]
+                    args = list(map(self.parse_expr, args)) + list(
+                        map(lambda kwarg: self.parse_expr(kwarg.value), kwargs)
+                    )
+                    if len(args) == 1:
+                        return f"{f}{args[0]}"
+                    elif len(args) == 2:
+                        return f"{args[0]} {f} {args[1]}"
+                    else:
+                        log(f"expr is ??: {dump(expr)}")
+                        return "??"
+                else:
+                    log(f"expr is ??: {dump(expr)}")
+                    return "??"
+            case _:
+                log(f"expr is ??: {dump(expr)}")
+                return "??"
+
+    def __str__(self):
+        return f"module {self.name} {{\n{BlockStmt(self.toplevel).__str__(1)}\n}}"
+
+
+def print_uclid5(python_ast) -> str:
+    """
+    ast_to_ir converts a Python AST to the UCLID5 IR above and then prints.
+    """
+    match python_ast:
+        case ast.Module(body):
+            return "\n".join([print_uclid5(stmt) for stmt in body])
+        case ast.ClassDef(name, _, _, body, _):
+            mod = ModuleType(name)
+            for stmt in body:
+                mod.parse_uclid5_module_decl(stmt)
+            return mod.__str__()
+        case _:
+            log(f"python_ast is ??: {dump(python_ast)}")
             return "??"
-        body = self.visit(node.body)
-        return f"const({body})"
-
-    def visit_Assert(self, node: Assert):
-        """Python assert statements are assert statements in UCLID5."""
-        test = self.visit(node.test)
-        return f"{self.indent}assert({test});"
-
-    def visit_For(self, node: For):
-        """Python for loops do not have a matching concept in UCLID5."""
-        generator_log(f'`visit_For` will return "??" on {dump(node)}.')
-        return "??"
-
-
-def print_uclid5(
-    node, types={}, vars={}, modules={}, instances={}, constructors={}, selectors={}
-) -> str:
-    """Print a UCLID5 expression."""
-    return UclidPrinter(
-        Context(
-            types=types,
-            vars=vars,
-            modules=modules,
-            instances=instances,
-            constructors=constructors,
-            selectors=selectors,
-        )
-    ).visit(node)

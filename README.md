@@ -32,5 +32,5 @@ open htmlcov/index.html # to see coverage report
 
 ## Formatting
 ```sh
-pyenv exec pre-commit run --all-files --show-diff-on-failure
+pre-commit run --all-files --show-diff-on-failure
 ```

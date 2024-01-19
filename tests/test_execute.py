@@ -1,9 +1,12 @@
 from uclid_lm_ir import Module
-from uclid_lm_ir.type import Integer
+
+
+def Integer():
+    pass
 
 
 class ModuleWithVarAndInitAndNext(Module):
-    def state(self):
+    def locals(self):
         self.x = Integer()
 
     def init(self):

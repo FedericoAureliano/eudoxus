@@ -4,14 +4,14 @@ from uclid_lm_ir.printer import print_uclid5
 from uclid_lm_ir.utils import assert_equal
 
 
-def test_regression_1():
+def test_intersection():
     code = """
 class IntersectionModule(Module):
     def types(self):
         self.CarState = Enum('CarState', 'moving stopped')
         self.LightState = Enum('LightState', 'red green')
 
-    def state(self):
+    def locals(self):
         self.car1 = self.CarState
         self.car2 = self.CarState
         self.light1 = self.LightState
@@ -60,13 +60,13 @@ module IntersectionModule {
     assert_equal(output, expected)
 
 
-def test_regression_2():
+def test_array_and_synonym():
     code = """
 class Module:
     def types(self):
         self.T = BitVector(8)
 
-    def state(self):
+    def locals(self):
         self.x = Array(index=BitVector(8), value=self.T)
 """
 
@@ -81,7 +81,7 @@ module Module {
     assert_equal(output, expected)
 
 
-def test_regression_3():
+def test_clock():
     code = """
 class Clock(Module):
     def outputs(self):
@@ -91,7 +91,7 @@ class Clock(Module):
         self.tick = Not(self.tick)
 
 class TickCounter(Module):
-    def state(self):
+    def locals(self):
         self.count = BitVector(3)
 
     def inputs(self):
@@ -170,7 +170,7 @@ module System {
     assert_equal(output, expected)
 
 
-def test_regression_4():
+def test_clock_2():
     code = """
 class Clock(Module):
     def outputs(self):
@@ -186,7 +186,7 @@ class TickCounter(Module):
     def types(self):
         self.T = BitVector(3)
 
-    def state(self):
+    def locals(self):
         self.count = self.T
 
     def inputs(self):
@@ -254,8 +254,8 @@ module Main {
     }
 
     init {
-        ??
-        ??
+        ??;
+        ??;
     }
 
     next {

@@ -1,7 +1,7 @@
 import ast
 import inspect
 
-from .printer import UclidPrinter
+from .printer import print_uclid5
 
 
 class Module:
@@ -17,12 +17,12 @@ class Module:
         """
         pass
 
-    def state(self):
-        """(Optional) Defines the state variables and their types.
+    def locals(self):
+        """(Optional) Defines the local variables and their types.
         For example, the following implementation defines an 8-bit variable x
         and an integer variable y:
         ```
-        def state(self):
+        def locals(self):
             self.x = BitVector(8)
             self.y = Integer()
         ```
@@ -79,7 +79,7 @@ class Module:
         pass
 
     def init(self):
-        """(Optional) Defines how state variables are initialized.
+        """(Optional) Defines how variables are initialized.
         For example, the following implementation initializes x to 0 and y to 1:
         ```
         def init(self):
@@ -127,7 +127,7 @@ class Module:
     def __str__(self) -> str:
         """Returns the UCLID5 representation of the Python class."""
         tree = ast.parse(inspect.getsource(self.__class__))
-        return UclidPrinter().visit(tree)
+        return print_uclid5(tree)
 
     def execute(self, k: int) -> str:
         """Executes the module for k steps."""

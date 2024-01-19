@@ -1,7 +1,29 @@
 from uclid_lm_ir import Module
-from uclid_lm_ir.control import induction
-from uclid_lm_ir.type import BitVector, Integer
 from uclid_lm_ir.utils import assert_equal
+
+
+def Integer():
+    pass
+
+
+def induction(k):
+    pass
+
+
+def bmc(k):
+    pass
+
+
+def BitVector(n):
+    pass
+
+
+def havoc(x):
+    pass
+
+
+def assume(x):
+    pass
 
 
 class EmptyModule(Module):
@@ -9,12 +31,12 @@ class EmptyModule(Module):
 
 
 def test_empty_module():
-    expected = "module EmptyModule {}"
+    expected = "module EmptyModule { }"
     assert_equal(str(EmptyModule()), expected)
 
 
 class ModuleWithVar(Module):
-    def state(self):
+    def locals(self):
         self.x = Integer()
 
 
@@ -25,7 +47,7 @@ def test_module_with_var():
 
 
 class ModuleWithVarAndInit(Module):
-    def state(self):
+    def locals(self):
         self.x = Integer()
 
     def init(self):
@@ -46,7 +68,7 @@ module ModuleWithVarAndInit {
 
 
 class ModuleWithVarAndInitAndNext(Module):
-    def state(self):
+    def locals(self):
         self.x = Integer()
 
     def init(self):
@@ -73,7 +95,7 @@ module ModuleWithVarAndInitAndNext {
 
 
 class ModuleWithVarAndInitAndInvariants(Module):
-    def state(self):
+    def locals(self):
         self.x = Integer()
 
     def init(self):
@@ -104,7 +126,7 @@ module ModuleWithVarAndInitAndInvariants {
 
 
 class ModuleWithVarAndInitAndInvariantsAndControl(Module):
-    def state(self):
+    def locals(self):
         self.x = Integer()
 
     def init(self):
@@ -164,7 +186,7 @@ class ModuleWithTypeDeclsAndUses(Module):
         self.T = Integer()
         self.U = BitVector(32)
 
-    def state(self):
+    def locals(self):
         self.x = self.T()
         self.y = self.U()
 
@@ -189,7 +211,7 @@ class ModuleWithComments(Module):
         """Comment 1"""
         self.T = Integer()
 
-    def state(self):
+    def locals(self):
         """Comment 2"""
         self.x = self.T
 
@@ -237,4 +259,41 @@ module ModuleWithComments {
 }
 """
     output = str(ModuleWithComments())
+    assert_equal(output, expected)
+
+
+class HavocAssumeAssert(Module):
+    def locals(self):
+        self.x = Integer()
+
+    def next(self):
+        havoc(self.x)
+        assume(self.x >= 0)
+        assert self.x >= 110
+
+    def specification(self):
+        return self.x >= 100
+
+    def proof(self):
+        bmc(2)
+
+
+def test_havoc_assume_assert():
+    expected = """
+module HavocAssumeAssert {
+    var x : integer;
+    next {
+        havoc(x);
+        assume(x >= 0);
+        assert(x >= 110);
+    }
+    invariant spec: x >= 100;
+    control {
+        bmc(2);
+        check;
+        print_results();
+    }
+}
+"""
+    output = str(HavocAssumeAssert())
     assert_equal(output, expected)
