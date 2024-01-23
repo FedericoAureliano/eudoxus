@@ -245,7 +245,8 @@ module TickCounter {
 
 module Main {
     instance clock : Clock();
-    instance counter : TickCounter(tick : (clock.tick));
+    // Instance argument must be a local variable name, not an expression.
+    instance counter : TickCounter(tick : (??));
 
     control {
         induction(1);
@@ -261,6 +262,144 @@ module Main {
     next {
         next(clock);
         next(counter);
+    }
+}
+"""
+    python = ast.parse(code)
+    output = print_uclid5(python)
+    assert_equal(output, expected)
+
+
+def test_two_state_machines():
+    code = """
+class StateMachineA(Module):
+    def types(self):
+        self.State = Enum('idle', 'send', 'wait')
+
+    def locals(self):
+        self.state = self.State
+
+    def shared_vars(self):
+        self.data = BitVector(8)
+
+    def inputs(self):
+        self.inc = Boolean()
+
+    def init(self):
+        self.state = 'idle'
+        self.data = BitVector(8)(0)
+
+    def next(self):
+        with case('idle'):
+            self.data = self.data + 1 if self.inc else self.data
+            self.state = 'send' if self.inc else 'idle'
+        with case('send'):
+            self.state = 'wait'
+        with case('wait'):
+            self.state = 'idle' if not self.inc else 'wait'
+        default(None)
+
+class StateMachineB(Module):
+    def types(self):
+        self.State = Enum('idle', 'receive', 'wait')
+
+    def locals(self):
+        self.state = self.State
+
+    def shared_vars(self):
+        self.data = BitVector(8)
+
+    def inputs(self):
+        self.inc = Boolean()
+
+    def init(self):
+        self.state = 'idle'
+        self.data = BitVector(8)(0)
+
+    def next(self):
+        with case('idle'):
+            self.state = 'receive' if self.inc else 'idle'
+        with case('receive'):
+            self.data = self.data + 1
+            self.state = 'wait'
+        with case('wait'):
+            self.state = 'idle' if not self.inc else 'wait'
+        default(None)
+
+class CommunicatingStateMachines(Module):
+    def instances(self):
+        self.m1 = StateMachineA(data=self.data, inc=self.inc)
+        self.m2 = StateMachineB(data=self.data, inc=~self.inc)
+
+    def init(self):
+        self.inc = False
+
+    def next(self):
+        self.inc = ~self.inc"""
+    expected = """
+module StateMachineA {
+    type State = enum { idle, send, wait };
+    var state : State;
+    sharedvar data : bv8;
+    input inc : boolean;
+
+    init {
+        state = idle;
+        data = 0bv8;
+    }
+
+    next {
+        if (??) {
+            data' = if inc then data + 1 else data;
+            state' = if inc then send else idle;
+        }
+        if (??) {
+            state' = wait;
+        }
+        if (??) {
+            state' = if !inc then idle else wait;
+        }
+        ??;
+    }
+}
+
+module StateMachineB {
+    type State = enum { idle, receive, wait };
+    var state : State;
+    sharedvar data : bv8;
+    input inc : boolean;
+
+    init {
+        state = idle;
+        data = 0bv8;
+    }
+
+    next {
+        if (??) {
+            state' = if inc then receive else idle;
+        }
+        if (??) {
+            data' = data + 1;
+            state' = wait;
+        }
+        if (??) {
+            state' = if !inc then idle else wait;
+        }
+        ??;
+    }
+}
+
+module CommunicatingStateMachines {
+    instance m1 : StateMachineA(data : (data), inc : (inc));
+    // Instance argument must be a local variable name, not an expression.
+    instance m2 : StateMachineB(data : (data), inc : (??));
+
+    init {
+        inc = false;
+    }
+
+    next {
+        inc' = !inc;
     }
 }
 """

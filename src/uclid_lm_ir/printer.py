@@ -27,8 +27,18 @@ operator_dict = {
     "UAdd": "+",
     "USub": "-",
     "Pow": "^",
+    "Invert": "!",
     "In": "??",
+    "Is": "??",
+    "IsNot": "??",
+    "NotIn": "??",
+    "FloorDiv": "??",
+    "MatMult": "??",
 }
+
+INSTANCE_ARG_COMMENT = (
+    "Instance argument must be a local variable name, not an expression."
+)
 
 
 class Stmt:
@@ -69,7 +79,14 @@ class IfStmt(Stmt):
         space = "  " * indent
         t = self.true_stmt.__str__(indent + 1)
         f = self.false_stmt.__str__(indent + 1)
-        return f"{space}if ({self.cond}) {{\n{t}\n{space}}} else {{\n{f}\n{space}}}"
+        # check if t has only whitespace
+        if f.isspace() or f == "":
+            return f"{space}if ({self.cond}) {{\n{t}\n{space}}}"
+        # check if f has only whitespace
+        elif t.isspace() or t == "":
+            return f"{space}if (!{self.cond}) {{\n{f}\n{space}}}"
+        else:
+            return f"{space}if ({self.cond}) {{\n{t}\n{space}}} else {{\n{f}\n{space}}}"
 
 
 class NextStmt(Stmt):
@@ -462,7 +479,10 @@ class ModuleType(Type):
             case ast.FunctionDef("outputs", _, body, _, _, _):
                 for decl in body:
                     self.parse_output_decl(decl)
-            case ast.FunctionDef("sharedvars", _, body, _, _, _):
+            case ast.FunctionDef(f, _, body, _, _, _) if f in [
+                "shared_vars",
+                "sharedvars",
+            ]:
                 for decl in body:
                     self.parse_sharedvar_decl(decl)
 
@@ -638,14 +658,21 @@ class ModuleType(Type):
                             case ast.Name(name, _):
                                 rhs = name
                             case _:
-                                log(f"func is ??: {dump(inst_expr)}")
+                                log(f"inst func is ??: {dump(inst_expr)}")
                                 rhs = "??"
                         kwargs = []
                         for keyword in keywords:
                             match keyword:
-                                case ast.keyword(arg, expr):
-                                    expr = self.parse_expr(expr)
-                                    kwargs.append(f"{arg} : ({expr})")
+                                case ast.keyword(arg, ast.Name(name, _)):
+                                    kwargs.append(f"{arg} : ({name})")
+                                case ast.keyword(
+                                    arg, ast.Attribute(ast.Name("self", _), name, _)
+                                ):
+                                    kwargs.append(f"{arg} : ({name})")
+                                case ast.keyword(arg, _):
+                                    self.add_comment(INSTANCE_ARG_COMMENT)
+                                    log(f"keyword expr is ??: {dump(keyword)}")
+                                    kwargs.append(f"{arg} : (??)")
                                 case _:
                                     log(f"keyword is ??: {dump(keyword)}")
                                     kwargs.append("??")
@@ -724,6 +751,13 @@ class ModuleType(Type):
                     BlockStmt(list(map(self.parse_stmt, body))),
                     BlockStmt(list(map(self.parse_stmt, orelse))),
                 )
+            case ast.With(_, body):
+                log(f"stmt is if ??: {dump(stmt)}")
+                return IfStmt(
+                    "??",
+                    BlockStmt(list(map(self.parse_stmt, body))),
+                    BlockStmt([]),
+                )
             case _:
                 log(f"stmt is ??: {dump(stmt)}")
                 return HoleStmt()
@@ -800,29 +834,47 @@ class ModuleType(Type):
                     f"{operator_dict[op.__class__.__name__]}{self.parse_expr(operand)}"
                 )
             case ast.Call(func, args, kwargs):
-                match func:
-                    case ast.Name(name, _):
-                        f = name
-                    case ast.Attribute(ast.Name("self", _), attr, _):
-                        f = attr
-                    case _:
-                        log(f"func is ??: {dump(expr)}")
-                        f = "??"
+                f = self.parse_expr(func)
+
+                args = list(map(self.parse_expr, args)) + list(
+                    map(lambda kwarg: self.parse_expr(kwarg.value), kwargs)
+                )
 
                 if f in operator_dict:
                     f = operator_dict[f]
-                    args = list(map(self.parse_expr, args)) + list(
-                        map(lambda kwarg: self.parse_expr(kwarg.value), kwargs)
-                    )
                     if len(args) == 1:
                         return f"{f}{args[0]}"
                     elif len(args) == 2:
                         return f"{args[0]} {f} {args[1]}"
                     else:
-                        log(f"expr is ??: {dump(expr)}")
+                        log(f"expr is op ??: {dump(expr)}")
                         return "??"
+                elif f.lower() in ["ite", "ifthenelse", "if", "if_"]:
+                    if len(args) == 3:
+                        return f"if {args[0]} then {args[1]} else {args[2]}"
+                    else:
+                        log(f"expr is ite ??: {dump(expr)}")
+                        return "if ?? then ?? else ??"
+                elif f.lower().startswith("bv"):
+                    if len(args) == 1:
+                        return f"{args[0]}{f}"
+                    elif len(kwargs) == 1:
+                        _, k = self.parse_expr(kwargs[0].value)
+                        return f"{k}{f}"
+                    else:
+                        log(f"expr is bv ??: {dump(expr)}")
+                        return "bv??"
+                elif f.lower() in ["bitvector", "bv"]:
+                    if len(args) == 1:
+                        return f"bv{args[0]}"
+                    elif len(kwargs) == 1:
+                        _, k = self.parse_expr(kwargs[0].value)
+                        return f"bv{k}"
+                    else:
+                        log(f"expr is bv ??: {dump(expr)}")
+                        return "bv??"
                 else:
-                    log(f"expr is ??: {dump(expr)}")
+                    log(f"expr call {f} is ??: {dump(expr)}")
                     return "??"
             case _:
                 log(f"expr is ??: {dump(expr)}")

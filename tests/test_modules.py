@@ -1,60 +1,41 @@
-from uclid_lm_ir import Module
+import ast
+
+from uclid_lm_ir.printer import print_uclid5
 from uclid_lm_ir.utils import assert_equal
 
 
-def Integer():
-    pass
-
-
-def induction(k):
-    pass
-
-
-def bmc(k):
-    pass
-
-
-def BitVector(n):
-    pass
-
-
-def havoc(x):
-    pass
-
-
-def assume(x):
-    pass
-
-
+def test_empty_module():
+    code = """
 class EmptyModule(Module):
     pass
-
-
-def test_empty_module():
+"""
     expected = "module EmptyModule { }"
-    assert_equal(str(EmptyModule()), expected)
-
-
-class ModuleWithVar(Module):
-    def locals(self):
-        self.x = Integer()
-
-
-def test_module_with_var():
-    expected = "module ModuleWithVar {\nvar x : integer;\n}"
-    output = str(ModuleWithVar())
+    python = ast.parse(code)
+    output = print_uclid5(python)
     assert_equal(output, expected)
 
 
+def test_module_with_var():
+    code = """
+class ModuleWithVar(Module):
+    def locals(self):
+        self.x = Integer()
+"""
+    expected = "module ModuleWithVar {\nvar x : integer;\n}"
+    python = ast.parse(code)
+    output = print_uclid5(python)
+    assert_equal(output, expected)
+
+
+def test_module_with_var_and_init():
+    code = """
 class ModuleWithVarAndInit(Module):
     def locals(self):
         self.x = Integer()
 
     def init(self):
         self.x = 0
-
-
-def test_module_with_var_and_init():
+"""
     expected = """
 module ModuleWithVarAndInit {
     var x : integer;
@@ -63,10 +44,13 @@ module ModuleWithVarAndInit {
     }
 }
 """
-    output = str(ModuleWithVarAndInit())
+    python = ast.parse(code)
+    output = print_uclid5(python)
     assert_equal(output, expected)
 
 
+def test_module_with_var_and_init_and_next():
+    code = """
 class ModuleWithVarAndInitAndNext(Module):
     def locals(self):
         self.x = Integer()
@@ -76,9 +60,7 @@ class ModuleWithVarAndInitAndNext(Module):
 
     def next(self):
         self.x = self.x + 1
-
-
-def test_module_with_var_and_init_and_next():
+"""
     expected = """
 module ModuleWithVarAndInitAndNext {
     var x : integer;
@@ -90,10 +72,13 @@ module ModuleWithVarAndInitAndNext {
     }
 }
 """
-    output = str(ModuleWithVarAndInitAndNext())
+    python = ast.parse(code)
+    output = print_uclid5(python)
     assert_equal(output, expected)
 
 
+def test_module_with_var_and_init_and_invariants():
+    code = """
 class ModuleWithVarAndInitAndInvariants(Module):
     def locals(self):
         self.x = Integer()
@@ -106,9 +91,7 @@ class ModuleWithVarAndInitAndInvariants(Module):
 
     def specification(self):
         return self.x >= 0 and self.x <= 10
-
-
-def test_module_with_var_and_init_and_invariants():
+"""
     expected = """
 module ModuleWithVarAndInitAndInvariants {
     var x : integer;
@@ -121,10 +104,13 @@ module ModuleWithVarAndInitAndInvariants {
     invariant spec: x >= 0 && x <= 10;
 }
 """
-    output = str(ModuleWithVarAndInitAndInvariants())
+    python = ast.parse(code)
+    output = print_uclid5(python)
     assert_equal(output, expected)
 
 
+def test_module_with_var_and_init_and_invariants_and_control():
+    code = """
 class ModuleWithVarAndInitAndInvariantsAndControl(Module):
     def locals(self):
         self.x = Integer()
@@ -140,9 +126,7 @@ class ModuleWithVarAndInitAndInvariantsAndControl(Module):
 
     def proof(self):
         induction(2)
-
-
-def test_module_with_var_and_init_and_invariants_and_control():
+"""
     expected = """
 module ModuleWithVarAndInitAndInvariantsAndControl {
     var x : integer;
@@ -160,27 +144,31 @@ module ModuleWithVarAndInitAndInvariantsAndControl {
     }
 }
 """
-    output = str(ModuleWithVarAndInitAndInvariantsAndControl())
+    python = ast.parse(code)
+    output = print_uclid5(python)
     assert_equal(output, expected)
 
 
+def test_module_with_type_decls():
+    code = """
 class ModuleWithTypeDecls(Module):
     def types(self):
         self.T = Integer()
         self.U = BitVector(32)
-
-
-def test_module_with_type_decls():
+"""
     expected = """
 module ModuleWithTypeDecls {
     type T = integer;
     type U = bv32;
 }
 """
-    output = str(ModuleWithTypeDecls())
+    python = ast.parse(code)
+    output = print_uclid5(python)
     assert_equal(output, expected)
 
 
+def test_module_with_type_decls_and_uses():
+    code = """
 class ModuleWithTypeDeclsAndUses(Module):
     def types(self):
         self.T = Integer()
@@ -189,9 +177,7 @@ class ModuleWithTypeDeclsAndUses(Module):
     def locals(self):
         self.x = self.T()
         self.y = self.U()
-
-
-def test_module_with_type_decls_and_uses():
+"""
     expected = """
 module ModuleWithTypeDeclsAndUses {
     type T = integer;
@@ -200,10 +186,13 @@ module ModuleWithTypeDeclsAndUses {
     var y : U;
 }
 """
-    output = str(ModuleWithTypeDeclsAndUses())
+    python = ast.parse(code)
+    output = print_uclid5(python)
     assert_equal(output, expected)
 
 
+def test_module_with_comments():
+    code = '''
 class ModuleWithComments(Module):
     """Comment 0"""
 
@@ -230,9 +219,7 @@ class ModuleWithComments(Module):
     def proof(self):
         """Comment 6"""
         induction(2)
-
-
-def test_module_with_comments():
+'''
     expected = """
 module ModuleWithComments {
     // Comment 0
@@ -258,10 +245,13 @@ module ModuleWithComments {
     }
 }
 """
-    output = str(ModuleWithComments())
+    python = ast.parse(code)
+    output = print_uclid5(python)
     assert_equal(output, expected)
 
 
+def test_havoc_assume_assert():
+    code = """
 class HavocAssumeAssert(Module):
     def locals(self):
         self.x = Integer()
@@ -276,9 +266,7 @@ class HavocAssumeAssert(Module):
 
     def proof(self):
         bmc(2)
-
-
-def test_havoc_assume_assert():
+"""
     expected = """
 module HavocAssumeAssert {
     var x : integer;
@@ -295,5 +283,6 @@ module HavocAssumeAssert {
     }
 }
 """
-    output = str(HavocAssumeAssert())
+    python = ast.parse(code)
+    output = print_uclid5(python)
     assert_equal(output, expected)

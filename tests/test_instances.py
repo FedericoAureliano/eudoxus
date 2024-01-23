@@ -1,19 +1,31 @@
-from uclid_lm_ir import Module
+import ast
+
+from uclid_lm_ir.printer import print_uclid5
 from uclid_lm_ir.utils import assert_equal
 
 
-def Integer():
-    pass
-
-
+def test_simple_input_output_module():
+    code = """
 class ModuleM(Module):
     def inputs(self):
         self.a = Integer()
 
     def outputs(self):
         self.b = Integer()
+"""
+    expected = """
+module ModuleM {
+    input a : integer;
+    output b : integer;
+}
+"""
+    python = ast.parse(code)
+    output = print_uclid5(python)
+    assert_equal(output, expected)
 
 
+def test_simple_instance():
+    code = """
 class main(Module):
     def locals(self):
         self.x = Integer()
@@ -21,20 +33,7 @@ class main(Module):
 
     def instances(self):
         self.m = ModuleM(a=self.x, b=self.y)
-
-
-def test_simple_input_output_module():
-    expected = """
-module ModuleM {
-    input a : integer;
-    output b : integer;
-}
 """
-    output = str(ModuleM())
-    assert_equal(output, expected)
-
-
-def test_simple_instance():
     expected = """
 module main {
     var x : integer;
@@ -42,5 +41,6 @@ module main {
     instance m : ModuleM(a : (x), b : (y));
 }
 """
-    output = str(main())
+    python = ast.parse(code)
+    output = print_uclid5(python)
     assert_equal(output, expected)
