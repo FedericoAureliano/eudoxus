@@ -1,6 +1,6 @@
 import ast
 
-from uclid_lm_ir.printer import print_uclid5
+from uclid_lm_ir.compiler import compile_to_uclid5
 from uclid_lm_ir.utils import assert_equal
 
 
@@ -56,7 +56,7 @@ module IntersectionModule {
 }
 """
     python = ast.parse(code)
-    output = print_uclid5(python)
+    output = compile_to_uclid5(python)
     assert_equal(output, expected)
 
 
@@ -77,7 +77,7 @@ module Module {
 }
 """
     python = ast.parse(code)
-    output = print_uclid5(python)
+    output = compile_to_uclid5(python)
     assert_equal(output, expected)
 
 
@@ -166,7 +166,7 @@ module System {
 }
 """
     python = ast.parse(code)
-    output = print_uclid5(python)
+    output = compile_to_uclid5(python)
     assert_equal(output, expected)
 
 
@@ -266,7 +266,7 @@ module Main {
 }
 """
     python = ast.parse(code)
-    output = print_uclid5(python)
+    output = compile_to_uclid5(python)
     assert_equal(output, expected)
 
 
@@ -390,19 +390,126 @@ module StateMachineB {
 }
 
 module CommunicatingStateMachines {
-    instance m1 : StateMachineA(data : (data), inc : (inc));
+    instance m1 : StateMachineA(data : (??), inc : (??));
     // Instance argument must be a local variable name, not an expression.
-    instance m2 : StateMachineB(data : (data), inc : (??));
+    instance m2 : StateMachineB(data : (??), inc : (??));
 
     init {
-        inc = false;
+        ?? = false;
     }
 
     next {
-        inc' = !inc;
+        ??' = !??;
     }
 }
 """
     python = ast.parse(code)
-    output = print_uclid5(python)
+    output = compile_to_uclid5(python)
+    assert_equal(output, expected)
+
+
+def test_ep0():
+    code = """
+class MyModule(Module):
+    '''A class to represent a UCLID5 module.'''
+
+    def types(self):
+        '''Defines a 128-bit type called T.'''
+        self.T = BitVector(128)
+
+    def locals(self):
+        '''Defines local variables.'''
+        # integer variables
+        self.a = Integer()
+        self.b = Integer()
+
+        # bitvector variables
+        self.x = self.T
+        self.y = self.T
+
+    def init(self):
+        '''Initializes variables.'''
+        self.a = 6
+        self.b = 2
+
+        self.x = 1 << 127 # 2^127
+        self.y = 2
+
+        assert self.a / self.b == 3 # check integer division
+        assert self.x / self.y == 1 << 126 # check bitvector division
+        # check signed & unsigned division are different
+        assert self.x.sdiv(self.y) != self.x.udiv(self.y)
+
+    def next(self):
+        '''Defines the transition relation.'''
+        next_values = [2, 3, 10, 100, 1 << 63, 1 << 127]
+        for value in next_values:
+            self.a = self.a * value
+            self.b = self.b * value
+            # Check that we can correctly divide two integers
+            assert self.a / self.b == (self.a // self.b)
+
+            self.x = self.x * value
+            self.y = self.y * value
+            # Check that we can correctly divide two bitvectors
+            assert self.x / self.y == (self.x // self.y)
+            # Check that signed and unsigned division are different
+            assert self.x.sdiv(self.y) != self.x.udiv(self.y)
+
+    def specification(self):
+        '''Defines the invariant properties.'''
+        # Check that we can correctly divide two integers
+        assert self.a / self.b == (self.a // self.b)
+
+        # Check that we can correctly divide two bitvectors
+        assert self.x / self.y == (self.x // self.y)
+
+        # Check that signed and unsigned division report different results for
+        # very big bitvectors
+        assert self.x.sdiv(self.y) != self.x.udiv(self.y)
+
+        return True
+
+    def proof(self):
+        '''Defines the control block.'''
+        # Proof by induction
+        self.init()
+        self.next()
+        return self.specification()"""
+    expected = """
+module MyModule {
+  // A class to represent a UCLID5 module.
+  // Defines a 128-bit type called T.
+  type T = bv128;
+  // Defines local variables.
+  var a : integer;
+  var b : integer;
+  var x : T;
+  var y : T;
+  init {
+    // Initializes variables.
+    a = 6;
+    b = 2;
+    x = 1 << 127;
+    y = 2;
+    assert(a / b == 3);
+    assert(x / y == 1 << 126);
+    assert(?? != ??);
+  }
+  next {
+    // Defines the transition relation.
+    ??' = ??;
+    ??;
+  }
+  // Defines the invariant properties.
+  invariant spec: a / b == a // b;
+  invariant spec_2: x / y == x // y;
+  invariant spec_3: ?? != ??;
+  invariant spec_4: true;
+  control {
+    // Defines the control block.
+  }
+}"""
+    python = ast.parse(code)
+    output = compile_to_uclid5(python)
     assert_equal(output, expected)

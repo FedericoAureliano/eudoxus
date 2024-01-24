@@ -1,6 +1,6 @@
 import ast
 
-from uclid_lm_ir.printer import print_uclid5
+from uclid_lm_ir.compiler import compile_to_uclid5
 from uclid_lm_ir.utils import assert_equal
 
 
@@ -20,7 +20,7 @@ module ModuleM {
 }
 """
     python = ast.parse(code)
-    output = print_uclid5(python)
+    output = compile_to_uclid5(python)
     assert_equal(output, expected)
 
 
@@ -42,5 +42,5 @@ module main {
 }
 """
     python = ast.parse(code)
-    output = print_uclid5(python)
+    output = compile_to_uclid5(python)
     assert_equal(output, expected)

@@ -126,7 +126,7 @@ def test_{name}():
     code = \"""{python_ir}\"""
     expected = \"""{uclid_ir}\"""
     python = ast.parse(code)
-    output = print_uclid5(python)
+    output = compile_to_uclid5(python)
     assert_equal(output, expected)
 """
         )

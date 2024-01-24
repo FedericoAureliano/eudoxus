@@ -1,7 +1,7 @@
 import ast
 import inspect
 
-from .printer import print_uclid5
+from .compiler import compile_to_uclid5
 
 
 class Module:
@@ -127,7 +127,7 @@ class Module:
     def __str__(self) -> str:
         """Returns the UCLID5 representation of the Python class."""
         tree = ast.parse(inspect.getsource(self.__class__))
-        return print_uclid5(tree)
+        return compile_to_uclid5(tree)
 
     def execute(self, k: int) -> str:
         """Executes the module for k steps."""

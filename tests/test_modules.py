@@ -1,6 +1,6 @@
 import ast
 
-from uclid_lm_ir.printer import print_uclid5
+from uclid_lm_ir.compiler import compile_to_uclid5
 from uclid_lm_ir.utils import assert_equal
 
 
@@ -11,7 +11,7 @@ class EmptyModule(Module):
 """
     expected = "module EmptyModule { }"
     python = ast.parse(code)
-    output = print_uclid5(python)
+    output = compile_to_uclid5(python)
     assert_equal(output, expected)
 
 
@@ -23,7 +23,7 @@ class ModuleWithVar(Module):
 """
     expected = "module ModuleWithVar {\nvar x : integer;\n}"
     python = ast.parse(code)
-    output = print_uclid5(python)
+    output = compile_to_uclid5(python)
     assert_equal(output, expected)
 
 
@@ -45,7 +45,7 @@ module ModuleWithVarAndInit {
 }
 """
     python = ast.parse(code)
-    output = print_uclid5(python)
+    output = compile_to_uclid5(python)
     assert_equal(output, expected)
 
 
@@ -73,7 +73,7 @@ module ModuleWithVarAndInitAndNext {
 }
 """
     python = ast.parse(code)
-    output = print_uclid5(python)
+    output = compile_to_uclid5(python)
     assert_equal(output, expected)
 
 
@@ -105,7 +105,7 @@ module ModuleWithVarAndInitAndInvariants {
 }
 """
     python = ast.parse(code)
-    output = print_uclid5(python)
+    output = compile_to_uclid5(python)
     assert_equal(output, expected)
 
 
@@ -145,7 +145,7 @@ module ModuleWithVarAndInitAndInvariantsAndControl {
 }
 """
     python = ast.parse(code)
-    output = print_uclid5(python)
+    output = compile_to_uclid5(python)
     assert_equal(output, expected)
 
 
@@ -163,7 +163,7 @@ module ModuleWithTypeDecls {
 }
 """
     python = ast.parse(code)
-    output = print_uclid5(python)
+    output = compile_to_uclid5(python)
     assert_equal(output, expected)
 
 
@@ -187,7 +187,7 @@ module ModuleWithTypeDeclsAndUses {
 }
 """
     python = ast.parse(code)
-    output = print_uclid5(python)
+    output = compile_to_uclid5(python)
     assert_equal(output, expected)
 
 
@@ -246,7 +246,7 @@ module ModuleWithComments {
 }
 """
     python = ast.parse(code)
-    output = print_uclid5(python)
+    output = compile_to_uclid5(python)
     assert_equal(output, expected)
 
 
@@ -284,5 +284,5 @@ module HavocAssumeAssert {
 }
 """
     python = ast.parse(code)
-    output = print_uclid5(python)
+    output = compile_to_uclid5(python)
     assert_equal(output, expected)

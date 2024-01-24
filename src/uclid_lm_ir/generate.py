@@ -6,8 +6,8 @@ from pathlib import Path
 import chromadb
 from openai import OpenAI
 
+from .compiler import compile_to_uclid5
 from .module import Module
-from .printer import print_uclid5
 from .utils import generator_log, llm_log
 
 
@@ -83,7 +83,7 @@ def process_code(code) -> str:
 
     # extract all the classes and nothing else
     parsed.body = [node for node in parsed.body if isinstance(node, ast.ClassDef)]
-    output = print_uclid5(parsed)
+    output = compile_to_uclid5(parsed)
     # remove empty lines
     output = "\n".join([line for line in output.split("\n") if line.strip()])
 

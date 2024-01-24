@@ -32,7 +32,7 @@ operator_dict = {
     "Is": "??",
     "IsNot": "??",
     "NotIn": "??",
-    "FloorDiv": "??",
+    "FloorDiv": "//",
     "MatMult": "??",
 }
 
@@ -233,11 +233,14 @@ class TyepDecl(Decl):
     TypeDecl is a class that represents a type declaration.
     """
 
-    def __init__(self, name, type):
+    def __init__(self, name, type, annonymous=False):
         self.name = name
         self.type = type
+        self.annonymous = annonymous
 
     def __str__(self, indent=0):
+        if self.annonymous:
+            return ""
         space = "  " * indent
         return f"{space}type {self.name} = {self.type};"
 
@@ -302,6 +305,8 @@ class AlgebraicDataType(Type):
         # constructors is a list of constructors
         self.constructors = constructors
 
+    __match_args__ = ("name", "constructors")
+
 
 class ModuleType(Type):
     """
@@ -327,8 +332,8 @@ class ModuleType(Type):
     def add_local(self, name, type):
         self.toplevel.append(VarDecl(name, type, "var"))
 
-    def add_type(self, name, type):
-        self.toplevel.append(TyepDecl(name, type))
+    def add_type(self, name, type, annonymous=False):
+        self.toplevel.append(TyepDecl(name, type, annonymous))
 
     def add_spec(self, name, formula):
         self.toplevel.append(InvariantDecl(name, formula))
@@ -409,7 +414,7 @@ class ModuleType(Type):
 
     def get_var(self, name):
         for var in self.get_vars():
-            if var[0] == name:
+            if var.name == name:
                 return var
         return None
 
@@ -430,7 +435,7 @@ class ModuleType(Type):
 
     def get_constructor(self, name):
         for type in self.get_types():
-            match type:
+            match type.type:
                 case AlgebraicDataType(_, constructors):
                     for constructor in constructors:
                         if constructor[0] == name:
@@ -593,12 +598,17 @@ class ModuleType(Type):
                 elif t.lower() in ["enum", "enumerated"]:
                     args = list(map(self.parse_expr, args))
                     if len(args) == 2 and " " in args[1]:
-                        variants = args[1].split(" ")
-                        return f"enum {{ {', '.join(variants)} }}"
-                    if len(kwargs) > 0:
+                        args = args[1].split(" ")
+                        out = f"enum {{ {', '.join(args)} }}"
+                    elif len(kwargs) > 0:
                         log(f"enum with kwargs is ??: {dump(type_expr)}")
-                        return "enum { ?? }"
-                    return f"enum {{ {', '.join(args)} }}"
+                        out = "enum { ?? }"
+                    else:
+                        out = f"enum {{ {', '.join(args)} }}"
+                    # add enum to types
+                    adt = AlgebraicDataType(t, [(c, []) for c in args])
+                    self.add_type(out, adt, annonymous=True)
+                    return out
                 elif self.is_type(t):
                     return t
                 else:
@@ -664,10 +674,16 @@ class ModuleType(Type):
                         for keyword in keywords:
                             match keyword:
                                 case ast.keyword(arg, ast.Name(name, _)):
+                                    # TODO: check arg
+                                    if not self.is_var(name):
+                                        name = "??"
                                     kwargs.append(f"{arg} : ({name})")
                                 case ast.keyword(
                                     arg, ast.Attribute(ast.Name("self", _), name, _)
                                 ):
+                                    # TODO: check arg
+                                    if not self.is_var(name):
+                                        name = "??"
                                     kwargs.append(f"{arg} : ({name})")
                                 case ast.keyword(arg, _):
                                     self.add_comment(INSTANCE_ARG_COMMENT)
@@ -697,6 +713,9 @@ class ModuleType(Type):
                     case _:
                         log(f"lhs_exprs[0] is ??: {dump(stmt)}")
                         lhs = "??"
+                if not self.is_var(lhs):
+                    log(f"lhs is not var ??: {dump(stmt)}")
+                    lhs = "??"
                 rhs = self.parse_expr(value)
                 return AssignmentStmt(lhs, rhs)
             case ast.AugAssign(lhs, op, rhs):
@@ -771,9 +790,21 @@ class ModuleType(Type):
     def parse_invariant(self, inv):
         match inv:
             case ast.Return(value):
-                self.add_spec("spec", self.parse_expr(value))
+                if len(self.get_specs()) == 0:
+                    name = "spec"
+                else:
+                    name = f"spec_{len(self.get_specs()) + 1}"
+                self.add_spec(name, self.parse_expr(value))
             case ast.Expr(ast.Constant(value, _)) if isinstance(value, str):
                 self.add_comment(value)
+            case ast.Assert(test, msg):
+                if msg:
+                    self.add_comment(msg)
+                if len(self.get_specs()) == 0:
+                    name = "spec"
+                else:
+                    name = f"spec_{len(self.get_specs()) + 1}"
+                self.add_spec(name, self.parse_expr(test))
             case _:
                 log(f"inv is ??: {dump(inv)}")
                 return "??"
@@ -801,16 +832,26 @@ class ModuleType(Type):
     def parse_expr(self, expr):
         match expr:
             case ast.Name(name, _):
-                return name
+                if self.is_var(name):
+                    return name
+                elif self.is_constructor(name):
+                    return name
+                log(f"expr is name ??: {dump(expr)}")
+                return "??"
+            case ast.Attribute(ast.Name("self", _), name, _):
+                if self.is_var(name):
+                    return name
+                elif self.is_constructor(name):
+                    return name
+                log(f"expr attr is name ??: {dump(expr)}")
+                return "??"
+            case ast.Attribute(value, attr, _):
+                return f"{self.parse_expr(value)}.{attr}"
             case ast.Constant(value, _):
                 if isinstance(value, bool):
                     return "true" if value else "false"
                 else:
                     return str(value)
-            case ast.Attribute(ast.Name("self", _), attr, _):
-                return attr
-            case ast.Attribute(value, attr, _):
-                return f"{self.parse_expr(value)}.{attr}"
             case ast.Subscript(value, slice, _):
                 return f"{self.parse_expr(value)}[{self.parse_expr(slice)}]"
             case ast.IfExp(test, body, orelse):
@@ -834,7 +875,26 @@ class ModuleType(Type):
                     f"{operator_dict[op.__class__.__name__]}{self.parse_expr(operand)}"
                 )
             case ast.Call(func, args, kwargs):
-                f = self.parse_expr(func)
+                match func:
+                    case ast.Name(name, _):
+                        f = name
+                    case ast.Attribute(ast.Name("self", _), name, _):
+                        f = name
+                    case ast.Call(
+                        ast.Name(name, _), args_i, kwargs_i
+                    ) if name.lower() in ["bitvector", "bv"]:
+                        if len(args_i) == 1:
+                            a = self.parse_expr(args_i[0])
+                            f = f"bv{a}"
+                        elif len(kwargs_i) == 1:
+                            _, k = self.parse_expr(kwargs_i[0].value)
+                            f = f"bv{k}"
+                        else:
+                            log(f"expr is bv ??: {dump(expr)}")
+                            f = "bv??"
+                    case _:
+                        log(f"expr func is ??: {dump(func)}")
+                        f = "??"
 
                 args = list(map(self.parse_expr, args)) + list(
                     map(lambda kwarg: self.parse_expr(kwarg.value), kwargs)
@@ -864,15 +924,10 @@ class ModuleType(Type):
                     else:
                         log(f"expr is bv ??: {dump(expr)}")
                         return "bv??"
-                elif f.lower() in ["bitvector", "bv"]:
-                    if len(args) == 1:
-                        return f"bv{args[0]}"
-                    elif len(kwargs) == 1:
-                        _, k = self.parse_expr(kwargs[0].value)
-                        return f"bv{k}"
-                    else:
-                        log(f"expr is bv ??: {dump(expr)}")
-                        return "bv??"
+                elif self.is_constructor(f):
+                    return f"{f}({', '.join(args)})"
+                elif self.is_selector(f):
+                    return f"{self.parse_expr(args[0])}.{f}"
                 else:
                     log(f"expr call {f} is ??: {dump(expr)}")
                     return "??"
@@ -884,13 +939,13 @@ class ModuleType(Type):
         return f"module {self.name} {{\n{BlockStmt(self.toplevel).__str__(1)}\n}}"
 
 
-def print_uclid5(python_ast) -> str:
+def compile_to_uclid5(python_ast) -> str:
     """
     ast_to_ir converts a Python AST to the UCLID5 IR above and then prints.
     """
     match python_ast:
         case ast.Module(body):
-            return "\n".join([print_uclid5(stmt) for stmt in body])
+            return "\n".join([compile_to_uclid5(stmt) for stmt in body])
         case ast.ClassDef(name, _, _, body, _):
             mod = ModuleType(name)
             for stmt in body:
