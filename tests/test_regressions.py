@@ -513,3 +513,58 @@ module MyModule {
     python = ast.parse(code)
     output = compile_to_uclid5(python)
     assert_equal(output, expected)
+
+
+def test_havoc():
+    code = """from random import randint
+
+class SimpleModule(Module):
+    def types(self):
+        pass
+
+    def locals(self):
+        self.v = Integer()
+
+    def inputs(self):
+        pass
+
+    def outputs(self):
+        pass
+
+    def shared_vars(self):
+        pass
+
+    def instances(self):
+        pass
+
+    def init(self):
+        self.v = 0
+
+    def next(self):
+        self.v = randint(-100, 100)
+        assert self.v == 0
+
+    def specification(self):
+        return self.v == 0
+
+    def proof(self):
+        unroll(1)"""
+    expected = """module SimpleModule {
+  var v : integer;
+  init {
+    v = 0;
+  }
+  next {
+    havoc(v);
+    assert(v == 0);
+  }
+  invariant spec: v == 0;
+  control {
+    bmc(1);
+    check;
+    print_results();
+  }
+}"""
+    python = ast.parse(code)
+    output = compile_to_uclid5(python)
+    assert_equal(output, expected)

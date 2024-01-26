@@ -716,7 +716,11 @@ class ModuleType(Type):
                 if not self.is_var(lhs):
                     log(f"lhs is not var ??: {dump(stmt)}")
                     lhs = "??"
-                rhs = self.parse_expr(value)
+                match value:
+                    case ast.Call(ast.Name(f), args, kwargs) if "rand" in f.lower():
+                        return HavocStmt(lhs)
+                    case _:
+                        rhs = self.parse_expr(value)
                 return AssignmentStmt(lhs, rhs)
             case ast.AugAssign(lhs, op, rhs):
                 lhs = self.parse_expr(lhs)
@@ -952,5 +956,5 @@ def compile_to_uclid5(python_ast) -> str:
                 mod.parse_uclid5_module_decl(stmt)
             return mod.__str__()
         case _:
-            log(f"python_ast is ??: {dump(python_ast)}")
-            return "??"
+            log(f"python_ast is '': {dump(python_ast)}")
+            return ""
