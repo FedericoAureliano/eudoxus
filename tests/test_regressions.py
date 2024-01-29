@@ -568,3 +568,56 @@ class SimpleModule(Module):
     python = ast.parse(code)
     output = compile_to_uclid5(python)
     assert_equal(output, expected)
+
+
+def test_nonstandard_bitvecs_and_havoc():
+    code = """
+from z3 import *
+
+class SimpleModule(Module):
+    '''A simple UCLID5 module.'''
+
+    def locals(self):
+        '''Define the local variable.'''
+        self.x = BitVector('x', 32)
+
+    def init(self):
+        '''Initialise the variable to 0.'''
+        self.x = BitVecVal(0, 32)
+
+    def next(self):
+        '''Havoc the variable and assert that it remains equal to 0.'''
+        self.x = BitVec('x', 32) # HaVoc
+        assert(self.x == 0)
+
+    def proof(self):
+        '''Use bounded model checking with an unrolling of 1.'''
+        s = Solver()
+        s.add(self.x == 0) # initial state
+        s.add(self.x != 0) # after first unrolling
+        result = s.check()
+        assert(result == unsat)
+
+# Instantiate and check the module
+m = SimpleModule()
+m.proof()"""
+    expected = """module SimpleModule {
+  // A simple UCLID5 module.
+  // Define the local variable.
+  var x : bv32;
+  init {
+    // Initialise the variable to 0.
+    x = 0bv32;
+  }
+  next {
+    // Havoc the variable and assert that it remains equal to 0.
+    havoc(x);
+    assert(x == 0);
+  }
+  control {
+    // Use bounded model checking with an unrolling of 1.
+  }
+}"""
+    python = ast.parse(code)
+    output = compile_to_uclid5(python)
+    assert_equal(output, expected)

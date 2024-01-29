@@ -586,9 +586,16 @@ class ModuleType(Type):
                     if element == "??":
                         log(f"element is ??: {dump(type_expr)}")
                     return f"[{index}]{element}"
-                elif t.lower() in ["bv", "bitvector"]:
+                elif t.lower() in ["bv", "bitvec", "bitvector"]:
                     if len(args) == 1:
                         return f"bv{self.parse_expr(args[0])}"
+                    elif len(args) == 2:
+                        match args[0]:
+                            case ast.Constant(name, _) if isinstance(name, str):
+                                return f"bv{self.parse_expr(args[1])}"
+                            case _:
+                                log(f"bv args is len 2 and ??: {dump(type_expr)}")
+                                return "bv??"
                     elif len(kwargs) == 1:
                         _, k = self.parse_expr(kwargs[0].value)
                         return f"bv{k}"
@@ -721,6 +728,8 @@ class ModuleType(Type):
                         return HavocStmt(lhs)
                     case _:
                         rhs = self.parse_expr(value)
+                if "??" in rhs and "??" not in self.parse_type(value):
+                    return HavocStmt(lhs)
                 return AssignmentStmt(lhs, rhs)
             case ast.AugAssign(lhs, op, rhs):
                 lhs = self.parse_expr(lhs)
@@ -886,7 +895,7 @@ class ModuleType(Type):
                         f = name
                     case ast.Call(
                         ast.Name(name, _), args_i, kwargs_i
-                    ) if name.lower() in ["bitvector", "bv"]:
+                    ) if name.lower() in ["bitvector", "bv", "bitvectorval", "bvval"]:
                         if len(args_i) == 1:
                             a = self.parse_expr(args_i[0])
                             f = f"bv{a}"
@@ -919,12 +928,29 @@ class ModuleType(Type):
                     else:
                         log(f"expr is ite ??: {dump(expr)}")
                         return "if ?? then ?? else ??"
-                elif f.lower().startswith("bv"):
+                elif f.lower().startswith("bv") or f.lower().startswith("bitvec"):
                     if len(args) == 1:
                         return f"{args[0]}{f}"
+                    elif len(args) == 2:
+                        v = args[0] if args[0].isnumeric() else "??"
+                        w = args[1] if args[1].isnumeric() else "??"
+                        return f"{v}bv{w}"
                     elif len(kwargs) == 1:
                         _, k = self.parse_expr(kwargs[0].value)
                         return f"{k}{f}"
+                    elif len(kwargs) == 2:
+                        w = "??"
+                        v = "??"
+                        for k in kwargs:
+                            if k.arg.lower() in ["width", "size", "len"]:
+                                w = self.parse_expr(k.value)
+                            elif k.arg.lower() in ["value", "val", "v"]:
+                                v = self.parse_expr(k.value)
+                        if v == "??":
+                            w = kwargs[0].value if kwargs[0].value.isnumeric() else "??"
+                        if w == "??":
+                            w = kwargs[1].value if kwargs[1].value.isnumeric() else "??"
+                        return f"{v}bv{w}"
                     else:
                         log(f"expr is bv ??: {dump(expr)}")
                         return "bv??"
