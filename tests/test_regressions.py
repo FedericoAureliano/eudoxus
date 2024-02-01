@@ -399,7 +399,7 @@ module CommunicatingStateMachines {
     }
 
     next {
-        ??' = !??;
+        ?? = !??;
     }
 }
 """
@@ -498,8 +498,16 @@ module MyModule {
   }
   next {
     // Defines the transition relation.
-    ??' = ??;
-    ??;
+    ?? = ??;
+    for value in ?? {
+        a' = a * value;
+        b' = b * value;
+        assert(a / b == a // b);
+        x' = x * value;
+        y' = y * value;
+        assert(x / y == x // y);
+        assert(?? != ??);
+    }
   }
   // Defines the invariant properties.
   invariant spec: a / b == a // b;

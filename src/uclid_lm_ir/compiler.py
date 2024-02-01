@@ -59,7 +59,7 @@ class AssignmentStmt(Stmt):
 
     def __str__(self, indent=0):
         space = "  " * indent
-        prime = "'" if self.primed else ""
+        prime = "'" if self.primed and "??" not in self.lhs else ""
         return f"{space}{self.lhs}{prime} = {self.rhs};"
 
 
@@ -87,6 +87,24 @@ class IfStmt(Stmt):
             return f"{space}if (!{self.cond}) {{\n{f}\n{space}}}"
         else:
             return f"{space}if ({self.cond}) {{\n{t}\n{space}}} else {{\n{f}\n{space}}}"
+
+
+class ForStmt(Stmt):
+    """
+    ForStmt is a class that represents a for statement.
+    """
+
+    def __init__(self, var, range, body):
+        self.var = var
+        self.range = range
+        self.body = body
+
+    __match_args__ = ("var", "range", "body")
+
+    def __str__(self, indent=0):
+        space = "  " * indent
+        b = self.body.__str__(indent + 1)
+        return f"{space}for {self.var} in {self.range} {{\n{b}\n{space}}}"
 
 
 class NextStmt(Stmt):
@@ -348,6 +366,17 @@ class ModuleType(Type):
     def add_local(self, name, type):
         self.toplevel.append(VarDecl(name, type, "var"))
 
+    def push_tmp(self, name, type):
+        self.toplevel.append(VarDecl(name, type, "tmp"))
+
+    def pop_tmp(self):
+        # find the last tmp and remove it
+        for i in range(len(self.toplevel) - 1, -1, -1):
+            toplevel = self.toplevel[i]
+            if isinstance(toplevel, VarDecl) and toplevel.kind == "tmp":
+                self.toplevel.pop(i)
+                return toplevel
+
     def add_type(self, name, type, annonymous=False):
         self.toplevel.append(TyepDecl(name, type, annonymous))
 
@@ -374,6 +403,8 @@ class ModuleType(Type):
             case BlockStmt(stmts):
                 for stmt in stmts:
                     self.prime_statments(stmt)
+            case ForStmt(_, _, body):
+                self.prime_statments(body)
             case _:
                 pass
 
@@ -411,6 +442,13 @@ class ModuleType(Type):
             if isinstance(decl, VarDecl) and decl.kind == "var"
         ]
 
+    def get_tmps(self):
+        return [
+            decl
+            for decl in self.toplevel
+            if isinstance(decl, VarDecl) and decl.kind == "tmp"
+        ]
+
     def get_types(self):
         return [decl for decl in self.toplevel if isinstance(decl, TyepDecl)]
 
@@ -432,6 +470,7 @@ class ModuleType(Type):
             + self.get_outputs()
             + self.get_sharedvars()
             + self.get_locals()
+            + self.get_tmps()
         )
 
     def get_var(self, name):
@@ -617,12 +656,31 @@ class ModuleType(Type):
         else:
             self.toplevel.append(CommentStmt(comment))
 
-    def parse_type(self, type_expr):
-        match type_expr:
+    def parse_name(self, name_expr):
+        match name_expr:
             case ast.Name(name, _):
                 return name
             case ast.Attribute(ast.Name("self", _), attr, _):
                 return attr
+            case _:
+                log(f"name_expr is ??: {dump(name_expr)}")
+                return "??"
+
+    def parse_range(self, range_expr):
+        match range_expr:
+            case ast.Call(ast.Name("range", _), [start, stop], _):
+                start = int(self.parse_expr(start))
+                stop = int(self.parse_expr(stop)) - 1
+                return f"range({start}, {stop})"
+            case ast.Call(ast.Name("range", _), [stop], _):
+                stop = int(self.parse_expr(stop)) - 1
+                return f"range(0, {stop})"
+            case _:
+                log(f"range_expr is ??: {dump(range_expr)}")
+                return "??"
+
+    def parse_type(self, type_expr):
+        match type_expr:
             case ast.Call(ast.Name(t, _), args, kwargs):
                 if t.lower() in ["integer", "int", "natural", "nat"]:
                     return "integer"
@@ -689,20 +747,16 @@ class ModuleType(Type):
             case ast.Call(ast.Attribute(ast.Name("self", _), attr, ctx), args, kwargs):
                 return self.parse_type(ast.Call(ast.Name(attr, ctx), args, kwargs))
             case _:
+                name = self.parse_name(type_expr)
+                if self.is_type(name):
+                    return name
                 log(f"type_expr is ??: {dump(type_expr)}")
                 return "??"
 
     def parse_var_decl(self, var_decl, action):
         match var_decl:
-            case ast.Assign(var_names, value, _):
-                match var_names[0]:
-                    case ast.Name(name, _):
-                        lhs = name
-                    case ast.Attribute(ast.Name("self", _), attr, _):
-                        lhs = attr
-                    case _:
-                        log(f"var_names[0] is ??: {dump(var_decl)}")
-                        lhs = "??"
+            case ast.Assign([var_name], value, _):
+                lhs = self.parse_name(var_name)
                 rhs = self.parse_type(value)
                 action(lhs, rhs)
             case ast.Expr(ast.Constant(value, _)) if isinstance(value, str):
@@ -725,15 +779,8 @@ class ModuleType(Type):
 
     def parse_instance_decl(self, inst_decl):
         match inst_decl:
-            case ast.Assign(inst_names, inst_expr, _):
-                match inst_names[0]:
-                    case ast.Name(name, _):
-                        lhs = name
-                    case ast.Attribute(ast.Name("self", _), attr, _):
-                        lhs = attr
-                    case _:
-                        log(f"inst_names[0] is ??: {dump(inst_decl)}")
-                        lhs = "??"
+            case ast.Assign([inst_name], inst_expr, _):
+                lhs = self.parse_name(inst_name)
                 match inst_expr:
                     case ast.Call(func, _, keywords):
                         match func:
@@ -776,15 +823,8 @@ class ModuleType(Type):
 
     def parse_stmt(self, stmt):
         match stmt:
-            case ast.Assign(lhs_exprs, value, _):
-                match lhs_exprs[0]:
-                    case ast.Name(name, _):
-                        lhs = name
-                    case ast.Attribute(ast.Name("self", _), attr, _):
-                        lhs = attr
-                    case _:
-                        log(f"lhs_exprs[0] is ??: {dump(stmt)}")
-                        lhs = "??"
+            case ast.Assign([lhs_expr], value, _):
+                lhs = self.parse_name(lhs_expr)
                 if not self.is_var(lhs):
                     log(f"lhs is not var ??: {dump(stmt)}")
                     lhs = "??"
@@ -855,6 +895,15 @@ class ModuleType(Type):
                     BlockStmt(list(map(self.parse_stmt, body))),
                     BlockStmt([]),
                 )
+            case ast.For(target, iter, body, _):
+                iter = self.parse_range(iter)
+                target = self.parse_name(target)
+                # push target onto locals
+                self.push_tmp(target, "??")
+                body = list(map(self.parse_stmt, body))
+                self.pop_tmp()
+                # pop target from locals
+                return ForStmt(target, iter, BlockStmt(body))
             case _:
                 log(f"stmt is ??: {dump(stmt)}")
                 return HoleStmt()
