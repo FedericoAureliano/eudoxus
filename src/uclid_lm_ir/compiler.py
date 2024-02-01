@@ -245,6 +245,22 @@ class TyepDecl(Decl):
         return f"{space}type {self.name} = {self.type};"
 
 
+class FuncDecl(Decl):
+    """
+    FuncDecl is a class that represents a function declaration.
+    """
+
+    def __init__(self, name, args):
+        self.name = name
+        self.args = args
+
+    def __str__(self, indent=0):
+        space = "  " * indent
+        ret = self.args[-1]
+        args = self.args[:-1]
+        return f"{space}function {self.name}({', '.join(args)}) : {ret};"
+
+
 class VarDecl(Decl):
     """
     VarDecl is a class that represents a variable declaration.
@@ -335,6 +351,9 @@ class ModuleType(Type):
     def add_type(self, name, type, annonymous=False):
         self.toplevel.append(TyepDecl(name, type, annonymous))
 
+    def add_func(self, name, args):
+        self.toplevel.append(FuncDecl(name, args))
+
     def add_spec(self, name, formula):
         self.toplevel.append(InvariantDecl(name, formula))
 
@@ -395,6 +414,9 @@ class ModuleType(Type):
     def get_types(self):
         return [decl for decl in self.toplevel if isinstance(decl, TyepDecl)]
 
+    def get_functions(self):
+        return [decl for decl in self.toplevel if isinstance(decl, FuncDecl)]
+
     def get_specs(self):
         return [decl for decl in self.toplevel if isinstance(decl, InvariantDecl)]
 
@@ -432,6 +454,15 @@ class ModuleType(Type):
 
     def is_type(self, name):
         return self.get_type(name) is not None
+
+    def get_func(self, name):
+        for func in self.get_functions():
+            if func.name == name:
+                return func
+        return None
+
+    def is_func(self, name):
+        return self.get_func(name) is not None
 
     def get_constructor(self, name):
         for type in self.get_types():
@@ -474,6 +505,10 @@ class ModuleType(Type):
             case ast.FunctionDef("types", _, body, _, _, _):
                 for decl in body:
                     self.parse_type_decl(decl)
+
+            case ast.FunctionDef("functions", _, body, _, _, _):
+                for decl in body:
+                    self.parse_func_decl(decl)
 
             case ast.FunctionDef("inputs", _, body, _, _, _):
                 for decl in body:
@@ -524,8 +559,8 @@ class ModuleType(Type):
 
     def parse_type_decl(self, type_decl):
         match type_decl:
-            case ast.Assign(type_names, value, _):
-                match type_names[0]:
+            case ast.Assign([type_name], value, _):
+                match type_name:
                     case ast.Name(name, _):
                         lhs = name
                     case ast.Attribute(ast.Name("self", _), attr, _):
@@ -539,6 +574,36 @@ class ModuleType(Type):
                 self.add_comment(value)
             case _:
                 log(f"type_decl is ??: {dump(type_decl)}")
+                return "??"
+
+    def parse_func_decl(self, func_decl):
+        match func_decl:
+            case ast.Assign([func_name], value, _):
+                match func_name:
+                    case ast.Name(name, _):
+                        lhs = name
+                    case ast.Attribute(ast.Name("self", _), attr, _):
+                        lhs = attr
+                    case _:
+                        log(f"func_names[0] is ??: {dump(func_decl)}")
+                        lhs = "??"
+                match value:
+                    case ast.Call(ast.Name(f), args, kwargs) if f.lower().startswith(
+                        "fun"
+                    ):
+                        args = list(map(self.parse_type, args))
+                        kwargs = list(
+                            map(lambda kwarg: self.parse_type(kwarg.value), kwargs)
+                        )
+                        args = args + kwargs
+                        self.add_func(lhs, args)
+                    case _:
+                        log(f"func_decl is ??: {dump(func_decl)}")
+                        return "??"
+            case ast.Expr(ast.Constant(value, _)) if isinstance(value, str):
+                self.add_comment(value)
+            case _:
+                log(f"func_decl is ??: {dump(func_decl)}")
                 return "??"
 
     def add_comment(self, comment):
@@ -958,6 +1023,8 @@ class ModuleType(Type):
                     return f"{f}({', '.join(args)})"
                 elif self.is_selector(f):
                     return f"{self.parse_expr(args[0])}.{f}"
+                elif self.is_func(f):
+                    return f"{f}({', '.join(args)})"
                 else:
                     log(f"expr call {f} is ??: {dump(expr)}")
                     return "??"

@@ -17,6 +17,17 @@ class Module:
         """
         pass
 
+    def functions(self):
+        """(Optional) Defines the uninterpreted function declarations.
+        For example, the following implementation defines a function f that
+        takes two 4-bit bitvectors and returns a 8-bit bitvector:
+        ```
+        def functions(self):
+            self.f = Function(BitVector(4), BitVector(4), BitVector(8))
+        ```
+        """
+        pass
+
     def locals(self):
         """(Optional) Defines the local variables and their types.
         For example, the following implementation defines an 8-bit variable x
