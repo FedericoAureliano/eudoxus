@@ -286,3 +286,28 @@ module HavocAssumeAssert {
     python = ast.parse(code)
     output = compile_to_uclid5(python)
     assert_equal(output, expected)
+
+
+def test_parallel_assign():
+    code = """
+class MultipleAssign(Module):
+    def locals(self):
+        self.x = Integer()
+        self.y = Integer()
+
+    def next(self):
+        self.x, self.y = self.y, self.x + self.y
+"""
+    expected = """
+module MultipleAssign {
+    var x : integer;
+    var y : integer;
+    next {
+        x' = y;
+        y' = x + y;
+    }
+}
+"""
+    python = ast.parse(code)
+    output = compile_to_uclid5(python)
+    assert_equal(output, expected)

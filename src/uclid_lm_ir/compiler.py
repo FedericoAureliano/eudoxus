@@ -823,6 +823,13 @@ class ModuleType(Type):
 
     def parse_stmt(self, stmt):
         match stmt:
+            case ast.Assign([ast.Tuple(lhss, _)], ast.Tuple(rhss, _), other) if len(
+                lhss
+            ) == len(rhss):
+                assigns = [
+                    ast.Assign([lhs], rhs, other) for (lhs, rhs) in zip(lhss, rhss)
+                ]
+                return BlockStmt(list(map(self.parse_stmt, assigns)))
             case ast.Assign([lhs_expr], value, _):
                 lhs = self.parse_name(lhs_expr)
                 if not self.is_var(lhs):
