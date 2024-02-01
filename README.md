@@ -1,4 +1,6 @@
-# Synthetic Programming Elicitation
+# eudoxus: [UCLID5](https://github.com/uclid-org/uclid) text-to-code tool
+
+"Eudoxus was probably the source for most of book V of Euclid's Elements." - [Wikipedia](https://en.wikipedia.org/wiki/Eudoxus_of_Cnidus)
 
 ## Usage
 The main way to use eudoxus is through the `synthesize` command.
@@ -10,11 +12,11 @@ The main way to use eudoxus is through the `synthesize` command.
 ╭─ Arguments ────────────────────────────────────────────────────────────────────────────────╮
 │ *    task      TEXT  Description of the desired UCLID5 code in natural language [required] │
 ╰────────────────────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ───────────────────────────────────────────────────────────────────────────────────╮
-│ --examples     PATH     Directory with example UCLID5 files to use for RAG [default: None]  │
-│ --neighbours   INTEGER  Number of neighbours to consider for RAG [default: 1]               │
-│ --help                  Show this message and exit.                                         │
-╰─────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ──────────────────────────────────────────────────────────────────────────────────╮
+│ --examples     PATH     Directory with example UCLID5 files to use for RAG [default: None] │
+│ --neighbours   INTEGER  Number of neighbours to consider for RAG [default: 1]              │
+│ --help                  Show this message and exit.                                        │
+╰────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
 
 So, for example, you can run `eudoxus synthesize "model a fibonnaci sequence"`.
@@ -55,11 +57,12 @@ pre-commit run --all-files --show-diff-on-failure
 ```
 
 ## Language Support
-The goal is to support most of UCLID5. Currently we do not support:
-- defines
-- procedures
-- finite foralls or exists
-- groups
-- hyperproperties
-- multiple init or next blocks in the same module
-- imports (like type imports from other modules)
+The goal is to support most of [UCLID5](https://github.com/uclid-org/uclid). Currently we do not support:
+- function definitions,
+- procedure declarations or calls,
+- finite quantifiers,
+- groups,
+- hyperproperties,
+- linear temporal logic,
+- multiple init or next blocks in the same module, or
+- imports.
