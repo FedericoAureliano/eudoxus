@@ -56,9 +56,6 @@ def default(
     if task is None:
         typer.echo("No task given. Please provide a task.")
         return
-    if examples is None:
-        typer.echo("No examples given. Please provide a directory with UCLID5 files.")
-        return
 
     code_with_holes = sketch_api(task)
     code = complete_api(code_with_holes, examples, neighbours)
