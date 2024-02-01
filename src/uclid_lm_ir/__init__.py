@@ -33,15 +33,14 @@ eudoxus = typer.Typer(
 )
 
 
-@eudoxus.callback(invoke_without_command=True)
-def default(
-    ctx: typer.Context,
+@eudoxus.command()
+def synthesize(
     task: Annotated[
         Optional[str],
         typer.Argument(
             help="Description of the desired UCLID5 code in natural language"
         ),
-    ] = None,
+    ],
     examples: Annotated[
         Optional[Path],
         typer.Option(help="Directory with example UCLID5 files to use for RAG"),
@@ -50,13 +49,9 @@ def default(
         int, typer.Option(help="Number of neighbours to consider for RAG")
     ] = 1,
 ) -> None:
-    if ctx.invoked_subcommand is not None:
-        return
-
-    if task is None:
-        typer.echo("No task given. Please provide a task.")
-        return
-
+    """
+    Synthesize a complete UCLID5 model from a natural language description.
+    """
     code_with_holes = sketch_api(task)
     code = complete_api(code_with_holes, examples, neighbours)
     syntax = Syntax(code, "scala", theme="monokai", line_numbers=True)
@@ -64,7 +59,7 @@ def default(
     console.print(Panel(syntax, title="UCLID5 Output", expand=False))
 
 
-@eudoxus.command(hidden=True)
+@eudoxus.command()
 def sketch(
     task: Annotated[
         str,
@@ -101,8 +96,8 @@ def sketch(
             console.print(Panel(syntax, title="UCLID5 Output", expand=False))
 
 
-@eudoxus.command(hidden=True)
-def complete(
+@eudoxus.command()
+def fill(
     code: Annotated[Path, typer.Argument(help="Path to input file with UCLID5 code")],
     output: Annotated[Optional[Path], typer.Option(help="File to write to")] = None,
     samples: Annotated[int, typer.Option(help="Number of times to query the LLM")] = 1,

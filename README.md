@@ -1,10 +1,29 @@
 # Synthetic Programming Elicitation
 
 ## Usage
+The main way to use eudoxus is through the `synthesize` command.
+```
+ Usage: eudoxus synthesize [OPTIONS] TASK
+
+ Synthesize a complete UCLID5 model from a natural language description.
+
+╭─ Arguments ────────────────────────────────────────────────────────────────────────────────╮
+│ *    task      TEXT  Description of the desired UCLID5 code in natural language [required] │
+╰────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ───────────────────────────────────────────────────────────────────────────────────╮
+│ --examples     PATH     Directory with example UCLID5 files to use for RAG [default: None]  │
+│ --neighbours   INTEGER  Number of neighbours to consider for RAG [default: 1]               │
+│ --help                  Show this message and exit.                                         │
+╰─────────────────────────────────────────────────────────────────────────────────────────────╯
+```
+
+So, for example, you can run `eudoxus synthesize "model a fibonnaci sequence"`.
+
+You may also find `sketch`, `fill`, or `add-to-tests` useful, depending on your needs.
 ```sh
-eudoxus --help
 eudoxus sketch --help
-eudoxus complete --help
+eudoxus fill --help
+eudoxus add-to-tests --help # Note: this command is hidden
 ```
 
 ## Building
