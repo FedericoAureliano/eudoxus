@@ -26,10 +26,48 @@ __all__ = [
     "complete_api",
 ]
 
-eudoxus = typer.Typer()
+eudoxus = typer.Typer(
+    add_completion=False,
+    no_args_is_help=True,
+    help="UCLID5 code generation using language models.",
+)
 
 
-@eudoxus.command()
+@eudoxus.callback(invoke_without_command=True)
+def default(
+    ctx: typer.Context,
+    task: Annotated[
+        Optional[str],
+        typer.Argument(
+            help="Description of the desired UCLID5 code in natural language"
+        ),
+    ] = None,
+    examples: Annotated[
+        Optional[Path],
+        typer.Option(help="Directory with example UCLID5 files to use for RAG"),
+    ] = None,
+    neighbours: Annotated[
+        int, typer.Option(help="Number of neighbours to consider for RAG")
+    ] = 1,
+) -> None:
+    if ctx.invoked_subcommand is not None:
+        return
+
+    if task is None:
+        typer.echo("No task given. Please provide a task.")
+        return
+    if examples is None:
+        typer.echo("No examples given. Please provide a directory with UCLID5 files.")
+        return
+
+    code_with_holes = sketch_api(task)
+    code = complete_api(code_with_holes, examples, neighbours)
+    syntax = Syntax(code, "scala", theme="monokai", line_numbers=True)
+    console = Console()
+    console.print(Panel(syntax, title="UCLID5 Output", expand=False))
+
+
+@eudoxus.command(hidden=True)
 def sketch(
     task: Annotated[
         str,
@@ -66,7 +104,7 @@ def sketch(
             console.print(Panel(syntax, title="UCLID5 Output", expand=False))
 
 
-@eudoxus.command()
+@eudoxus.command(hidden=True)
 def complete(
     code: Annotated[Path, typer.Argument(help="Path to input file with UCLID5 code")],
     output: Annotated[Optional[Path], typer.Option(help="File to write to")] = None,
@@ -100,7 +138,7 @@ def complete(
             console.print(Panel(syntax, title="UCLID5 Output", expand=False))
 
 
-@eudoxus.command()
+@eudoxus.command(hidden=True)
 def add_to_tests(
     python_file: Annotated[Path, typer.Argument(help="Path to file with Python IR")],
     uclid_file: Annotated[

@@ -34,3 +34,13 @@ open htmlcov/index.html # to see coverage report
 ```sh
 pre-commit run --all-files --show-diff-on-failure
 ```
+
+## Language Support
+The goal is to support most of UCLID5. Currently we do not support:
+- defines
+- procedures
+- finite foralls or exists
+- groups
+- hyperproperties
+- multiple init or next blocks in the same module
+- imports (like type imports from other modules)
