@@ -1,7 +1,7 @@
 import ast
 
-from uclid_lm_ir.compiler import compile_to_uclid5
-from uclid_lm_ir.utils import assert_equal
+from eudoxus.compiler import compile_to_uclid5
+from eudoxus.utils import assert_equal
 
 
 def test_simple_for():

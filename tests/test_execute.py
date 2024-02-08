@@ -1,4 +1,4 @@
-from uclid_lm_ir import Module
+from eudoxus import Module
 
 
 def Integer():

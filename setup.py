@@ -1,5 +1,5 @@
 """
-    Setup file for uclid-lm-ir.
+    Setup file for eudoxus.
     Use setup.cfg to configure your project.
 
     This file was generated with PyScaffold 4.5.

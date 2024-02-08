@@ -10,7 +10,7 @@ from typing_extensions import Annotated
 
 try:
     # Change here if project is renamed and does not equal the package name
-    dist_name = "uclid_lm_ir"
+    dist_name = "eudoxus"
     __version__ = version(dist_name)
 except PackageNotFoundError:  # pragma: no cover
     __version__ = "unknown"
@@ -48,15 +48,20 @@ def synthesize(
     neighbours: Annotated[
         int, typer.Option(help="Number of neighbours to consider for RAG")
     ] = 1,
+    save_ir: Annotated[Path, typer.Option(help="Save the IR to a file")] = None,
+    output: Annotated[Optional[Path], typer.Option(help="File to write to")] = None,
 ) -> None:
     """
     Synthesize a complete UCLID5 model from a natural language description.
     """
-    code_with_holes = sketch_api(task)
+    code_with_holes = sketch_api(task, save_ir=save_ir)
     code = complete_api(code_with_holes, examples, neighbours)
     syntax = Syntax(code, "scala", theme="monokai", line_numbers=True)
     console = Console()
     console.print(Panel(syntax, title="UCLID5 Output", expand=False))
+    if output:
+        with open(output, "w") as f:
+            f.write(code)
 
 
 @eudoxus.command()

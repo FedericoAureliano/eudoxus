@@ -19,13 +19,13 @@ The main way to use eudoxus is through the `synthesize` command.
 ╰────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
 
-So, for example, you can run `eudoxus synthesize "model a fibonnaci sequence"`.
+So, for example, you can run `pyenv exec eudoxus synthesize "model a fibonnaci sequence"`.
 
 You may also find `sketch`, `fill`, or `add-to-tests` useful, depending on your needs.
 ```sh
-eudoxus sketch --help
-eudoxus fill --help
-eudoxus add-to-tests --help # Note: this command is hidden
+pyenv exec eudoxus sketch --help
+pyenv exec eudoxus fill --help
+pyenv exec eudoxus add-to-tests --help # Note: this command is hidden
 ```
 
 ## Building
@@ -53,7 +53,7 @@ open htmlcov/index.html # to see coverage report
 
 ## Formatting
 ```sh
-pre-commit run --all-files --show-diff-on-failure
+pyenv exec pre-commit run --all-files --show-diff-on-failure
 ```
 
 ## Language Support

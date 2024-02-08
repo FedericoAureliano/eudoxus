@@ -1,5 +1,5 @@
 """
-    Dummy conftest.py for uclid_lm_ir.
+    Dummy conftest.py for eudoxus.
 
     If you don't know what this is for, just leave it empty.
     Read more about conftest.py under:
