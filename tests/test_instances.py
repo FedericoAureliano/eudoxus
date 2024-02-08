@@ -44,3 +44,28 @@ module main {
     python = ast.parse(code)
     output = compile_to_uclid5(python)
     assert_equal(output, expected)
+
+
+def test_instance_as_variable():
+    code = """
+class A(Module):
+    pass
+class main(Module):
+    def locals(self):
+        self.x = Integer()
+        self.y = Integer()
+        self.m = A()
+"""
+    expected = """
+module A {
+}
+module main {
+    var x : integer;
+    var y : integer;
+    // To declare an instance you must use the 'instance' keyword.
+    var m : ??;
+}
+"""
+    python = ast.parse(code)
+    output = compile_to_uclid5(python)
+    assert_equal(output, expected)

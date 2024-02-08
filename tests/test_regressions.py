@@ -399,6 +399,7 @@ module CommunicatingStateMachines {
     }
 
     next {
+        // The lhs of an assignment in the next block must be primed.
         ?? = !??;
     }
 }
@@ -498,20 +499,21 @@ module MyModule {
   }
   next {
     // Defines the transition relation.
+    // The lhs of an assignment in the next block must be primed.
     ?? = ??;
     for value in ?? {
         a' = a * value;
         b' = b * value;
-        assert(a / b == a // b);
+        assert(a / b == a /_ b);
         x' = x * value;
         y' = y * value;
-        assert(x / y == x // y);
+        assert(x / y == x /_ y);
         assert(?? != ??);
     }
   }
   // Defines the invariant properties.
-  invariant spec: a / b == a // b;
-  invariant spec_2: x / y == x // y;
+  invariant spec: a / b == a /_ b;
+  invariant spec_2: x / y == x /_ y;
   invariant spec_3: ?? != ??;
   invariant spec_4: true;
   control {

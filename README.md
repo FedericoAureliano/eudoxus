@@ -38,6 +38,7 @@ pyenv install 3.11.7
 pyenv local 3.11.7
 pyenv exec pip install pre-commit
 pyenv exec pre-commit install
+pyenv exec python -m pip install "tox<4"
 ```
 
 ### Installation (for development)

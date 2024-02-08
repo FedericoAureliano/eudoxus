@@ -55,7 +55,7 @@ def synthesize(
     Synthesize a complete UCLID5 model from a natural language description.
     """
     code_with_holes = sketch_api(task, save_ir=save_ir)
-    code = complete_api(code_with_holes, examples, neighbours)
+    code = complete_api(code_with_holes, examples, neighbours, task)
     syntax = Syntax(code, "scala", theme="monokai", line_numbers=True)
     console = Console()
     console.print(Panel(syntax, title="UCLID5 Output", expand=False))

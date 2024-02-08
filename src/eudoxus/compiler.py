@@ -32,13 +32,16 @@ operator_dict = {
     "Is": "??",
     "IsNot": "??",
     "NotIn": "??",
-    "FloorDiv": "//",
+    "FloorDiv": "/_",
     "MatMult": "??",
 }
 
-INSTANCE_ARG_COMMENT = (
-    "Instance argument must be a local variable name, not an expression."
-)
+INSTANCE_ARG_COMMENT = "Instance argument must be a local variable name, not an \
+expression."
+
+PRIMED_ASSIGN_COMMENT = "The lhs of an assignment in the next block must be primed."
+
+INSTANCE_NOT_VAR_COMMENT = "To declare an instance you must use the 'instance' keyword."
 
 
 class Stmt:
@@ -60,6 +63,9 @@ class AssignmentStmt(Stmt):
     def __str__(self, indent=0):
         space = "  " * indent
         prime = "'" if self.primed and "??" not in self.lhs else ""
+        if self.primed and "??" in self.lhs:
+            comment = CommentStmt(PRIMED_ASSIGN_COMMENT).__str__(indent)
+            return f"{comment}\n{space}{self.lhs}{prime} = {self.rhs};"
         return f"{space}{self.lhs}{prime} = {self.rhs};"
 
 
@@ -79,8 +85,11 @@ class IfStmt(Stmt):
         space = "  " * indent
         t = self.true_stmt.__str__(indent + 1)
         f = self.false_stmt.__str__(indent + 1)
+        # check if both are empty
+        if (f.isspace() or f == "") and (t.isspace() or t == ""):
+            return ""
         # check if t has only whitespace
-        if f.isspace() or f == "":
+        elif f.isspace() or f == "":
             return f"{space}if ({self.cond}) {{\n{t}\n{space}}}"
         # check if f has only whitespace
         elif t.isspace() or t == "":
@@ -104,6 +113,8 @@ class ForStmt(Stmt):
     def __str__(self, indent=0):
         space = "  " * indent
         b = self.body.__str__(indent + 1)
+        if b.isspace() or b == "":
+            return ""
         return f"{space}for {self.var} in {self.range} {{\n{b}\n{space}}}"
 
 
@@ -151,12 +162,12 @@ class HavocStmt(Stmt):
     HavocStmt is a class that represents a havoc statement.
     """
 
-    def __init__(self, vars):
-        self.vars = vars
+    def __init__(self, var):
+        self.var = var
 
     def __str__(self, indent=0):
         space = "  " * indent
-        return f"{space}havoc({', '.join(self.vars)});"
+        return f"{space}havoc({self.var});"
 
 
 class BlockStmt(Stmt):
@@ -184,7 +195,9 @@ class CommentStmt(Stmt):
 
     def __str__(self, indent=0):
         space = "  " * indent
-        return f"{space}// {self.comment}"
+        # split the comment into lines and add // to each line
+        lines = self.comment.split("\n")
+        return "\n".join([f"{space}// {line}" for line in lines])
 
 
 class HoleStmt(Stmt):
@@ -306,6 +319,8 @@ class TransitionDecl(Decl):
     def __str__(self, indent=0):
         space = "  " * indent
         inner = BlockStmt(self.stmts).__str__(indent + 1)
+        if inner.isspace() or inner == "":
+            return ""
         return f"{space}{self.kind} {{\n{inner}\n{space}}}\n"
 
 
@@ -347,12 +362,13 @@ class ModuleType(Type):
     ModuleType is a class that represents the type of a module.
     """
 
-    def __init__(self, name):
+    def __init__(self, name, modules=None):
         self.name = name
         self.toplevel = []
         self.init = None
         self.next = None
         self.proof = None
+        self.modules = [] if modules is None else modules
 
     def add_input(self, name, type):
         self.toplevel.append(VarDecl(name, type, "input"))
@@ -494,6 +510,12 @@ class ModuleType(Type):
     def is_type(self, name):
         return self.get_type(name) is not None
 
+    def is_module(self, name):
+        for module in self.modules:
+            if module.name == name:
+                return True
+        return False
+
     def get_func(self, name):
         for func in self.get_functions():
             if func.name == name:
@@ -607,7 +629,7 @@ class ModuleType(Type):
                     case _:
                         log(f"type_names[0] is ??: {dump(type_decl)}")
                         lhs = "??"
-                rhs = self.parse_type(value)
+                rhs = self.parse_type(value, lhs)
                 self.add_type(lhs, rhs)
             case ast.Expr(ast.Constant(value, _)) if isinstance(value, str):
                 self.add_comment(value)
@@ -679,7 +701,9 @@ class ModuleType(Type):
                 log(f"range_expr is ??: {dump(range_expr)}")
                 return "??"
 
-    def parse_type(self, type_expr):
+    def parse_type(self, type_expr, to_assign=None):
+        if to_assign is None:
+            to_assign = ""
         match type_expr:
             case ast.Call(ast.Name(t, _), args, kwargs):
                 if t.lower() in ["integer", "int", "natural", "nat"]:
@@ -709,6 +733,8 @@ class ModuleType(Type):
                     if element == "??":
                         log(f"element is ??: {dump(type_expr)}")
                     return f"[{index}]{element}"
+                elif t.lower() in ["array"]:
+                    return "[??]??"
                 elif t.lower() in ["bv", "bitvec", "bitvector"]:
                     if len(args) == 1:
                         return f"bv{self.parse_expr(args[0])}"
@@ -736,13 +762,35 @@ class ModuleType(Type):
                     else:
                         out = f"enum {{ {', '.join(args)} }}"
                     # add enum to types
-                    adt = AlgebraicDataType(t, [(c, []) for c in args])
+                    adt = AlgebraicDataType(to_assign, [(c, []) for c in args])
+                    log(f"adding enum to types: {to_assign}")
                     self.add_type(out, adt, annonymous=True)
                     return out
-                elif self.is_type(t):
+                elif t.lower() in ["rec", "record"]:
+                    fields = []
+                    for arg in args + kwargs:
+                        match arg:
+                            case ast.keyword(name, type_expr):
+                                fields.append((name, self.parse_type(type_expr)))
+                            case _:
+                                log(f"record arg is ??: {dump(arg)}")
+                                fields.append(("??", "??"))
+                    args = list(map(lambda x: f"{x[0]} : {x[1]}", fields))
+                    out = f"record {{ {', '.join(args)} }}"
+                    # add record to types
+                    adt = AlgebraicDataType(to_assign, [(to_assign, fields)])
+                    log(f"adding record to types: {to_assign}")
+                    self.add_type(out, adt, annonymous=True)
+                    return out
+                elif self.is_module(t):
+                    log(f"type_expr call is instance ??: {dump(type_expr)}")
+                    self.add_comment(INSTANCE_NOT_VAR_COMMENT)
+                    return "??"
+                elif self.is_type(t) and len(args + kwargs) == 0:
+                    # we don't support type parameters yet (except for arrays)
                     return t
                 else:
-                    log(f"type_expr is ??: {dump(type_expr)}")
+                    log(f"type_expr call is ??: {dump(type_expr)}")
                     return "??"
             case ast.Call(ast.Attribute(ast.Name("self", _), attr, ctx), args, kwargs):
                 return self.parse_type(ast.Call(ast.Name(attr, ctx), args, kwargs))
@@ -840,7 +888,9 @@ class ModuleType(Type):
                         return HavocStmt(lhs)
                     case _:
                         rhs = self.parse_expr(value)
-                if "??" in rhs and "??" not in self.parse_type(value):
+                parsed_type = self.parse_type(value)
+                if "??" in rhs and "??" not in parsed_type:
+                    log(f"rhs is ?? type is not ?? ({parsed_type}): {dump(stmt)}")
                     return HavocStmt(lhs)
                 return AssignmentStmt(lhs, rhs)
             case ast.AugAssign(lhs, op, rhs):
@@ -887,6 +937,7 @@ class ModuleType(Type):
                 return AssertStmt(k)
             case ast.Assert(test, msg):
                 if msg:
+                    msg = self.parse_expr(msg)
                     self.add_comment(msg)
                 return AssertStmt(self.parse_expr(test))
             case ast.If(test, body, orelse):
@@ -911,6 +962,8 @@ class ModuleType(Type):
                 self.pop_tmp()
                 # pop target from locals
                 return ForStmt(target, iter, BlockStmt(body))
+            case ast.Pass():
+                return Skip()
             case _:
                 log(f"stmt is ??: {dump(stmt)}")
                 return HoleStmt()
@@ -959,6 +1012,8 @@ class ModuleType(Type):
                     self.add_proof_statement(BoundedModelCheckingCmd(k))
             case ast.Expr(ast.Constant(value, _)) if isinstance(value, str):
                 self.add_comment(value)
+            case ast.Pass():
+                return ""
             case _:
                 log(f"cmd is ??: {dump(cmd)}")
                 return "??"
@@ -1092,15 +1147,18 @@ class ModuleType(Type):
         return f"module {self.name} {{\n{BlockStmt(self.toplevel).__str__(1)}\n}}"
 
 
-def compile_to_uclid5(python_ast) -> str:
+def compile_to_uclid5(python_ast, modules=None) -> str:
     """
     ast_to_ir converts a Python AST to the UCLID5 IR above and then prints.
     """
+    if modules is None:
+        modules = []
     match python_ast:
         case ast.Module(body):
-            return "\n".join([compile_to_uclid5(stmt) for stmt in body])
+            return "\n".join([compile_to_uclid5(stmt, modules) for stmt in body])
         case ast.ClassDef(name, _, _, body, _):
-            mod = ModuleType(name)
+            mod = ModuleType(name, modules)
+            modules.append(mod)
             for stmt in body:
                 mod.parse_uclid5_module_decl(stmt)
             return mod.__str__()

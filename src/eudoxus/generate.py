@@ -146,7 +146,7 @@ def find_nearest_neighbours(code_with_holes, examples, k):
     return results["documents"][0]
 
 
-def get_complete_prompt(code_with_holes, examples, k):
+def get_complete_prompt(code_with_holes, examples, k, original=None):
     generator_log("Getting sketch prompt...")
 
     nearest_neighbours = find_nearest_neighbours(code_with_holes, examples, k)
@@ -157,21 +157,28 @@ def get_complete_prompt(code_with_holes, examples, k):
         prompt += "This is an example of a UCLID5 model: \n```uclid5\n"
         prompt += neighbour + "\n```\n\n"
 
-    prompt += "\nFix the UCLID5 code below by replacing every occurrence of `??` "
-    prompt += f"with the correct value:\n```uclid5\n{code_with_holes}\n```\n"
+    if original:
+        prompt += "\nFix the UCLID5 code below by replacing every occurrence of `??` "
+        prompt += f"so that it accomplishes this task: {original}\n"
+        prompt += f"```uclid5\n{code_with_holes}\n```\n"
+    else:
+        prompt += "\nFix the UCLID5 code below by replacing every occurrence of `??` "
+        prompt += f"with the correct value:\n```uclid5\n{code_with_holes}\n```\n"
 
     generator_log("Prompt:", prompt)
     return prompt
 
 
-def complete_api(code_with_holes, examples=None, k=1, engine="gpt-4-0613") -> str:
+def complete_api(
+    code_with_holes, examples=None, k=1, original=None, engine="gpt-4-0613"
+) -> str:
     """Ask the llm to remove the question marks."""
     generator_log("Asking the llm to remove the question marks...")
 
     if "??" not in code_with_holes:
         return code_with_holes
 
-    prompt = get_complete_prompt(code_with_holes, examples, k)
+    prompt = get_complete_prompt(code_with_holes, examples, k, original)
 
     response = chat_gpt(prompt, engine)
 

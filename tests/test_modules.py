@@ -311,3 +311,83 @@ module MultipleAssign {
     python = ast.parse(code)
     output = compile_to_uclid5(python)
     assert_equal(output, expected)
+
+
+def test_assert_with_message():
+    code = """
+class AssertWithMessage(Module):
+    def locals(self):
+        self.x = Integer()
+
+    def next(self):
+        assert self.x >= 0, "x must be non-negative"
+"""
+    expected = """
+module AssertWithMessage {
+    var x : integer;
+    next {
+        // x must be non-negative
+        assert(x >= 0);
+    }
+}
+"""
+    python = ast.parse(code)
+    output = compile_to_uclid5(python)
+    assert_equal(output, expected)
+
+
+def test_blocks_with_pass():
+    code = """
+class PassBlocks(Module):
+    def proof(self):
+        pass
+    def next(self):
+        pass
+    def init(self):
+        if True:
+            pass
+        else:
+            pass
+"""
+    expected = """
+module PassBlocks {
+}
+"""
+    python = ast.parse(code)
+    output = compile_to_uclid5(python)
+    assert_equal(output, expected)
+
+
+def test_records():
+    code = """
+class ExtendedModule(Module):
+    def types(self):
+        self.Pair = Record(a=BitVector(8), b=BitVector(8))
+    def locals(self):
+        self.pair_var = self.Pair()
+    def init(self):
+        self.pair_var = self.Pair(a=7, b=2)
+    def next(self):
+        self.pair_var = self.Pair(a=5, b=3)
+    def specification(self):
+        return self.pair_var.a > 0 and self.pair_var.b > 0
+"""
+    expected = """
+module ExtendedModule {
+    type Pair = record {
+        a : bv8,
+        b : bv8
+    };
+    var pair_var : Pair;
+    init {
+        pair_var = Pair(7, 2);
+    }
+    next {
+        pair_var' = Pair(5, 3);
+    }
+    invariant spec: pair_var.a > 0 && pair_var.b > 0;
+}
+"""
+    python = ast.parse(code)
+    output = compile_to_uclid5(python)
+    assert_equal(output, expected)
