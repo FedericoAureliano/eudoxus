@@ -1,6 +1,10 @@
 import os
 import subprocess
 
+# if the results directory doesn't exist, create it
+if not os.path.exists("results"):
+    os.makedirs("results")
+
 # get all the files in data/supported that end in ucl
 supported = [f[:-4] for f in os.listdir("data/supported") if f.endswith(".ucl")]
 

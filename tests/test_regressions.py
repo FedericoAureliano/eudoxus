@@ -62,7 +62,7 @@ module IntersectionModule {
 
 def test_array_and_synonym():
     code = """
-class Module:
+class M(Module):
     def types(self):
         self.T = BitVector(8)
 
@@ -71,7 +71,7 @@ class Module:
 """
 
     expected = """
-module Module {
+module M {
     type T = bv8;
     var x : [bv8]T;
 }
@@ -504,16 +504,16 @@ module MyModule {
     for value in ?? {
         a' = a * value;
         b' = b * value;
-        assert(a / b == a /_ b);
+        assert(a / b == a / b);
         x' = x * value;
         y' = y * value;
-        assert(x / y == x /_ y);
+        assert(x / y == x / y);
         assert(?? != ??);
     }
   }
   // Defines the invariant properties.
-  invariant spec: a / b == a /_ b;
-  invariant spec_2: x / y == x /_ y;
+  invariant spec: a / b == a / b;
+  invariant spec_2: x / y == x / y;
   invariant spec_3: ?? != ??;
   invariant spec_4: true;
   control {
@@ -627,6 +627,133 @@ m.proof()"""
   control {
     // Use bounded model checking with an unrolling of 1.
   }
+}"""
+    python = ast.parse(code)
+    output = compile_to_uclid5(python)
+    assert_equal(output, expected)
+
+
+def test_primed_array_select_and_store():
+    code = """
+class ArrayModule(Module):
+    def types(self):
+        pass
+
+    def functions(self):
+        pass
+
+    def locals(self):
+        self.index = Integer()
+
+    def inputs(self):
+        pass
+
+    def outputs(self):
+        pass
+
+    def shared_vars(self):
+        self.array = Array(Integer(), Boolean())
+
+    def instances(self):
+        pass
+
+    def init(self):
+        self.array[0] = True
+        self.index = 0
+
+    def next(self):
+        self.index = self.index + 1
+        self.array[self.index] = True
+
+    def specification(self):
+        return ForAll([self.index], self.array[self.index])
+
+    def proof(self):
+        pass"""
+    expected = """
+module ArrayModule {
+  var index : integer;
+  sharedvar array : [integer]boolean;
+  init {
+    array = array[0 -> true];
+    index = 0;
+  }
+  next {
+    index' = index + 1;
+    array' = array[index -> true];
+  }
+  invariant spec: ??;
+}"""
+    python = ast.parse(code)
+    output = compile_to_uclid5(python)
+    assert_equal(output, expected)
+
+
+def test_pasting_in_module():
+    code = """
+class t(Module):
+    def types(self):
+        self.T = int
+
+    def locals(self):
+        self.x = self.T()
+
+    def init(self):
+        self.x = 10
+
+    def specification(self):
+        assert self.x == self.x, "Assertion error: x.x != x.x"
+"""
+    expected = """
+module t {
+    type T = integer;
+    var x : T;
+    init {
+        x = 10;
+    }
+    // Assertion error: x.x != x.x
+    invariant spec: x == x;
+}
+    """
+    python = ast.parse(code)
+    output = compile_to_uclid5(python)
+    assert_equal(output, expected)
+
+
+def test_literal_record():
+    code = '''
+class LiteralRecord(Module):
+    """An abstract class to represent a UCLID5 module."""
+
+    # Definition of record type Pair and declaration of record variable pairVar
+    def types(self):
+        self.Pair = Record({'first': Integer(), 'second': Integer()})
+
+    def locals(self):
+        self.pairVar = self.Pair
+
+    # Initialization of variables
+    def init(self):
+        self.pairVar = self.Pair({'first': 1, 'second': 2})
+
+    def next(self):
+        self.pairVar = self.Pair({'first': 3, 'second': 4})
+
+    # Checking covers requirement of pair variables to hold invariant data
+    def specification(self):
+        return And(self.pairVar.first == 1, self.pairVar.second == 1)'''
+    expected = """
+module LiteralRecord {
+  // An abstract class to represent a UCLID5 module.
+  type Pair = record { first : integer, second : integer };
+  var pairVar : Pair;
+  init {
+    pairVar = Pair(1, 2);
+  }
+  next {
+    pairVar' = Pair(3, 4);
+  }
+  invariant spec: pairVar.first == 1 && pairVar.second == 1;
 }"""
     python = ast.parse(code)
     output = compile_to_uclid5(python)

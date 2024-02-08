@@ -50,11 +50,16 @@ def synthesize(
     ] = 1,
     save_ir: Annotated[Path, typer.Option(help="Save the IR to a file")] = None,
     output: Annotated[Optional[Path], typer.Option(help="File to write to")] = None,
+    remind: Annotated[
+        bool,
+        typer.Option(help="Remind the LLM of the task description during completion"),
+    ] = False,
 ) -> None:
     """
     Synthesize a complete UCLID5 model from a natural language description.
     """
     code_with_holes = sketch_api(task, save_ir=save_ir)
+    task = task if remind else None
     code = complete_api(code_with_holes, examples, neighbours, task)
     syntax = Syntax(code, "scala", theme="monokai", line_numbers=True)
     console = Console()

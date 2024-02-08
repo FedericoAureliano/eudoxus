@@ -12,7 +12,7 @@ class Main(Module):
 """
     expected = """
 module Main {
-    function f(integer) : [bv8]integer;
+    function f(x0 : integer) : [bv8]integer;
 }
 """
     python = ast.parse(code)
@@ -30,8 +30,8 @@ class Main(Module):
 """
     expected = """
 module Main {
-    function f(integer, real) : [bv8]integer;
-    function g(bv8) : bv8;
+    function f(x0 : integer, x1 : real) : [bv8]integer;
+    function g(x0 : bv8) : bv8;
     function h() : integer;
 }
 """
@@ -52,7 +52,7 @@ class Main(Module):
 """
     expected = """
 module Main {
-    function f(integer, real) : integer;
+    function f(x0 : integer, x1 : real) : integer;
     var x : integer;
     init {
         x = f(0, 0.0);

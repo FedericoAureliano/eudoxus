@@ -67,3 +67,8 @@ The goal is to support most of [UCLID5](https://github.com/uclid-org/uclid). Cur
 - linear temporal logic,
 - multiple init or next blocks in the same module, or
 - imports.
+
+## Evaluation
+```sh
+pyenv exec python evaluate.py
+```

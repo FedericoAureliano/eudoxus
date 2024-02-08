@@ -32,9 +32,28 @@ operator_dict = {
     "Is": "??",
     "IsNot": "??",
     "NotIn": "??",
-    "FloorDiv": "/_",
+    "FloorDiv": "/",
     "MatMult": "??",
 }
+
+reserved = [
+    "integer",
+    "boolean",
+    "real",
+    "enum",
+    "record",
+    "instance",
+    "type",
+    "function",
+    "invariant",
+    "init",
+    "next",
+    "control",
+    "input",
+    "output",
+    "sharedvar",
+    "var",
+]
 
 INSTANCE_ARG_COMMENT = "Instance argument must be a local variable name, not an \
 expression."
@@ -42,6 +61,8 @@ expression."
 PRIMED_ASSIGN_COMMENT = "The lhs of an assignment in the next block must be primed."
 
 INSTANCE_NOT_VAR_COMMENT = "To declare an instance you must use the 'instance' keyword."
+
+RESERVED_WORD_COMMENT = "Cannot use a reserved word as a variable name."
 
 
 class Stmt:
@@ -191,6 +212,8 @@ class CommentStmt(Stmt):
     """
 
     def __init__(self, comment):
+        if not isinstance(comment, str):
+            assert False, f"comment is not a string: {comment}"
         self.comment = comment
 
     def __str__(self, indent=0):
@@ -288,7 +311,9 @@ class FuncDecl(Decl):
     def __str__(self, indent=0):
         space = "  " * indent
         ret = self.args[-1]
-        args = self.args[:-1]
+        arg_types = self.args[:-1]
+        arg_names = [f"x{i}" for i in range(len(arg_types))]
+        args = list(map(lambda x: f"{x[0]} : {x[1]}", zip(arg_names, arg_types)))
         return f"{space}function {self.name}({', '.join(args)}) : {ret};"
 
 
@@ -684,6 +709,8 @@ class ModuleType(Type):
                 return name
             case ast.Attribute(ast.Name("self", _), attr, _):
                 return attr
+            case ast.Constant(value, _) if isinstance(value, str):
+                return value
             case _:
                 log(f"name_expr is ??: {dump(name_expr)}")
                 return "??"
@@ -705,6 +732,15 @@ class ModuleType(Type):
         if to_assign is None:
             to_assign = ""
         match type_expr:
+            case ast.Name(t, _):
+                if t == "int":
+                    return "integer"
+                elif t == "bool":
+                    return "boolean"
+                elif self.is_type(t):
+                    return t
+                log(f"type_expr name is ??: {dump(type_expr)}")
+                return "??"
             case ast.Call(ast.Name(t, _), args, kwargs):
                 if t.lower() in ["integer", "int", "natural", "nat"]:
                     return "integer"
@@ -768,6 +804,13 @@ class ModuleType(Type):
                     return out
                 elif t.lower() in ["rec", "record"]:
                     fields = []
+                    if len(args) == 1 and isinstance(args[0], ast.Dict):
+                        keys = args[0].keys
+                        values = args[0].values
+                        for k, v in zip(keys, values):
+                            k = self.parse_name(k)
+                            kwargs.append(ast.keyword(k, v))
+                        args = []
                     for arg in args + kwargs:
                         match arg:
                             case ast.keyword(name, type_expr):
@@ -805,6 +848,10 @@ class ModuleType(Type):
         match var_decl:
             case ast.Assign([var_name], value, _):
                 lhs = self.parse_name(var_name)
+                if lhs in reserved:
+                    self.is_constructor(RESERVED_WORD_COMMENT)
+                    log(f"var_decl is reserved ??: {dump(var_decl)}")
+                    lhs = "??"
                 rhs = self.parse_type(value)
                 action(lhs, rhs)
             case ast.Expr(ast.Constant(value, _)) if isinstance(value, str):
@@ -879,15 +926,26 @@ class ModuleType(Type):
                 ]
                 return BlockStmt(list(map(self.parse_stmt, assigns)))
             case ast.Assign([lhs_expr], value, _):
+                rhs = self.parse_expr(value)
+                # if the lhs is a subscript
+                match lhs_expr:
+                    case ast.Subscript(holder, position, _):
+                        holder = self.parse_name(holder)
+                        position = self.parse_expr(position)
+                        if not self.is_var(holder):
+                            log(f"lhs is not var ??: {dump(stmt)}")
+                            holder = "??"
+                        return AssignmentStmt(holder, f"{holder}[{position} -> {rhs}]")
+                # try to treat the lhs as a var
                 lhs = self.parse_name(lhs_expr)
                 if not self.is_var(lhs):
                     log(f"lhs is not var ??: {dump(stmt)}")
                     lhs = "??"
+                # otherwise, we may need to just havoc
                 match value:
                     case ast.Call(ast.Name(f), args, kwargs) if "rand" in f.lower():
                         return HavocStmt(lhs)
-                    case _:
-                        rhs = self.parse_expr(value)
+                # if we are assigning to a type, then it is a havoc
                 parsed_type = self.parse_type(value)
                 if "??" in rhs and "??" not in parsed_type:
                     log(f"rhs is ?? type is not ?? ({parsed_type}): {dump(stmt)}")
@@ -986,6 +1044,7 @@ class ModuleType(Type):
                 self.add_comment(value)
             case ast.Assert(test, msg):
                 if msg:
+                    msg = self.parse_expr(msg)
                     self.add_comment(msg)
                 if len(self.get_specs()) == 0:
                     name = "spec"
@@ -1066,12 +1125,20 @@ class ModuleType(Type):
             case ast.Call(func, args, kwargs):
                 match func:
                     case ast.Name(name, _):
-                        f = name
+                        if name.lower().startswith("bv") or name.lower().startswith(
+                            "bitvec"
+                        ):
+                            f = "bv"
+                        else:
+                            f = name
                     case ast.Attribute(ast.Name("self", _), name, _):
                         f = name
                     case ast.Call(
                         ast.Name(name, _), args_i, kwargs_i
-                    ) if name.lower() in ["bitvector", "bv", "bitvectorval", "bvval"]:
+                    ) if name.lower().startswith("bv") or name.lower().startswith(
+                        "bitvec"
+                    ):
+                        log(f"expr func is bv: {dump(expr)}")
                         if len(args_i) == 1:
                             a = self.parse_expr(args_i[0])
                             f = f"bv{a}"
@@ -1084,6 +1151,14 @@ class ModuleType(Type):
                     case _:
                         log(f"expr func is ??: {dump(func)}")
                         f = "??"
+
+                if len(args) == 1 and isinstance(args[0], ast.Dict):
+                    keys = args[0].keys
+                    values = args[0].values
+                    for k, v in zip(keys, values):
+                        k = self.parse_name(k)
+                        kwargs.append(ast.keyword(k, v))
+                    args = []
 
                 args = list(map(self.parse_expr, args)) + list(
                     map(lambda kwarg: self.parse_expr(kwarg.value), kwargs)
@@ -1104,8 +1179,8 @@ class ModuleType(Type):
                     else:
                         log(f"expr is ite ??: {dump(expr)}")
                         return "if ?? then ?? else ??"
-                elif f.lower().startswith("bv") or f.lower().startswith("bitvec"):
-                    if len(args) == 1:
+                elif f.startswith("bv"):
+                    if len(args) == 1 and f != "bv":
                         return f"{args[0]}{f}"
                     elif len(args) == 2:
                         v = args[0] if args[0].isnumeric() else "??"
