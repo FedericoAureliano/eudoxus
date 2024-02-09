@@ -137,20 +137,20 @@ module TickCounter {
     input clock_tick : boolean;
 
     init {
-        count = 0;
+        count = 0bv3;
     }
 
     next {
-        if (clock_tick && count < 7) {
-            count' = count + 1;
+        if (clock_tick && count < 7bv3) {
+            count' = count + 1bv3;
         } else {
-            count' = 0;
+            count' = 0bv3;
         }
     }
 
     instance clock : Clock(tick : (clock_tick));
 
-    invariant spec: count >= 0 && count <= 7;
+    invariant spec: count >= 0bv3 && count <= 7bv3;
 }
 
 module System {
@@ -237,10 +237,10 @@ module TickCounter {
     input tick : boolean;
 
     init {
-        count = 0;
+        count = 0bv3;
     }
 
-    invariant spec: count <= 7;
+    invariant spec: count <= 7bv3;
 }
 
 module Main {
@@ -350,7 +350,7 @@ module StateMachineA {
 
     next {
         if (??) {
-            data' = if inc then data + 1 else data;
+            data' = if inc then data + 1bv8 else data;
             state' = if inc then send else idle;
         }
         if (??) {
@@ -379,7 +379,7 @@ module StateMachineB {
             state' = if inc then receive else idle;
         }
         if (??) {
-            data' = data + 1;
+            data' = data + 1bv8;
             state' = wait;
         }
         if (??) {
@@ -491,10 +491,10 @@ module MyModule {
     // Initializes variables.
     a = 6;
     b = 2;
-    x = 1 << 127;
-    y = 2;
+    x = 1bv128 << 127bv128;
+    y = 2bv128;
     assert(a / b == 3);
-    assert(x / y == 1 << 126);
+    assert(x / y == 1bv128 << 126bv128);
     assert(?? != ??);
   }
   next {
@@ -622,7 +622,7 @@ m.proof()"""
   next {
     // Havoc the variable and assert that it remains equal to 0.
     havoc(x);
-    assert(x == 0);
+    assert(x == 0bv32);
   }
   control {
     // Use bounded model checking with an unrolling of 1.
@@ -754,6 +754,81 @@ module LiteralRecord {
     pairVar' = Pair(3, 4);
   }
   invariant spec: pairVar.first == 1 && pairVar.second == 1;
+}"""
+    python = ast.parse(code)
+    output = compile_to_uclid5(python)
+    assert_equal(output, expected)
+
+
+def test_bv_auto_cast():
+    code = '''
+class Module:
+    """An abstract class to represent a UCLID5 module."""
+
+    def types(self):
+        pass
+
+    def functions(self):
+        pass
+
+    def locals(self):
+        self.a = Integer()
+        self.b = Integer()
+        self.v1 = BitVector(256)
+        self.v2 = BitVector(256)
+
+    def inputs(self):
+        pass
+
+    def outputs(self):
+        pass
+
+    def shared_vars(self):
+        pass
+
+    def instances(self):
+        pass
+
+    def init(self):
+        assert(self.a != 0)
+        assert(self.b != 0)
+        assert(self.v1 != 0)
+        assert(self.v2 != 0)
+
+    def next(self):
+        pass
+
+    def specification(self):
+        pass
+
+    def proof(self):
+        pass
+
+    def check(self):
+        dv_int = self.b // self.a
+        dv_v_signed   = self.v2.sdiv(self.v1)
+        dv_v_unsigned = self.v2.udiv(self.v1)
+
+        # Check the results of divisions are not zero
+        assert(dv_int != 0)
+        assert(dv_v_signed != 0)
+        assert(dv_v_unsigned != 0)
+
+        # Check the result of an unsigned division with big bitvectors
+        # is different from the signed one
+        assert(dv_v_signed != dv_v_unsigned)'''
+    expected = """module Module {
+  // An abstract class to represent a UCLID5 module.
+  var a : integer;
+  var b : integer;
+  var v1 : bv256;
+  var v2 : bv256;
+  init {
+    assert(a != 0);
+    assert(b != 0);
+    assert(v1 != 0bv256);
+    assert(v2 != 0bv256);
+  }
 }"""
     python = ast.parse(code)
     output = compile_to_uclid5(python)

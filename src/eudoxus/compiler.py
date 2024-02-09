@@ -524,7 +524,12 @@ class ModuleType(Type):
         return self.get_var(name) is not None
 
     def get_var_type(self, name):
-        return self.get_var(name)[1] if self.is_var(name) else None
+        if not self.is_var(name):
+            return None
+        t = self.get_var(name).type
+        if self.is_type(t):
+            t = self.get_type(t).type
+        return t
 
     def get_type(self, name):
         for type in self.get_types():
@@ -582,6 +587,10 @@ class ModuleType(Type):
     def get_selector_type(self, name):
         (name, type) = self.get_selector(name)
         return type
+
+    def get_func_return_type(self, name):
+        func = self.get_func(name)
+        return func.args[-1]
 
     def parse_uclid5_module_decl(self, stmt):
         match stmt:
@@ -718,11 +727,11 @@ class ModuleType(Type):
     def parse_range(self, range_expr):
         match range_expr:
             case ast.Call(ast.Name("range", _), [start, stop], _):
-                start = int(self.parse_expr(start))
-                stop = int(self.parse_expr(stop)) - 1
+                start = int(self.parse_expr(start)[0])
+                stop = int(self.parse_expr(stop)[0]) - 1
                 return f"range({start}, {stop})"
             case ast.Call(ast.Name("range", _), [stop], _):
-                stop = int(self.parse_expr(stop)) - 1
+                stop = int(self.parse_expr(stop)[0]) - 1
                 return f"range(0, {stop})"
             case _:
                 log(f"range_expr is ??: {dump(range_expr)}")
@@ -773,11 +782,11 @@ class ModuleType(Type):
                     return "[??]??"
                 elif t.lower() in ["bv", "bitvec", "bitvector"]:
                     if len(args) == 1:
-                        return f"bv{self.parse_expr(args[0])}"
+                        return f"bv{self.parse_expr(args[0])[0]}"
                     elif len(args) == 2:
                         match args[0]:
                             case ast.Constant(name, _) if isinstance(name, str):
-                                return f"bv{self.parse_expr(args[1])}"
+                                return f"bv{self.parse_expr(args[1])[0]}"
                             case _:
                                 log(f"bv args is len 2 and ??: {dump(type_expr)}")
                                 return "bv??"
@@ -788,7 +797,7 @@ class ModuleType(Type):
                         log(f"bv args is ??: {dump(type_expr)}")
                         return "bv??"
                 elif t.lower() in ["enum", "enumerated"]:
-                    args = list(map(self.parse_expr, args))
+                    args = list(map(lambda x: self.parse_expr(x)[0], args))
                     if len(args) == 2 and " " in args[1]:
                         args = args[1].split(" ")
                         out = f"enum {{ {', '.join(args)} }}"
@@ -926,34 +935,40 @@ class ModuleType(Type):
                 ]
                 return BlockStmt(list(map(self.parse_stmt, assigns)))
             case ast.Assign([lhs_expr], value, _):
-                rhs = self.parse_expr(value)
                 # if the lhs is a subscript
                 match lhs_expr:
                     case ast.Subscript(holder, position, _):
                         holder = self.parse_name(holder)
-                        position = self.parse_expr(position)
+                        position, _ = self.parse_expr(position)
                         if not self.is_var(holder):
                             log(f"lhs is not var ??: {dump(stmt)}")
                             holder = "??"
+                        rhs, _ = self.parse_expr(value)
                         return AssignmentStmt(holder, f"{holder}[{position} -> {rhs}]")
                 # try to treat the lhs as a var
                 lhs = self.parse_name(lhs_expr)
                 if not self.is_var(lhs):
                     log(f"lhs is not var ??: {dump(stmt)}")
                     lhs = "??"
+                    typ = None
+                else:
+                    typ = self.get_var_type(lhs)
                 # otherwise, we may need to just havoc
                 match value:
                     case ast.Call(ast.Name(f), args, kwargs) if "rand" in f.lower():
                         return HavocStmt(lhs)
+
+                rhs, _ = self.parse_expr(value, typ)
                 # if we are assigning to a type, then it is a havoc
                 parsed_type = self.parse_type(value)
                 if "??" in rhs and "??" not in parsed_type:
                     log(f"rhs is ?? type is not ?? ({parsed_type}): {dump(stmt)}")
                     return HavocStmt(lhs)
+
                 return AssignmentStmt(lhs, rhs)
             case ast.AugAssign(lhs, op, rhs):
-                lhs = self.parse_expr(lhs)
-                rhs = self.parse_expr(rhs)
+                lhs, typ1 = self.parse_expr(lhs)
+                rhs, _ = self.parse_expr(rhs, typ1)
                 return AssignmentStmt(
                     lhs, f"{lhs} {operator_dict[op.__class__.__name__]} {rhs}"
                 )
@@ -971,36 +986,36 @@ class ModuleType(Type):
                 return NextStmt(instance)
             case ast.Expr(ast.Call(ast.Name("assume"), args, kwargs)):
                 if len(args) == 1:
-                    k = self.parse_expr(args[0])
+                    k, _ = self.parse_expr(args[0])
                 elif len(kwargs) == 1:
-                    _, k = self.parse_expr(kwargs[0].value)
+                    k, _ = self.parse_expr(kwargs[0].value)
                 else:
                     k = "??"
                 return AssumeStmt(k)
             case ast.Expr(ast.Call(ast.Name("havoc"), args, kwargs)):
                 if len(args) == 1:
-                    k = self.parse_expr(args[0])
+                    k, _ = self.parse_expr(args[0])
                 elif len(kwargs) == 1:
-                    _, k = self.parse_expr(kwargs[0].value)
+                    k, _ = self.parse_expr(kwargs[0].value)
                 else:
                     k = "??"
                 return HavocStmt(k)
             case ast.Expr(ast.Call(ast.Name("assert"), args, kwargs)):
                 if len(args) == 1:
-                    k = self.parse_expr(args[0])
+                    k, _ = self.parse_expr(args[0])
                 elif len(kwargs) == 1:
-                    _, k = self.parse_expr(kwargs[0].value)
+                    k, _ = self.parse_expr(kwargs[0].value)
                 else:
                     k = "??"
                 return AssertStmt(k)
             case ast.Assert(test, msg):
                 if msg:
-                    msg = self.parse_expr(msg)
+                    msg, _ = self.parse_expr(msg)
                     self.add_comment(msg)
-                return AssertStmt(self.parse_expr(test))
+                return AssertStmt(self.parse_expr(test)[0])
             case ast.If(test, body, orelse):
                 return IfStmt(
-                    self.parse_expr(test),
+                    self.parse_expr(test)[0],
                     BlockStmt(list(map(self.parse_stmt, body))),
                     BlockStmt(list(map(self.parse_stmt, orelse))),
                 )
@@ -1039,18 +1054,18 @@ class ModuleType(Type):
                     name = "spec"
                 else:
                     name = f"spec_{len(self.get_specs()) + 1}"
-                self.add_spec(name, self.parse_expr(value))
+                self.add_spec(name, self.parse_expr(value, "boolean")[0])
             case ast.Expr(ast.Constant(value, _)) if isinstance(value, str):
                 self.add_comment(value)
             case ast.Assert(test, msg):
                 if msg:
-                    msg = self.parse_expr(msg)
+                    msg, _ = self.parse_expr(msg)
                     self.add_comment(msg)
                 if len(self.get_specs()) == 0:
                     name = "spec"
                 else:
                     name = f"spec_{len(self.get_specs()) + 1}"
-                self.add_spec(name, self.parse_expr(test))
+                self.add_spec(name, self.parse_expr(test, "boolean")[0])
             case _:
                 log(f"inv is ??: {dump(inv)}")
                 return "??"
@@ -1059,9 +1074,9 @@ class ModuleType(Type):
         match cmd:
             case ast.Expr(ast.Call(ast.Name(cmd), args, kwargs)):
                 if len(args) == 1:
-                    k = self.parse_expr(args[0])
+                    k, _ = self.parse_expr(args[0])
                 elif len(kwargs) == 1:
-                    _, k = self.parse_expr(kwargs[0].value)
+                    k, _ = self.parse_expr(kwargs[0].value)
                 else:
                     k = "??"
 
@@ -1077,51 +1092,72 @@ class ModuleType(Type):
                 log(f"cmd is ??: {dump(cmd)}")
                 return "??"
 
-    def parse_expr(self, expr):
+    def parse_expr(self, expr, required_type=None):
         match expr:
             case ast.Name(name, _):
                 if self.is_var(name):
-                    return name
+                    return (name, self.get_var_type(name))
                 elif self.is_constructor(name):
-                    return name
+                    return (name, self.get_constructor_type(name))
                 log(f"expr is name ??: {dump(expr)}")
-                return "??"
+                return ("??", None)
             case ast.Attribute(ast.Name("self", _), name, _):
                 if self.is_var(name):
-                    return name
+                    return (name, self.get_var_type(name))
                 elif self.is_constructor(name):
-                    return name
+                    return (name, self.get_constructor_type(name))
                 log(f"expr attr is name ??: {dump(expr)}")
-                return "??"
+                return ("??", None)
             case ast.Attribute(value, attr, _):
-                return f"{self.parse_expr(value)}.{attr}"
+                value, typ = self.parse_expr(value)
+                return (f"{value}.{attr}", typ)
             case ast.Constant(value, _):
                 if isinstance(value, bool):
-                    return "true" if value else "false"
+                    out = "true" if value else "false"
+                    return (out, "boolean")
+                elif isinstance(value, int):
+                    if isinstance(required_type, str) and required_type.startswith(
+                        "bv"
+                    ):
+                        return (f"{value}{required_type}", required_type)
+                    return (str(value), None)
                 else:
-                    return str(value)
+                    return (str(value), None)
             case ast.Subscript(value, slice, _):
-                return f"{self.parse_expr(value)}[{self.parse_expr(slice)}]"
+                value, _ = self.parse_expr(value)
+                slice, _ = self.parse_expr(slice)
+                return (f"{value}[{slice}]", None)
             case ast.IfExp(test, body, orelse):
-                c = self.parse_expr(test)
-                t = self.parse_expr(body)
-                f = self.parse_expr(orelse)
-                return f"if {c} then {t} else {f}"
+                c, _ = self.parse_expr(test, "boolean")
+                t, typ1 = self.parse_expr(body, required_type)
+                f, typ2 = self.parse_expr(orelse, typ1)
+                t, _ = self.parse_expr(body, typ2)
+                return (f"if {c} then {t} else {f}", typ2)
             case ast.Compare(left, [op], [right]):
                 op = operator_dict[op.__class__.__name__]
-                return f"{self.parse_expr(left)} {op} {self.parse_expr(right)}"
+                _, typ1 = self.parse_expr(left)
+                right, typ2 = self.parse_expr(right, typ1)
+                left, _ = self.parse_expr(left, typ2)
+                return (f"{left} {op} {right}", typ2)
             case ast.BinOp(left, op, right):
                 op = operator_dict[op.__class__.__name__]
-                return f"{self.parse_expr(left)} {op} {self.parse_expr(right)}"
+                _, typ1 = self.parse_expr(left, required_type)
+                right, typ2 = self.parse_expr(right, typ1)
+                left, _ = self.parse_expr(left, typ2)
+                return (f"{left} {op} {right}", typ2)
             case ast.BoolOp(op, [x, y]):
                 op = operator_dict[op.__class__.__name__]
-                return f"{self.parse_expr(x)} {op} {self.parse_expr(y)}"
+                left, _ = self.parse_expr(x, "boolean")
+                right, _ = self.parse_expr(y, "boolean")
+                return (f"{left} {op} {right}", "boolean")
             case ast.BoolOp(op, [x]):
-                return f"{operator_dict[op.__class__.__name__]}{self.parse_expr(x)}"
+                op = operator_dict[op.__class__.__name__]
+                only, _ = self.parse_expr(x, "boolean")
+                return (f"{op}{only}", "boolean")
             case ast.UnaryOp(op, operand):
-                return (
-                    f"{operator_dict[op.__class__.__name__]}{self.parse_expr(operand)}"
-                )
+                op = operator_dict[op.__class__.__name__]
+                only, typ1 = self.parse_expr(operand, required_type)
+                return (f"{op}{only}", typ1)
             case ast.Call(func, args, kwargs):
                 match func:
                     case ast.Name(name, _):
@@ -1140,10 +1176,10 @@ class ModuleType(Type):
                     ):
                         log(f"expr func is bv: {dump(expr)}")
                         if len(args_i) == 1:
-                            a = self.parse_expr(args_i[0])
+                            a, _ = self.parse_expr(args_i[0])
                             f = f"bv{a}"
                         elif len(kwargs_i) == 1:
-                            _, k = self.parse_expr(kwargs_i[0].value)
+                            k, _ = self.parse_expr(kwargs_i[0].value)
                             f = f"bv{k}"
                         else:
                             log(f"expr is bv ??: {dump(expr)}")
@@ -1160,35 +1196,37 @@ class ModuleType(Type):
                         kwargs.append(ast.keyword(k, v))
                     args = []
 
-                args = list(map(self.parse_expr, args)) + list(
-                    map(lambda kwarg: self.parse_expr(kwarg.value), kwargs)
+                # TODO: make this typed and do type checking later. Right now we are
+                # throwing away the type information
+                args = list(map(lambda arg: self.parse_expr(arg)[0], args)) + list(
+                    map(lambda kwarg: self.parse_expr(kwarg.value)[0], kwargs)
                 )
 
                 if f in operator_dict:
                     f = operator_dict[f]
                     if len(args) == 1:
-                        return f"{f}{args[0]}"
+                        return (f"{f}{args[0]}", None)
                     elif len(args) == 2:
-                        return f"{args[0]} {f} {args[1]}"
+                        return (f"{args[0]} {f} {args[1]}", None)
                     else:
                         log(f"expr is op ??: {dump(expr)}")
-                        return "??"
+                        return ("??", None)
                 elif f.lower() in ["ite", "ifthenelse", "if", "if_"]:
                     if len(args) == 3:
-                        return f"if {args[0]} then {args[1]} else {args[2]}"
+                        return (f"if {args[0]} then {args[1]} else {args[2]}", None)
                     else:
                         log(f"expr is ite ??: {dump(expr)}")
-                        return "if ?? then ?? else ??"
+                        return ("if ?? then ?? else ??", None)
                 elif f.startswith("bv"):
                     if len(args) == 1 and f != "bv":
-                        return f"{args[0]}{f}"
+                        return (f"{args[0]}{f}", f)
                     elif len(args) == 2:
                         v = args[0] if args[0].isnumeric() else "??"
                         w = args[1] if args[1].isnumeric() else "??"
-                        return f"{v}bv{w}"
+                        return (f"{v}bv{w}", f"bv{w}")
                     elif len(kwargs) == 1:
-                        _, k = self.parse_expr(kwargs[0].value)
-                        return f"{k}{f}"
+                        k, _ = self.parse_expr(kwargs[0].value)
+                        return (f"{k}{f}", f)
                     elif len(kwargs) == 2:
                         w = "??"
                         v = "??"
@@ -1201,22 +1239,25 @@ class ModuleType(Type):
                             w = kwargs[0].value if kwargs[0].value.isnumeric() else "??"
                         if w == "??":
                             w = kwargs[1].value if kwargs[1].value.isnumeric() else "??"
-                        return f"{v}bv{w}"
+                        return (f"{v}bv{w}", f"bv{w}")
                     else:
                         log(f"expr is bv ??: {dump(expr)}")
-                        return "bv??"
+                        return ("??bv??", "bv??")
                 elif self.is_constructor(f):
-                    return f"{f}({', '.join(args)})"
+                    return (f"{f}({', '.join(args)})", self.get_constructor_type(f))
                 elif self.is_selector(f):
-                    return f"{self.parse_expr(args[0])}.{f}"
+                    return (
+                        f"{self.parse_expr(args[0])}.{f}",
+                        self.get_selector_type(f),
+                    )
                 elif self.is_func(f):
-                    return f"{f}({', '.join(args)})"
+                    return (f"{f}({', '.join(args)})", self.get_func_return_type(f))
                 else:
                     log(f"expr call {f} is ??: {dump(expr)}")
-                    return "??"
+                    return ("??", None)
             case _:
-                log(f"expr is ??: {dump(expr)}")
-                return "??"
+                log(f"expr is ??: {expr} ({type(expr)})")
+                return ("??", None)
 
     def __str__(self):
         return f"module {self.name} {{\n{BlockStmt(self.toplevel).__str__(1)}\n}}"
