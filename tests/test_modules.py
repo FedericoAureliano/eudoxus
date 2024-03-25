@@ -288,6 +288,44 @@ module HavocAssumeAssert {
     assert_equal(output, expected)
 
 
+def test_havoc_assume_assert_alternate():
+    code = """
+class HavocAssumeAssert(Module):
+    def locals(self):
+        self.x = Integer()
+
+    def next(self):
+        self.x = Any(Integer())
+        assume(self.x >= 0)
+        assert self.x >= 110
+
+    def specification(self):
+        return self.x >= 100
+
+    def proof(self):
+        bmc(2)
+"""
+    expected = """
+module HavocAssumeAssert {
+    var x : integer;
+    next {
+        havoc(x);
+        assume(x >= 0);
+        assert(x >= 110);
+    }
+    invariant spec: x >= 100;
+    control {
+        bmc(2);
+        check;
+        print_results();
+    }
+}
+"""
+    python = ast.parse(code)
+    output = compile_to_uclid5(python)
+    assert_equal(output, expected)
+
+
 def test_parallel_assign():
     code = """
 class MultipleAssign(Module):
@@ -386,6 +424,38 @@ module ExtendedModule {
         pair_var' = Pair(5, 3);
     }
     invariant spec: pair_var.a > 0 && pair_var.b > 0;
+}
+"""
+    python = ast.parse(code)
+    output = compile_to_uclid5(python)
+    assert_equal(output, expected)
+
+
+def test_enumeration():
+    code = """
+class Enumeration:
+    def types(self):
+        self.Color = Enumeration('red', 'green', 'blue')
+    def locals(self):
+        self.color = self.Color()
+    def init(self):
+        self.color = 'red'
+    def next(self):
+        self.color = 'green'
+    def specification(self):
+        return self.color != 'blue'
+"""
+    expected = """
+module Enumeration {
+    type Color = enum { red, green, blue };
+    var color : Color;
+    init {
+        color = red;
+    }
+    next {
+        color' = green;
+    }
+    invariant spec: color != blue;
 }
 """
     python = ast.parse(code)

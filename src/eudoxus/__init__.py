@@ -17,7 +17,7 @@ except PackageNotFoundError:  # pragma: no cover
 finally:
     del version, PackageNotFoundError
 
-from .generate import complete_api, sketch_api
+from .generate import complete_api, process_code, sketch_api
 from .module import Module
 
 __all__ = [
@@ -178,3 +178,25 @@ def test_{name}():
             expand=False,
         )
     )
+
+
+@eudoxus.command()
+def process_python(
+    python_file: Annotated[Path, typer.Argument(help="Path to file with Python IR")],
+    output: Annotated[Optional[Path], typer.Option(help="File to write to")] = None,
+):
+    """
+    Process a Python IR file and write the result to a new file.
+    """
+    with open(python_file, "r") as f:
+        python_ir = f.read()
+
+    code = process_code(python_ir)
+
+    if output:
+        with open(output, "w") as f:
+            f.write(code)
+    else:
+        syntax = Syntax(code, "scala", theme="monokai", line_numbers=True)
+        console = Console()
+        console.print(Panel(syntax, title="UCLID5 Output", expand=False))

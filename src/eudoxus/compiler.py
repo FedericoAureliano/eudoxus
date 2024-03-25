@@ -796,7 +796,7 @@ class ModuleType(Type):
                     else:
                         log(f"bv args is ??: {dump(type_expr)}")
                         return "bv??"
-                elif t.lower() in ["enum", "enumerated"]:
+                elif t.lower() in ["enum", "enumerated", "enumeration"]:
                     args = list(map(lambda x: self.parse_expr(x)[0], args))
                     if len(args) == 2 and " " in args[1]:
                         args = args[1].split(" ")
@@ -955,8 +955,11 @@ class ModuleType(Type):
                     typ = self.get_var_type(lhs)
                 # otherwise, we may need to just havoc
                 match value:
-                    case ast.Call(ast.Name(f), args, kwargs) if "rand" in f.lower():
-                        return HavocStmt(lhs)
+                    case ast.Call(ast.Name(f), args, kwargs):
+                        if "rand" in f.lower():
+                            return HavocStmt(lhs)
+                        elif "any" in f.lower():
+                            return HavocStmt(lhs)
 
                 rhs, _ = self.parse_expr(value, typ)
                 # if we are assigning to a type, then it is a havoc
@@ -1008,6 +1011,19 @@ class ModuleType(Type):
                 else:
                     k = "??"
                 return AssertStmt(k)
+            case ast.Expr(ast.Call(ast.Name(id), args, kwargs)) if id.lower() in [
+                "if",
+                "ite",
+                "ifthenelse",
+                "if_then_else",
+                "ifelse",
+                "if_else",
+                "_if",
+            ]:
+                cond = self.parse_expr(args[0])[0]
+                true_stmt = self.parse_stmt(args[1])
+                false_stmt = self.parse_stmt(args[2])
+                return IfStmt(cond, true_stmt, false_stmt)
             case ast.Assert(test, msg):
                 if msg:
                     msg, _ = self.parse_expr(msg)
@@ -1207,7 +1223,10 @@ class ModuleType(Type):
                     if len(args) == 1:
                         return (f"{f}{args[0]}", None)
                     elif len(args) == 2:
-                        return (f"{args[0]} {f} {args[1]}", None)
+                        return (f"({args[0]} {f} {args[1]})", None)
+                    elif f in ["&&", "||"]:
+                        f = " " + f + " "
+                        return (f"({f.join(args)})", None)
                     else:
                         log(f"expr is op ??: {dump(expr)}")
                         return ("??", None)
