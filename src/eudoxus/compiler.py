@@ -106,17 +106,20 @@ class IfStmt(Stmt):
         space = "  " * indent
         t = self.true_stmt.__str__(indent + 1)
         f = self.false_stmt.__str__(indent + 1)
+        cond = str(self.cond)
+        if cond.startswith("(") and cond.endswith(")"):
+            cond = cond[1:-1]
         # check if both are empty
         if (f.isspace() or f == "") and (t.isspace() or t == ""):
             return ""
         # check if t has only whitespace
         elif f.isspace() or f == "":
-            return f"{space}if ({self.cond}) {{\n{t}\n{space}}}"
+            return f"{space}if ({cond}) {{\n{t}\n{space}}}"
         # check if f has only whitespace
         elif t.isspace() or t == "":
             return f"{space}if (!{self.cond}) {{\n{f}\n{space}}}"
         else:
-            return f"{space}if ({self.cond}) {{\n{t}\n{space}}} else {{\n{f}\n{space}}}"
+            return f"{space}if ({cond}) {{\n{t}\n{space}}} else {{\n{f}\n{space}}}"
 
 
 class ForStmt(Stmt):

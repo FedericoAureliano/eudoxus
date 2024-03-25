@@ -47,7 +47,7 @@ def synthesize(
     ] = None,
     neighbours: Annotated[
         int, typer.Option(help="Number of neighbours to consider for RAG")
-    ] = 1,
+    ] = 2,
     save_ir: Annotated[Path, typer.Option(help="Save the IR to a file")] = None,
     output: Annotated[Optional[Path], typer.Option(help="File to write to")] = None,
     remind: Annotated[

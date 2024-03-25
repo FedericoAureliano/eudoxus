@@ -150,7 +150,7 @@ module TickCounter {
 
     instance clock : Clock(tick : (clock_tick));
 
-    invariant spec: count >= 0bv3 && count <= 7bv3;
+    invariant spec: (count >= 0bv3 && count <= 7bv3);
 }
 
 module System {
@@ -753,7 +753,7 @@ module LiteralRecord {
   next {
     pairVar' = Pair(3, 4);
   }
-  invariant spec: pairVar.first == 1 && pairVar.second == 1;
+  invariant spec: (pairVar.first == 1 && pairVar.second == 1);
 }"""
     python = ast.parse(code)
     output = compile_to_uclid5(python)

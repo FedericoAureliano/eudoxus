@@ -40,8 +40,9 @@ def get_sketch_prompt(task) -> str:
     if task.endswith("."):
         task = task[:-1]
 
-    prompt = "Extend the `Module` class below to complete the following task:"
-    prompt += " " + task + ". Reply with your code inside one unique code block."
+    prompt = "Write Python code that extends the `Module` class below"
+    prompt += " to complete the following task:"
+    prompt += " " + task + ". Reply with your Python code inside one unique code block."
     module_class = "```python3\n" + get_api_description() + "\n```\n"
     prompt += f"\n\n{module_class}\n```python3\n#TODO\n"
 
