@@ -437,6 +437,7 @@ class Enumeration:
     def types(self):
         self.Color = Enumeration('red', 'green', 'blue')
         self.Other = Enumeration(['r', 'g', 'b'])
+        self.Other2 = Enumeration(4)
     def locals(self):
         self.color = self.Color()
     def init(self):
@@ -450,6 +451,7 @@ class Enumeration:
 module Enumeration {
     type Color = enum { red, green, blue };
     type Other = enum { r, g, b };
+    type Other2 = enum { Other2_v_0, Other2_v_1, Other2_v_2, Other2_v_3 };
     var color : Color;
     init {
         color = red;

@@ -800,17 +800,29 @@ class ModuleType(Type):
                         log(f"bv args is ??: {dump(type_expr)}")
                         return "bv??"
                 elif t.lower() in ["enum", "enumerated", "enumeration"]:
-                    if len(args) == 1 and isinstance(args[0], ast.List):
-                        args = args[0].elts
-                    args = list(map(lambda x: self.parse_expr(x)[0], args))
-                    if len(args) == 2 and " " in args[1]:
-                        args = args[1].split(" ")
-                        out = f"enum {{ {', '.join(args)} }}"
-                    elif len(kwargs) > 0:
+                    match args[0]:
+                        case ast.Tuple(targs, _) if len(args) == 1:
+                            args = targs
+                            args = list(map(lambda x: self.parse_expr(x)[0], args))
+                        case ast.List(targs, _) if len(args) == 1:
+                            args = targs
+                            args = list(map(lambda x: self.parse_expr(x)[0], args))
+                        case ast.Constant(name, _) if isinstance(name, int) and len(
+                            args
+                        ) == 1:
+                            args = [f"{to_assign}_v_{i}" for i in range(name)]
+                        case _:
+                            args = list(map(lambda x: self.parse_expr(x)[0], args))
+
+                    if len(kwargs) > 0:
                         log(f"enum with kwargs is ??: {dump(type_expr)}")
                         out = "enum { ?? }"
-                    else:
-                        out = f"enum {{ {', '.join(args)} }}"
+
+                    if len(args) == 2 and " " in args[1]:
+                        args = args[1].split(" ")
+
+                    out = f"enum {{ {', '.join(args)} }}"
+
                     # add enum to types
                     adt = AlgebraicDataType(to_assign, [(c, []) for c in args])
                     log(f"adding enum to types: {to_assign}")
