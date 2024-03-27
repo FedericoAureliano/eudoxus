@@ -165,7 +165,7 @@ class AssumeStmt(Stmt):
 
     def __str__(self, indent=0):
         space = "  " * indent
-        return f"{space}assume({self.expr});"
+        return f"{space}assume {self.expr};"
 
 
 class AssertStmt(Stmt):
@@ -178,7 +178,7 @@ class AssertStmt(Stmt):
 
     def __str__(self, indent=0):
         space = "  " * indent
-        return f"{space}assert({self.expr});"
+        return f"{space}assert {self.expr};"
 
 
 class HavocStmt(Stmt):
@@ -191,7 +191,7 @@ class HavocStmt(Stmt):
 
     def __str__(self, indent=0):
         space = "  " * indent
-        return f"{space}havoc({self.var});"
+        return f"{space}havoc {self.var};"
 
 
 class BlockStmt(Stmt):
@@ -800,6 +800,8 @@ class ModuleType(Type):
                         log(f"bv args is ??: {dump(type_expr)}")
                         return "bv??"
                 elif t.lower() in ["enum", "enumerated", "enumeration"]:
+                    if len(args) == 1 and isinstance(args[0], ast.List):
+                        args = args[0].elts
                     args = list(map(lambda x: self.parse_expr(x)[0], args))
                     if len(args) == 2 and " " in args[1]:
                         args = args[1].split(" ")
@@ -1125,10 +1127,15 @@ class ModuleType(Type):
                     return (name, self.get_var_type(name))
                 elif self.is_constructor(name):
                     return (name, self.get_constructor_type(name))
+                elif self.is_type(name):
+                    return (name, None)
                 log(f"expr attr is name ??: {dump(expr)}")
                 return ("??", None)
             case ast.Attribute(value, attr, _):
                 value, typ = self.parse_expr(value)
+                if self.is_type(value):
+                    # Color.red is just red
+                    return (f"{attr}", value)
                 return (f"{value}.{attr}", typ)
             case ast.Constant(value, _):
                 if isinstance(value, bool):
@@ -1151,32 +1158,37 @@ class ModuleType(Type):
                 t, typ1 = self.parse_expr(body, required_type)
                 f, typ2 = self.parse_expr(orelse, typ1)
                 t, _ = self.parse_expr(body, typ2)
-                return (f"if {c} then {t} else {f}", typ2)
-            case ast.Compare(left, [op], [right]):
-                op = operator_dict[op.__class__.__name__]
-                _, typ1 = self.parse_expr(left)
-                right, typ2 = self.parse_expr(right, typ1)
-                left, _ = self.parse_expr(left, typ2)
-                return (f"{left} {op} {right}", typ2)
+                return (f"if ({c}) then ({t}) else ({f})", typ2)
+            case ast.Compare(left, ops, rights):
+                zipped = zip(ops, rights)
+                left, typ = self.parse_expr(left)
+                out = []
+                old_right = left
+                for op, right in zipped:
+                    op = operator_dict[op.__class__.__name__]
+                    right, _ = self.parse_expr(right, typ)
+                    out.append(f"({old_right} {op} {right})")
+                    old_right = right
+                return (" && ".join(out), "boolean")
             case ast.BinOp(left, op, right):
                 op = operator_dict[op.__class__.__name__]
                 _, typ1 = self.parse_expr(left, required_type)
                 right, typ2 = self.parse_expr(right, typ1)
                 left, _ = self.parse_expr(left, typ2)
-                return (f"{left} {op} {right}", typ2)
+                return (f"({left} {op} {right})", typ2)
             case ast.BoolOp(op, [x, y]):
                 op = operator_dict[op.__class__.__name__]
                 left, _ = self.parse_expr(x, "boolean")
                 right, _ = self.parse_expr(y, "boolean")
-                return (f"{left} {op} {right}", "boolean")
+                return (f"({left} {op} {right})", "boolean")
             case ast.BoolOp(op, [x]):
                 op = operator_dict[op.__class__.__name__]
                 only, _ = self.parse_expr(x, "boolean")
-                return (f"{op}{only}", "boolean")
+                return (f"{op}({only})", "boolean")
             case ast.UnaryOp(op, operand):
                 op = operator_dict[op.__class__.__name__]
                 only, typ1 = self.parse_expr(operand, required_type)
-                return (f"{op}{only}", typ1)
+                return (f"{op}({only})", typ1)
             case ast.Call(func, args, kwargs):
                 match func:
                     case ast.Name(name, _):
@@ -1235,10 +1247,13 @@ class ModuleType(Type):
                         return ("??", None)
                 elif f.lower() in ["ite", "ifthenelse", "if", "if_"]:
                     if len(args) == 3:
-                        return (f"if {args[0]} then {args[1]} else {args[2]}", None)
+                        return (
+                            f"if ({args[0]}) then ({args[1]}) else ({args[2]})",
+                            None,
+                        )
                     else:
                         log(f"expr is ite ??: {dump(expr)}")
-                        return ("if ?? then ?? else ??", None)
+                        return ("if (??) then (??) else (??)", None)
                 elif f.startswith("bv"):
                     if len(args) == 1 and f != "bv":
                         return (f"{args[0]}{f}", f)
@@ -1274,9 +1289,43 @@ class ModuleType(Type):
                     )
                 elif self.is_func(f):
                     return (f"{f}({', '.join(args)})", self.get_func_return_type(f))
+                elif f.lower() in ["implies"]:
+                    return (f"({args[0]} ==> {args[1]})", "boolean")
+                elif f.lower() in ["exists", "exist", "exists_", "exist_"]:
+                    if len(args) < 2:
+                        log(f"exists {f} is ??: {dump(expr)}")
+                        return ("??", None)
+                    if len(args) == 2 and isinstance(args[0], list):
+                        params = args[0]
+                    else:
+                        params = args[: len(args) - 1]
+
+                    body = args[-1]
+                    return (
+                        f"(exists ({', '.join(params)}) :: {body})",
+                        "boolean",
+                    )
+                elif f.lower() in ["forall", "for_all", "forall_", "for_all_"]:
+                    if len(args) < 2:
+                        log(f"forall {f} is ??: {dump(expr)}")
+                        return ("??", None)
+                    if len(args) == 2 and isinstance(args[0], list):
+                        params = args[0]
+                    else:
+                        params = args[: len(args) - 1]
+
+                    body = args[-1]
+                    return (
+                        f"(forall ({', '.join(params)}) :: {body})",
+                        "boolean",
+                    )
                 else:
                     log(f"expr call {f} is ??: {dump(expr)}")
                     return ("??", None)
+            case ast.List([x, t], _):
+                x = self.parse_name(x)
+                t = self.parse_type(t)
+                return (f"{x}: {t}", None)
             case _:
                 log(f"expr is ??: {expr} ({type(expr)})")
                 return ("??", None)

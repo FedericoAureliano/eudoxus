@@ -68,7 +68,7 @@ module ModuleWithVarAndInitAndNext {
         x = 0;
     }
     next {
-        x' = x + 1;
+        x' = (x + 1);
     }
 }
 """
@@ -99,9 +99,9 @@ module ModuleWithVarAndInitAndInvariants {
         x = 0;
     }
     next {
-        x' = x + 1;
+        x' = (x + 1);
     }
-    invariant spec: x >= 0 && x <= 10;
+    invariant spec: ((x >= 0) && (x <= 10));
 }
 """
     python = ast.parse(code)
@@ -134,9 +134,9 @@ module ModuleWithVarAndInitAndInvariantsAndControl {
         x = 0;
     }
     next {
-        x' = x + 1;
+        x' = (x + 1);
     }
-    invariant spec: x >= 0 && x <= 10;
+    invariant spec: ((x >= 0) && (x <= 10));
     control {
         induction(2);
         check;
@@ -233,10 +233,10 @@ module ModuleWithComments {
     }
     next {
         // Comment 4
-        x' = x + 1;
+        x' = (x + 1);
     }
     // Comment 5
-    invariant spec: x >= 0 && x <= 10;
+    invariant spec: ((x >= 0) && (x <= 10));
     control {
         // Comment 6
         induction(2);
@@ -271,11 +271,11 @@ class HavocAssumeAssert(Module):
 module HavocAssumeAssert {
     var x : integer;
     next {
-        havoc(x);
-        assume(x >= 0);
-        assert(x >= 110);
+        havoc x;
+        assume (x >= 0);
+        assert (x >= 110);
     }
-    invariant spec: x >= 100;
+    invariant spec: (x >= 100);
     control {
         bmc(2);
         check;
@@ -309,11 +309,11 @@ class HavocAssumeAssert(Module):
 module HavocAssumeAssert {
     var x : integer;
     next {
-        havoc(x);
-        assume(x >= 0);
-        assert(x >= 110);
+        havoc x;
+        assume (x >= 0);
+        assert (x >= 110);
     }
-    invariant spec: x >= 100;
+    invariant spec: (x >= 100);
     control {
         bmc(2);
         check;
@@ -342,7 +342,7 @@ module MultipleAssign {
     var y : integer;
     next {
         x' = y;
-        y' = x + y;
+        y' = (x + y);
     }
 }
 """
@@ -365,7 +365,7 @@ module AssertWithMessage {
     var x : integer;
     next {
         // x must be non-negative
-        assert(x >= 0);
+        assert (x >= 0);
     }
 }
 """
@@ -423,7 +423,7 @@ module ExtendedModule {
     next {
         pair_var' = Pair(5, 3);
     }
-    invariant spec: pair_var.a > 0 && pair_var.b > 0;
+    invariant spec: ((pair_var.a > 0) && (pair_var.b > 0));
 }
 """
     python = ast.parse(code)
@@ -436,6 +436,7 @@ def test_enumeration():
 class Enumeration:
     def types(self):
         self.Color = Enumeration('red', 'green', 'blue')
+        self.Other = Enumeration(['r', 'g', 'b'])
     def locals(self):
         self.color = self.Color()
     def init(self):
@@ -443,11 +444,12 @@ class Enumeration:
     def next(self):
         self.color = 'green'
     def specification(self):
-        return self.color != 'blue'
+        return self.color != self.Color.blue
 """
     expected = """
 module Enumeration {
     type Color = enum { red, green, blue };
+    type Other = enum { r, g, b };
     var color : Color;
     init {
         color = red;
@@ -455,7 +457,51 @@ module Enumeration {
     next {
         color' = green;
     }
-    invariant spec: color != blue;
+    invariant spec: (color != blue);
+}
+"""
+    python = ast.parse(code)
+    output = compile_to_uclid5(python)
+    assert_equal(output, expected)
+
+
+def test_quantifiers():
+    code = """
+class Quantifiers(Module):
+    def locals(self):
+        self.x = Integer()
+    def next(self):
+        assert exists([x, Integer()], x > 0)
+        assert forall([x, Integer()], x < 10)
+"""
+    expected = """
+module Quantifiers {
+    var x : integer;
+    next {
+        assert (exists (x: integer) :: (x > 0));
+        assert (forall (x: integer) :: (x < 10));
+    }
+}
+"""
+    python = ast.parse(code)
+    output = compile_to_uclid5(python)
+    assert_equal(output, expected)
+
+
+def test_multiple_compare():
+    code = """
+class MultipleCompare(Module):
+    def locals(self):
+        self.x = Int()
+    def next(self):
+        assert self.x > self.x + 1 > self.x + 2
+"""
+    expected = """
+module MultipleCompare {
+    var x : integer;
+    next {
+        assert (x > (x + 1)) && ((x + 1) > (x + 2));
+    }
 }
 """
     python = ast.parse(code)

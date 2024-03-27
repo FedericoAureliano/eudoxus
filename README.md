@@ -14,7 +14,7 @@ The main way to use eudoxus is through the `synthesize` command.
 ╰────────────────────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ──────────────────────────────────────────────────────────────────────────────────╮
 │ --examples     PATH     Directory with example UCLID5 files to use for RAG [default: None] │
-│ --neighbours   INTEGER  Number of neighbours to consider for RAG [default: 1]              │
+│ --neighbours   INTEGER  Number of neighbours to consider for RAG [default: 2]              │
 │ --help                  Show this message and exit.                                        │
 ╰────────────────────────────────────────────────────────────────────────────────────────────╯
 ```

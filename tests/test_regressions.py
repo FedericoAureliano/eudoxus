@@ -141,8 +141,8 @@ module TickCounter {
     }
 
     next {
-        if (clock_tick && count < 7bv3) {
-            count' = count + 1bv3;
+        if (clock_tick && (count < 7bv3)) {
+            count' = (count + 1bv3);
         } else {
             count' = 0bv3;
         }
@@ -150,7 +150,7 @@ module TickCounter {
 
     instance clock : Clock(tick : (clock_tick));
 
-    invariant spec: (count >= 0bv3 && count <= 7bv3);
+    invariant spec: ((count >= 0bv3) && (count <= 7bv3));
 }
 
 module System {
@@ -240,7 +240,7 @@ module TickCounter {
         count = 0bv3;
     }
 
-    invariant spec: count <= 7bv3;
+    invariant spec: (count <= 7bv3);
 }
 
 module Main {
@@ -350,14 +350,14 @@ module StateMachineA {
 
     next {
         if (??) {
-            data' = if inc then data + 1bv8 else data;
-            state' = if inc then send else idle;
+            data' = if (inc) then ((data + 1bv8)) else (data);
+            state' = if (inc) then (send) else (idle);
         }
         if (??) {
             state' = wait;
         }
         if (??) {
-            state' = if !inc then idle else wait;
+            state' = if (!(inc)) then (idle) else (wait);
         }
         ??;
     }
@@ -376,14 +376,14 @@ module StateMachineB {
 
     next {
         if (??) {
-            state' = if inc then receive else idle;
+            state' = if (inc) then (receive) else (idle);
         }
         if (??) {
-            data' = data + 1bv8;
+            data' = (data + 1bv8);
             state' = wait;
         }
         if (??) {
-            state' = if !inc then idle else wait;
+            state' = if (!(inc)) then (idle) else (wait);
         }
         ??;
     }
@@ -400,7 +400,7 @@ module CommunicatingStateMachines {
 
     next {
         // The lhs of an assignment in the next block must be primed.
-        ?? = !??;
+        ?? = !(??);
     }
 }
 """
@@ -491,30 +491,30 @@ module MyModule {
     // Initializes variables.
     a = 6;
     b = 2;
-    x = 1bv128 << 127bv128;
+    x = (1bv128 << 127bv128);
     y = 2bv128;
-    assert(a / b == 3);
-    assert(x / y == 1bv128 << 126bv128);
-    assert(?? != ??);
+    assert ((a / b) == 3);
+    assert ((x / y) == (1bv128 << 126bv128));
+    assert (?? != ??);
   }
   next {
     // Defines the transition relation.
     // The lhs of an assignment in the next block must be primed.
     ?? = ??;
     for value in ?? {
-        a' = a * value;
-        b' = b * value;
-        assert(a / b == a / b);
-        x' = x * value;
-        y' = y * value;
-        assert(x / y == x / y);
-        assert(?? != ??);
+        a' = (a * value);
+        b' = (b * value);
+        assert ((a / b) == (a / b));
+        x' = (x * value);
+        y' = (y * value);
+        assert ((x / y) == (x / y));
+        assert (?? != ??);
     }
   }
   // Defines the invariant properties.
-  invariant spec: a / b == a / b;
-  invariant spec_2: x / y == x / y;
-  invariant spec_3: ?? != ??;
+  invariant spec: ((a / b) == (a / b));
+  invariant spec_2: ((x / y) == (x / y));
+  invariant spec_3: (?? != ??);
   invariant spec_4: true;
   control {
     // Defines the control block.
@@ -565,10 +565,10 @@ class SimpleModule(Module):
     v = 0;
   }
   next {
-    havoc(v);
-    assert(v == 0);
+    havoc v;
+    assert (v == 0);
   }
-  invariant spec: v == 0;
+  invariant spec: (v == 0);
   control {
     bmc(1);
     check;
@@ -598,7 +598,7 @@ class SimpleModule(Module):
     def next(self):
         '''Havoc the variable and assert that it remains equal to 0.'''
         self.x = BitVec('x', 32) # HaVoc
-        assert(self.x == 0)
+        assert (self.x == 0)
 
     def proof(self):
         '''Use bounded model checking with an unrolling of 1.'''
@@ -606,7 +606,7 @@ class SimpleModule(Module):
         s.add(self.x == 0) # initial state
         s.add(self.x != 0) # after first unrolling
         result = s.check()
-        assert(result == unsat)
+        assert (result == unsat)
 
 # Instantiate and check the module
 m = SimpleModule()
@@ -621,8 +621,8 @@ m.proof()"""
   }
   next {
     // Havoc the variable and assert that it remains equal to 0.
-    havoc(x);
-    assert(x == 0bv32);
+    havoc x;
+    assert (x == 0bv32);
   }
   control {
     // Use bounded model checking with an unrolling of 1.
@@ -679,10 +679,10 @@ module ArrayModule {
     index = 0;
   }
   next {
-    index' = index + 1;
+    index' = (index + 1);
     array' = array[index -> true];
   }
-  invariant spec: ??;
+  invariant spec: (forall (??) :: array[index]);
 }"""
     python = ast.parse(code)
     output = compile_to_uclid5(python)
@@ -712,7 +712,7 @@ module t {
         x = 10;
     }
     // Assertion error: x.x != x.x
-    invariant spec: x == x;
+    invariant spec: (x == x);
 }
     """
     python = ast.parse(code)
@@ -753,7 +753,7 @@ module LiteralRecord {
   next {
     pairVar' = Pair(3, 4);
   }
-  invariant spec: (pairVar.first == 1 && pairVar.second == 1);
+  invariant spec: ((pairVar.first == 1) && (pairVar.second == 1));
 }"""
     python = ast.parse(code)
     output = compile_to_uclid5(python)
@@ -790,10 +790,10 @@ class Module:
         pass
 
     def init(self):
-        assert(self.a != 0)
-        assert(self.b != 0)
-        assert(self.v1 != 0)
-        assert(self.v2 != 0)
+        assert (self.a != 0)
+        assert (self.b != 0)
+        assert (self.v1 != 0)
+        assert (self.v2 != 0)
 
     def next(self):
         pass
@@ -810,13 +810,13 @@ class Module:
         dv_v_unsigned = self.v2.udiv(self.v1)
 
         # Check the results of divisions are not zero
-        assert(dv_int != 0)
-        assert(dv_v_signed != 0)
-        assert(dv_v_unsigned != 0)
+        assert (dv_int != 0)
+        assert (dv_v_signed != 0)
+        assert (dv_v_unsigned != 0)
 
         # Check the result of an unsigned division with big bitvectors
         # is different from the signed one
-        assert(dv_v_signed != dv_v_unsigned)'''
+        assert (dv_v_signed != dv_v_unsigned)'''
     expected = """module Module {
   // An abstract class to represent a UCLID5 module.
   var a : integer;
@@ -824,10 +824,10 @@ class Module:
   var v1 : bv256;
   var v2 : bv256;
   init {
-    assert(a != 0);
-    assert(b != 0);
-    assert(v1 != 0bv256);
-    assert(v2 != 0bv256);
+    assert (a != 0);
+    assert (b != 0);
+    assert (v1 != 0bv256);
+    assert (v2 != 0bv256);
   }
 }"""
     python = ast.parse(code)
