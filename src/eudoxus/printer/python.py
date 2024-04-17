@@ -192,9 +192,9 @@ def type2py(output, type: t.Type):
             for i, v in enumerate(values):
                 if i > 0:
                     output.write(", ")
-                output.write("'")
+                output.write('"')
                 output.write(v.name)
-                output.write("'")
+                output.write('"')
             output.write(")")
         case t.Synonym(_, name):
             name = name.name
@@ -208,7 +208,7 @@ def type2py(output, type: t.Type):
 def expr2py(output, expr: e.Expression):
     match expr:
         case e.Variant(_, name):
-            output.write("'" + name + "'")
+            output.write('"' + name + '"')
         case e.Selection(_, target, field):
             expr2py(output, target)
             output.write(".")
