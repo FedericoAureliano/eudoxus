@@ -65,6 +65,12 @@ INSTANCE_NOT_VAR_COMMENT = "To declare an instance you must use the 'instance' k
 RESERVED_WORD_COMMENT = "Cannot use a reserved word as a variable name."
 
 
+def get_hole_string(node):
+    return (
+        f"??<{node.lineno}:{node.col_offset};{node.end_lineno}:{node.end_col_offset}>"
+    )
+
+
 class Stmt:
     pass
 
@@ -231,12 +237,12 @@ class HoleStmt(Stmt):
     HoleStmt is a class that represents a hole statement.
     """
 
-    def __init__(self):
-        pass
+    def __init__(self, node):
+        self.node = node
 
     def __str__(self, indent=0):
         space = "  " * indent
-        return f"{space}??;"
+        return f"{space}{get_hole_string(self.node)};"
 
 
 class Skip:
@@ -665,14 +671,14 @@ class ModuleType(Type):
                         lhs = attr
                     case _:
                         log(f"type_names[0] is ??: {dump(type_decl)}")
-                        lhs = "??"
+                        lhs = get_hole_string(type_name)
                 rhs = self.parse_type(value, lhs)
                 self.add_type(lhs, rhs)
             case ast.Expr(ast.Constant(value, _)) if isinstance(value, str):
                 self.add_comment(value)
             case _:
                 log(f"type_decl is ??: {dump(type_decl)}")
-                return "??"
+                return get_hole_string(type_decl)
 
     def parse_func_decl(self, func_decl):
         match func_decl:
@@ -684,7 +690,7 @@ class ModuleType(Type):
                         lhs = attr
                     case _:
                         log(f"func_names[0] is ??: {dump(func_decl)}")
-                        lhs = "??"
+                        lhs = get_hole_string(func_name)
                 match value:
                     case ast.Call(ast.Name(f), args, kwargs) if f.lower().startswith(
                         "fun"
@@ -697,12 +703,12 @@ class ModuleType(Type):
                         self.add_func(lhs, args)
                     case _:
                         log(f"func_decl is ??: {dump(func_decl)}")
-                        return "??"
+                        return get_hole_string(value)
             case ast.Expr(ast.Constant(value, _)) if isinstance(value, str):
                 self.add_comment(value)
             case _:
                 log(f"func_decl is ??: {dump(func_decl)}")
-                return "??"
+                return get_hole_string(func_decl)
 
     def add_comment(self, comment):
         if len(self.toplevel) == 0:
@@ -725,7 +731,7 @@ class ModuleType(Type):
                 return value
             case _:
                 log(f"name_expr is ??: {dump(name_expr)}")
-                return "??"
+                return get_hole_string(name_expr)
 
     def parse_range(self, range_expr):
         match range_expr:
@@ -738,7 +744,7 @@ class ModuleType(Type):
                 return f"range(0, {stop})"
             case _:
                 log(f"range_expr is ??: {dump(range_expr)}")
-                return "??"
+                get_hole_string(range_expr)
 
     def parse_type(self, type_expr, to_assign=None):
         if to_assign is None:
@@ -752,7 +758,7 @@ class ModuleType(Type):
                 elif self.is_type(t):
                     return t
                 log(f"type_expr name is ??: {dump(type_expr)}")
-                return "??"
+                return get_hole_string(type_expr)
             case ast.Call(ast.Name(t, _), args, kwargs):
                 if t.lower() in ["integer", "int", "natural", "nat"]:
                     return "integer"
@@ -778,11 +784,13 @@ class ModuleType(Type):
                             element = self.parse_type(k.value)
                     if index == "??":
                         log(f"index is ??: {dump(type_expr)}")
+                        index = get_hole_string(type_expr)
                     if element == "??":
                         log(f"element is ??: {dump(type_expr)}")
+                        element = get_hole_string(type_expr)
                     return f"[{index}]{element}"
                 elif t.lower() in ["array"]:
-                    return "[??]??"
+                    return get_hole_string(type_expr)
                 elif t.lower() in ["bv", "bitvec", "bitvector"]:
                     if len(args) == 1:
                         return f"bv{self.parse_expr(args[0])[0]}"
@@ -792,14 +800,20 @@ class ModuleType(Type):
                                 return f"bv{self.parse_expr(args[1])[0]}"
                             case _:
                                 log(f"bv args is len 2 and ??: {dump(type_expr)}")
-                                return "bv??"
+                                return get_hole_string(type_expr)
                     elif len(kwargs) == 1:
                         _, k = self.parse_expr(kwargs[0].value)
                         return f"bv{k}"
                     else:
                         log(f"bv args is ??: {dump(type_expr)}")
-                        return "bv??"
-                elif t.lower() in ["enum", "enumerated", "enumeration"]:
+                        return get_hole_string(type_expr)
+                elif t.lower() in [
+                    "enum",
+                    "enumerated",
+                    "enumeration",
+                    "enumtype",
+                    "enumeratedtype",
+                ]:
                     match args[0]:
                         case ast.Tuple(targs, _) if len(args) == 1:
                             args = targs
@@ -816,10 +830,14 @@ class ModuleType(Type):
 
                     if len(kwargs) > 0:
                         log(f"enum with kwargs is ??: {dump(type_expr)}")
-                        out = "enum { ?? }"
+                        out = f"enum { {get_hole_string(type_expr)} }"
 
                     if len(args) == 2 and " " in args[1]:
                         args = args[1].split(" ")
+
+                    args = [
+                        get_hole_string(arg) if arg.isnumeric() else arg for arg in args
+                    ]
 
                     out = f"enum {{ {', '.join(args)} }}"
 
@@ -843,7 +861,7 @@ class ModuleType(Type):
                                 fields.append((name, self.parse_type(type_expr)))
                             case _:
                                 log(f"record arg is ??: {dump(arg)}")
-                                fields.append(("??", "??"))
+                                fields.append(get_hole_string(arg))
                     args = list(map(lambda x: f"{x[0]} : {x[1]}", fields))
                     out = f"record {{ {', '.join(args)} }}"
                     # add record to types
@@ -854,13 +872,13 @@ class ModuleType(Type):
                 elif self.is_module(t):
                     log(f"type_expr call is instance ??: {dump(type_expr)}")
                     self.add_comment(INSTANCE_NOT_VAR_COMMENT)
-                    return "??"
+                    return get_hole_string(type_expr)
                 elif self.is_type(t) and len(args + kwargs) == 0:
                     # we don't support type parameters yet (except for arrays)
                     return t
                 else:
                     log(f"type_expr call is ??: {dump(type_expr)}")
-                    return "??"
+                    return get_hole_string(type_expr)
             case ast.Call(ast.Attribute(ast.Name("self", _), attr, ctx), args, kwargs):
                 return self.parse_type(ast.Call(ast.Name(attr, ctx), args, kwargs))
             case _:
@@ -868,7 +886,7 @@ class ModuleType(Type):
                 if self.is_type(name):
                     return name
                 log(f"type_expr is ??: {dump(type_expr)}")
-                return "??"
+                return get_hole_string(type_expr)
 
     def parse_var_decl(self, var_decl, action):
         match var_decl:
@@ -877,14 +895,14 @@ class ModuleType(Type):
                 if lhs in reserved:
                     self.is_constructor(RESERVED_WORD_COMMENT)
                     log(f"var_decl is reserved ??: {dump(var_decl)}")
-                    lhs = "??"
+                    lhs = get_hole_string(var_name)
                 rhs = self.parse_type(value)
                 action(lhs, rhs)
             case ast.Expr(ast.Constant(value, _)) if isinstance(value, str):
                 self.add_comment(value)
             case _:
                 log(f"var_decl is ??: {dump(var_decl)}")
-                return "??"
+                return get_hole_string(var_decl)
 
     def parse_input_decl(self, decl):
         self.parse_var_decl(decl, self.add_input)
@@ -909,38 +927,38 @@ class ModuleType(Type):
                                 rhs = name
                             case _:
                                 log(f"inst func is ??: {dump(inst_expr)}")
-                                rhs = "??"
+                                rhs = get_hole_string(func)
                         kwargs = []
                         for keyword in keywords:
                             match keyword:
                                 case ast.keyword(arg, ast.Name(name, _)):
                                     # TODO: check arg
                                     if not self.is_var(name):
-                                        name = "??"
+                                        name = get_hole_string(keyword)
                                     kwargs.append(f"{arg} : ({name})")
                                 case ast.keyword(
                                     arg, ast.Attribute(ast.Name("self", _), name, _)
                                 ):
                                     # TODO: check arg
                                     if not self.is_var(name):
-                                        name = "??"
+                                        name = get_hole_string(keyword)
                                     kwargs.append(f"{arg} : ({name})")
                                 case ast.keyword(arg, _):
                                     self.add_comment(INSTANCE_ARG_COMMENT)
                                     log(f"keyword expr is ??: {dump(keyword)}")
-                                    kwargs.append(f"{arg} : (??)")
+                                    kwargs.append(get_hole_string(keyword))
                                 case _:
                                     log(f"keyword is ??: {dump(keyword)}")
-                                    kwargs.append("??")
+                                    kwargs.append(get_hole_string(keyword))
                         self.add_instance(InstanceDecl(lhs, ModuleType(rhs), kwargs))
                     case _:
                         log(f"inst_expr is ??: {dump(inst_decl)}")
-                        return "??"
+                        return get_hole_string(inst_decl)
             case ast.Expr(ast.Constant(value, _)) if isinstance(value, str):
                 self.add_comment(value)
             case _:
                 log(f"inst_decl is ??: {dump(inst_decl)}")
-                return "??"
+                return get_hole_string(inst_decl)
 
     def parse_stmt(self, stmt):
         match stmt:
@@ -959,14 +977,14 @@ class ModuleType(Type):
                         position, _ = self.parse_expr(position)
                         if not self.is_var(holder):
                             log(f"lhs is not var ??: {dump(stmt)}")
-                            holder = "??"
+                            holder = get_hole_string(holder)
                         rhs, _ = self.parse_expr(value)
                         return AssignmentStmt(holder, f"{holder}[{position} -> {rhs}]")
                 # try to treat the lhs as a var
                 lhs = self.parse_name(lhs_expr)
                 if not self.is_var(lhs):
                     log(f"lhs is not var ??: {dump(stmt)}")
-                    lhs = "??"
+                    lhs = get_hole_string(lhs)
                     typ = None
                 else:
                     typ = self.get_var_type(lhs)
@@ -1010,7 +1028,7 @@ class ModuleType(Type):
                 elif len(kwargs) == 1:
                     k, _ = self.parse_expr(kwargs[0].value)
                 else:
-                    k = "??"
+                    k = get_hole_string(args)
                 return AssumeStmt(k)
             case ast.Expr(ast.Call(ast.Name("havoc"), args, kwargs)):
                 if len(args) == 1:
@@ -1018,7 +1036,7 @@ class ModuleType(Type):
                 elif len(kwargs) == 1:
                     k, _ = self.parse_expr(kwargs[0].value)
                 else:
-                    k = "??"
+                    k = get_hole_string(args)
                 return HavocStmt(k)
             case ast.Expr(ast.Call(ast.Name("assert"), args, kwargs)):
                 if len(args) == 1:
@@ -1026,7 +1044,7 @@ class ModuleType(Type):
                 elif len(kwargs) == 1:
                     k, _ = self.parse_expr(kwargs[0].value)
                 else:
-                    k = "??"
+                    k = get_hole_string(args)
                 return AssertStmt(k)
             case ast.Expr(ast.Call(ast.Name(id), args, kwargs)) if id.lower() in [
                 "if",
@@ -1055,7 +1073,7 @@ class ModuleType(Type):
             case ast.With(_, body):
                 log(f"stmt is if ??: {dump(stmt)}")
                 return IfStmt(
-                    "??",
+                    get_hole_string(stmt),
                     BlockStmt(list(map(self.parse_stmt, body))),
                     BlockStmt([]),
                 )
@@ -1063,7 +1081,7 @@ class ModuleType(Type):
                 iter = self.parse_range(iter)
                 target = self.parse_name(target)
                 # push target onto locals
-                self.push_tmp(target, "??")
+                self.push_tmp(target, get_hole_string(stmt))
                 body = list(map(self.parse_stmt, body))
                 self.pop_tmp()
                 # pop target from locals
@@ -1072,7 +1090,7 @@ class ModuleType(Type):
                 return Skip()
             case _:
                 log(f"stmt is ??: {dump(stmt)}")
-                return HoleStmt()
+                return HoleStmt(stmt)
 
     def parse_init_stmt(self, stmt):
         self.add_init_statement(self.parse_stmt(stmt))
@@ -1101,7 +1119,7 @@ class ModuleType(Type):
                 self.add_spec(name, self.parse_expr(test, "boolean")[0])
             case _:
                 log(f"inv is ??: {dump(inv)}")
-                return "??"
+                return get_hole_string(inv)
 
     def parse_proof_cmd(self, cmd):
         match cmd:
@@ -1111,7 +1129,7 @@ class ModuleType(Type):
                 elif len(kwargs) == 1:
                     k, _ = self.parse_expr(kwargs[0].value)
                 else:
-                    k = "??"
+                    k = get_hole_string(args)
 
                 if cmd.lower() in ["induction"]:
                     self.add_proof_statement(InductionCmd(k))
@@ -1123,7 +1141,7 @@ class ModuleType(Type):
                 return ""
             case _:
                 log(f"cmd is ??: {dump(cmd)}")
-                return "??"
+                return get_hole_string(cmd)
 
     def parse_expr(self, expr, required_type=None):
         match expr:
@@ -1133,7 +1151,7 @@ class ModuleType(Type):
                 elif self.is_constructor(name):
                     return (name, self.get_constructor_type(name))
                 log(f"expr is name ??: {dump(expr)}")
-                return ("??", None)
+                return (get_hole_string(name), None)
             case ast.Attribute(ast.Name("self", _), name, _):
                 if self.is_var(name):
                     return (name, self.get_var_type(name))
@@ -1142,7 +1160,7 @@ class ModuleType(Type):
                 elif self.is_type(name):
                     return (name, None)
                 log(f"expr attr is name ??: {dump(expr)}")
-                return ("??", None)
+                return (get_hole_string(name), None)
             case ast.Attribute(value, attr, _):
                 value, typ = self.parse_expr(value)
                 if self.is_type(value):
@@ -1226,10 +1244,10 @@ class ModuleType(Type):
                             f = f"bv{k}"
                         else:
                             log(f"expr is bv ??: {dump(expr)}")
-                            f = "bv??"
+                            f = get_hole_string(expr)
                     case _:
                         log(f"expr func is ??: {dump(func)}")
-                        f = "??"
+                        f = get_hole_string(func)
 
                 if len(args) == 1 and isinstance(args[0], ast.Dict):
                     keys = args[0].keys
@@ -1256,7 +1274,7 @@ class ModuleType(Type):
                         return (f"({f.join(args)})", None)
                     else:
                         log(f"expr is op ??: {dump(expr)}")
-                        return ("??", None)
+                        return (get_hole_string(expr), None)
                 elif f.lower() in ["ite", "ifthenelse", "if", "if_"]:
                     if len(args) == 3:
                         return (
@@ -1265,13 +1283,13 @@ class ModuleType(Type):
                         )
                     else:
                         log(f"expr is ite ??: {dump(expr)}")
-                        return ("if (??) then (??) else (??)", None)
+                        return (get_hole_string(expr), None)
                 elif f.startswith("bv"):
                     if len(args) == 1 and f != "bv":
                         return (f"{args[0]}{f}", f)
                     elif len(args) == 2:
-                        v = args[0] if args[0].isnumeric() else "??"
-                        w = args[1] if args[1].isnumeric() else "??"
+                        v = args[0] if args[0].isnumeric() else get_hole_string(args[0])
+                        w = args[1] if args[1].isnumeric() else get_hole_string(args[1])
                         return (f"{v}bv{w}", f"bv{w}")
                     elif len(kwargs) == 1:
                         k, _ = self.parse_expr(kwargs[0].value)
@@ -1285,13 +1303,21 @@ class ModuleType(Type):
                             elif k.arg.lower() in ["value", "val", "v"]:
                                 v = self.parse_expr(k.value)
                         if v == "??":
-                            w = kwargs[0].value if kwargs[0].value.isnumeric() else "??"
+                            w = (
+                                kwargs[0].value
+                                if kwargs[0].value.isnumeric()
+                                else get_hole_string(kwargs[0])
+                            )
                         if w == "??":
-                            w = kwargs[1].value if kwargs[1].value.isnumeric() else "??"
+                            w = (
+                                kwargs[1].value
+                                if kwargs[1].value.isnumeric()
+                                else get_hole_string(kwargs[1])
+                            )
                         return (f"{v}bv{w}", f"bv{w}")
                     else:
                         log(f"expr is bv ??: {dump(expr)}")
-                        return ("??bv??", "bv??")
+                        return (get_hole_string(expr), None)
                 elif self.is_constructor(f):
                     return (f"{f}({', '.join(args)})", self.get_constructor_type(f))
                 elif self.is_selector(f):
@@ -1306,7 +1332,7 @@ class ModuleType(Type):
                 elif f.lower() in ["exists", "exist", "exists_", "exist_"]:
                     if len(args) < 2:
                         log(f"exists {f} is ??: {dump(expr)}")
-                        return ("??", None)
+                        return (get_hole_string(expr), None)
                     if len(args) == 2 and isinstance(args[0], list):
                         params = args[0]
                     else:
@@ -1320,7 +1346,7 @@ class ModuleType(Type):
                 elif f.lower() in ["forall", "for_all", "forall_", "for_all_"]:
                     if len(args) < 2:
                         log(f"forall {f} is ??: {dump(expr)}")
-                        return ("??", None)
+                        return (get_hole_string(expr), None)
                     if len(args) == 2 and isinstance(args[0], list):
                         params = args[0]
                     else:
@@ -1333,14 +1359,14 @@ class ModuleType(Type):
                     )
                 else:
                     log(f"expr call {f} is ??: {dump(expr)}")
-                    return ("??", None)
+                    return (get_hole_string(f), None)
             case ast.List([x, t], _):
                 x = self.parse_name(x)
                 t = self.parse_type(t)
                 return (f"{x}: {t}", None)
             case _:
                 log(f"expr is ??: {expr} ({type(expr)})")
-                return ("??", None)
+                return (get_hole_string(expr), None)
 
     def __str__(self):
         return f"module {self.name} {{\n{BlockStmt(self.toplevel).__str__(1)}\n}}"
