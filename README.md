@@ -3,12 +3,12 @@
 "Eudoxus was probably the source for most of book V of Euclid's Elements." -
 [Wikipedia](https://en.wikipedia.org/wiki/Eudoxus_of_Cnidus)
 
-# Install
+## Install
 ```sh
 pip3 install .
 ```
 
-# Usage
+## Usage
 ```
  Usage: eudoxus [OPTIONS] SRC
 
@@ -23,27 +23,27 @@ pip3 install .
 ╰─────────────────────────────────────────────────────────────────────────────╯
 ```
 
-# Development
+## Development
 
-## Requirements (MacOS)
+### Requirements (MacOS)
 ```sh
 pip3 install pre-commit
 pre-commit install
 pip3 install "tox<4"
 ```
 
-## Install
+### Install
 ```sh
 pip3 install -e .
 ```
 
-## Testing
+### Testing
 ```sh
 tox
 open htmlcov/index.html # to see coverage report
 ```
 
-# Formatting
+### Formatting
 ```sh
 pre-commit run --all-files --show-diff-on-failure
 ```
