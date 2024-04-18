@@ -197,7 +197,16 @@ class Parser:
             function: {self.parse_identifier.__doc__}
             arguments: (argument_list))
         """
-        function = self.parse_identifier(node.child_by_field_name("function"))
+
+        def parse_args() -> List[e.Expression]:
+            arguments = self.search(
+                self.parse_expr, node.child_by_field_name("arguments")
+            )
+            arguments = [self.parse_expr(arg) for arg in arguments]
+            return arguments
+
+        fnode = node.child_by_field_name("function")
+        function = self.parse_identifier(fnode)
         match function.name.lower():
             case "forall" | "exists":
                 arguments = node.child_by_field_name("arguments")
@@ -215,21 +224,69 @@ class Parser:
                 )
                 return e.Application(pos(node), quant, [body])
             case "bitvector" | "bv" | "bitvec":
-                arguments = self.search(
-                    self.parse_expr, node.child_by_field_name("arguments")
-                )
-                arguments = [self.parse_expr(arg) for arg in arguments]
-
+                arguments = parse_args()
                 match arguments:
                     case [e.Integer(_, value), e.Integer(_, size)]:
                         return e.BitVector(pos(node), value, size)
                     case _:
                         raise ValueError(f"Unsupported object: {node.sexp()}")
-            case _:
-                arguments = self.search(
-                    self.parse_expr, node.child_by_field_name("arguments")
+            case "and" | "conjunct" | "conjunction":
+                arguments = parse_args()
+                return e.Application(pos(node), e.And(pos(fnode)), arguments)
+            case "or" | "disjunct" | "disjunction":
+                arguments = parse_args()
+                return e.Application(pos(node), e.Or(pos(fnode)), arguments)
+            case "implies" | "impl":
+                arguments = parse_args()
+                return e.Application(pos(node), e.Implies(pos(fnode)), arguments)
+            case "iff" | "equiv" | "eq" | "equal":
+                arguments = parse_args()
+                return e.Application(pos(node), e.Equal(pos(fnode)), arguments)
+            case "not" | "neg":
+                arguments = parse_args()
+                return e.Application(pos(node), e.Not(pos(fnode)), arguments)
+            case "add" | "plus" | "sum" | "addition":
+                arguments = parse_args()
+                return e.Application(pos(node), e.Add(pos(fnode)), arguments)
+            case "sub" | "subtract" | "minus":
+                arguments = parse_args()
+                return e.Application(pos(node), e.Subtract(pos(fnode)), arguments)
+            case "mul" | "multiply" | "times":
+                arguments = parse_args()
+                return e.Application(pos(node), e.Multiply(pos(fnode)), arguments)
+            case "div" | "divide" | "quotient":
+                arguments = parse_args()
+                return e.Application(pos(node), e.Divide(pos(fnode)), arguments)
+            case "mod" | "modulo" | "remainder" | "modulus":
+                arguments = parse_args()
+                return e.Application(pos(node), e.Modulo(pos(fnode)), arguments)
+            case "neq" | "notequal":
+                arguments = parse_args()
+                return e.Application(pos(node), e.NotEqual(pos(fnode)), arguments)
+            case "lt" | "lessthan":
+                arguments = parse_args()
+                return e.Application(pos(node), e.LessThan(pos(fnode)), arguments)
+            case "le" | "lte" | "lessthanorequal":
+                arguments = parse_args()
+                return e.Application(
+                    pos(node), e.LessThanOrEqual(pos(fnode)), arguments
                 )
-                arguments = [self.parse_expr(arg) for arg in arguments]
+            case "gt" | "greaterthan":
+                arguments = parse_args()
+                return e.Application(pos(node), e.GreaterThan(pos(fnode)), arguments)
+            case "ge" | "gte" | "greaterthanorequal":
+                arguments = parse_args()
+                return e.Application(
+                    pos(node), e.GreaterThanOrEqual(pos(fnode)), arguments
+                )
+            case "select" | "sel":
+                arguments = parse_args()
+                return e.Application(pos(node), e.Selection(pos(fnode)), arguments)
+            case "ite" | "ifthenelse" | "ifelse" | "if" | "if_":
+                arguments = parse_args()
+                return e.Application(pos(node), e.Ite(pos(fnode)), arguments)
+            case _:
+                arguments = parse_args()
                 return e.Application(pos(node), function, arguments)
 
     def parse_select_expr(self, node: TSNode) -> e.Selection:
@@ -613,7 +670,7 @@ class Parser:
             case _:
                 raise ValueError(f"Unsupported object: {name}")
 
-    def parse_spec(self, node: TSNode) -> e.Application:
+    def parse_spec_block(self, node: TSNode) -> e.Expression:
         """
         (function_definition
             name: (identifier)
@@ -626,9 +683,50 @@ class Parser:
             case "specification":
                 expressions = self.search(self.parse_expr, body)
                 expressions = [self.parse_expr(expr) for expr in expressions]
-                return e.Application(pos(node), e.And(pos(node)), expressions)
+                if len(expressions) == 0:
+                    return e.Boolean(pos(node), True)
+                elif len(expressions) == 1:
+                    return expressions[0]
+                elif len(expressions) > 1:
+                    return e.Application(pos(node), e.And(pos(node)), expressions)
             case _:
                 raise ValueError(f"Unsupported object: {name}")
+
+    def parse_control_statement(self, node: TSNode) -> p.Command:
+        """
+        (call
+            function: {self.parse_identifier.__doc__}
+            arguments: (argument_list))
+        """
+        function = self.parse_identifier(node.child_by_field_name("function"))
+        arguments = node.child_by_field_name("arguments")
+        arguments = self.search(self.parse_integer, arguments)
+        arguments = [self.parse_integer(arg) for arg in arguments]
+        match function.name.lower():
+            case "induction" if len(arguments) <= 1:
+                k = 0 if len(arguments) == 0 else arguments[0].value
+                return p.Induction(pos(node), k)
+            case "bmc" | "unroll" if len(arguments) <= 1:
+                k = 0 if len(arguments) == 0 else arguments[0].value
+                return p.BoundedModelChecking(pos(node), k)
+            case _:
+                raise ValueError(f"Unsupported object: {node.sexp()}")
+
+    def parse_control_block(self, node: TSNode) -> p.Block:
+        """
+        (function_definition
+            name: (identifier)
+            parameters: (parameters)
+            body: (block))
+        """
+        name = self.text(node.child_by_field_name("name"))
+        body = node.child_by_field_name("body")
+        if name == "control" or name == "proof":
+            stmts = self.search(self.parse_control_statement, body, strict=False)
+            stmts = [self.parse_control_statement(stmt) for stmt in stmts]
+            return p.Block(pos(node), stmts)
+        else:
+            raise ValueError(f"Unsupported object: {name}")
 
     def parse_module(self, node: TSNode) -> Module:
         """
@@ -730,17 +828,28 @@ class Parser:
 
         spec_blocks = [
             b
-            for b in self.search(self.parse_spec, body)
+            for b in self.search(self.parse_spec_block, body)
             if has_name(b, "specification")
         ]
         if len(spec_blocks) == 0:
             spec = e.Boolean(pn, True)
+        elif len(spec_blocks) == 1:
+            spec = self.parse_spec_block(spec_blocks[0])
         else:
             spec = e.Application(
-                pn, e.And(pn), [self.parse_spec(b) for b in spec_blocks]
+                pn, e.And(pn), [self.parse_spec_block(b) for b in spec_blocks]
             )
 
-        control = p.Block(pn, [])
+        control_blocks = [
+            b
+            for b in self.search(self.parse_control_block, body)
+            if has_name(b, "control") or has_name(b, "proof")
+        ]
+        control = p.Block(
+            pn,
+            [s for b in control_blocks for s in self.parse_control_block(b).commands],
+        )
+
         return Module(
             pn,
             name,

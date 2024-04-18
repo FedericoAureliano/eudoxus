@@ -240,6 +240,10 @@ def expr2py(output, expr: e.Expression):
                     output.write("], ")
                     expr2py(output, args[0])
                     output.write(")")
+                case e.Not(_):
+                    op2py(output, op)
+                    output.write(" ")
+                    expr2py(output, args[0])
                 case _:
                     for i, a in enumerate(args):
                         if i > 0:
@@ -309,8 +313,8 @@ def cmd2py(output, cmd: p.Command, indent):
             else:
                 output.write(f"{space}pass\n")
         case p.Induction(_, k):
-            output.write(f"{space}induction({k})\n")
+            output.write(f"{space}self.induction({k})\n")
         case p.BoundedModelChecking(_, k):
-            output.write(f"{space}unroll({k})\n")
+            output.write(f"{space}self.bmc({k})\n")
         case _:
             raise ValueError(f"Unsupported command {cmd}")

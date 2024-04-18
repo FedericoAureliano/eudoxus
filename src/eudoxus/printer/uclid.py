@@ -241,9 +241,12 @@ def expr2ucl(output, expr: e.Expression):
                     output.write(") :: ")
                     expr2ucl(output, args[0])
                     output.write(")")
+                case e.Not(_):
+                    op2ucl(output, op)
+                    expr2ucl(output, args[0])
                 case e.Add(_) | e.Subtract(_) | e.Multiply(_) | e.Divide(_) | e.Modulo(
                     _
-                ) | e.And(_) | e.Or(_) | e.Not(_):
+                ) | e.And(_) | e.Or(_):
                     for i, a in enumerate(args):
                         if i > 0:
                             output.write(" ")
@@ -330,7 +333,11 @@ def cmd2ucl(output, cmd: p.Command, indent):
                 cmd2ucl(output, cmd, indent)
         case p.Induction(_, k):
             output.write(f"{space}induction({k})\n")
+            output.write(f"{space}check;\n")
+            output.write(f"{space}print_results;\n")
         case p.BoundedModelChecking(_, k):
-            output.write(f"{space}unroll({k})\n")
+            output.write(f"{space}bmc({k})\n")
+            output.write(f"{space}check;\n")
+            output.write(f"{space}print_results;\n")
         case _:
             raise ValueError(f"Unsupported command {cmd}")

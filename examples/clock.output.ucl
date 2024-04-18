@@ -1,0 +1,40 @@
+module Clock {
+  output tick: boolean;
+
+  next {
+    tick' = !tick;
+
+  }
+}
+module TickCounter {
+  var count: integer;
+
+  input clock_tick: boolean;
+
+  instance clock: Clock(tick:(clock_tick));
+
+  init {
+    count = 0;
+
+  }
+  next {
+    if (clock_tick && count < 7) {
+      count' = count + 1;
+    } else {
+      count' = 0;
+    }
+
+  }
+  invariant spec: count >= 0 && count <= 7;
+
+}
+module System {
+  instance tick_counter: TickCounter();
+
+  control {
+    induction(1)
+    check;
+    print_results;
+
+  }
+}
