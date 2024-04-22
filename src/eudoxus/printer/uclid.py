@@ -332,11 +332,11 @@ def cmd2ucl(output, cmd: p.Command, indent):
             for cmd in cmds:
                 cmd2ucl(output, cmd, indent)
         case p.Induction(_, k):
-            output.write(f"{space}induction({k})\n")
+            output.write(f"{space}induction({k});\n")
             output.write(f"{space}check;\n")
             output.write(f"{space}print_results;\n")
         case p.BoundedModelChecking(_, k):
-            output.write(f"{space}bmc({k})\n")
+            output.write(f"{space}bmc({k});\n")
             output.write(f"{space}check;\n")
             output.write(f"{space}print_results;\n")
         case _:

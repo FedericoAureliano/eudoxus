@@ -128,16 +128,25 @@ class Parser:
                 raise ValueError(f"Unsupported object: {self.text(args)}")
             return t.Array(p, index_t, elem_t)
         elif "enum" in name.lower():
+            if (
+                args.child_count >= 3
+                and args.child(1).type == "string"
+                and args.child(3).type == "list"
+            ):
+                # e.g., Enum('t', ['B', 'C'])
+                args = args.child(3)
+
             args_list = self.search(self.parse_string, args, strict=False)
             args_list = [
                 Identifier(pos(arg), self.parse_string(arg)) for arg in args_list
             ]
+
             if len(args_list) == 0:
                 args_list = self.search(self.parse_integer, args, strict=False)
                 args_list = [self.parse_integer(arg) for arg in args_list]
                 k = args_list[0]
                 args_list = []
-                for i in range(k.value):
+                for _ in range(k.value):
                     args_list.append(Identifier(p, "anon_enum_" + str(self.enum_count)))
                     self.enum_count += 1
             return t.Enumeration(p, args_list)
@@ -178,6 +187,12 @@ class Parser:
         """
         id = self.parse_identifier(node.child_by_field_name("left"))
         rhs = self.parse_type_expr(node.child_by_field_name("right"))
+        if isinstance(rhs, t.Enumeration):
+            fst = rhs.values[0]
+            if fst.name == id.name:
+                # e.g., self.t = Enum('t', 'A', 'B', 'C')
+                rhs = t.Enumeration(rhs.position, rhs.values[1:])
+
         return s.Type(pos(node), id, rhs)
 
     def parse_name_type_pair(self, node: TSNode) -> Tuple[Identifier, t.Type]:
@@ -190,6 +205,53 @@ class Parser:
         id = self.parse_identifier(node.child(1))
         ty = self.parse_type_expr(node.child(3))
         return (id, ty)
+
+    def expr_helper(
+        self, pos: Position, f: str, args: List[e.Expression]
+    ) -> e.Expression:
+        match f.lower():
+            case "bitvector" | "bv" | "bitvec":
+                match args:
+                    case [e.Integer(_, value), e.Integer(_, size)]:
+                        return e.BitVector(pos, value, size)
+                    case _:
+                        raise ValueError(f"Unsupported args: {args}")
+            case "and" | "conjunct" | "conjunction":
+                return e.Application(pos, e.And(pos), args)
+            case "or" | "disjunct" | "disjunction":
+                return e.Application(pos, e.Or(pos), args)
+            case "implies" | "impl":
+                return e.Application(pos, e.Implies(pos), args)
+            case "iff" | "equiv" | "eq" | "equal":
+                return e.Application(pos, e.Equal(pos), args)
+            case "not" | "neg":
+                return e.Application(pos, e.Not(pos), args)
+            case "add" | "plus" | "sum" | "addition":
+                return e.Application(pos, e.Add(pos), args)
+            case "sub" | "subtract" | "minus":
+                return e.Application(pos, e.Subtract(pos), args)
+            case "mul" | "multiply" | "times":
+                return e.Application(pos, e.Multiply(pos), args)
+            case "div" | "divide" | "quotient":
+                return e.Application(pos, e.Divide(pos), args)
+            case "mod" | "modulo" | "remainder" | "modulus":
+                return e.Application(pos, e.Modulo(pos), args)
+            case "neq" | "notequal":
+                return e.Application(pos, e.NotEqual(pos), args)
+            case "lt" | "lessthan":
+                return e.Application(pos, e.LessThan(pos), args)
+            case "le" | "lte" | "lessthanorequal":
+                return e.Application(pos, e.LessThanOrEqual(pos), args)
+            case "gt" | "greaterthan":
+                return e.Application(pos, e.GreaterThan(pos), args)
+            case "ge" | "gte" | "greaterthanorequal":
+                return e.Application(pos, e.GreaterThanOrEqual(pos), args)
+            case "select" | "sel":
+                return e.Application(pos, e.Selection(pos), args)
+            case "ite" | "ifthenelse" | "ifelse" | "if" | "if_":
+                return e.Application(pos, e.Ite(pos), args)
+            case _:
+                return e.Application(pos, Identifier(pos, f), args)
 
     def parse_app_expr(self, node: TSNode) -> e.Application:
         """
@@ -223,71 +285,29 @@ class Parser:
                     else e.Exists(pos(node), bindings)
                 )
                 return e.Application(pos(node), quant, [body])
-            case "bitvector" | "bv" | "bitvec":
-                arguments = parse_args()
-                match arguments:
-                    case [e.Integer(_, value), e.Integer(_, size)]:
-                        return e.BitVector(pos(node), value, size)
-                    case _:
-                        raise ValueError(f"Unsupported object: {node.sexp()}")
-            case "and" | "conjunct" | "conjunction":
-                arguments = parse_args()
-                return e.Application(pos(node), e.And(pos(fnode)), arguments)
-            case "or" | "disjunct" | "disjunction":
-                arguments = parse_args()
-                return e.Application(pos(node), e.Or(pos(fnode)), arguments)
-            case "implies" | "impl":
-                arguments = parse_args()
-                return e.Application(pos(node), e.Implies(pos(fnode)), arguments)
-            case "iff" | "equiv" | "eq" | "equal":
-                arguments = parse_args()
-                return e.Application(pos(node), e.Equal(pos(fnode)), arguments)
-            case "not" | "neg":
-                arguments = parse_args()
-                return e.Application(pos(node), e.Not(pos(fnode)), arguments)
-            case "add" | "plus" | "sum" | "addition":
-                arguments = parse_args()
-                return e.Application(pos(node), e.Add(pos(fnode)), arguments)
-            case "sub" | "subtract" | "minus":
-                arguments = parse_args()
-                return e.Application(pos(node), e.Subtract(pos(fnode)), arguments)
-            case "mul" | "multiply" | "times":
-                arguments = parse_args()
-                return e.Application(pos(node), e.Multiply(pos(fnode)), arguments)
-            case "div" | "divide" | "quotient":
-                arguments = parse_args()
-                return e.Application(pos(node), e.Divide(pos(fnode)), arguments)
-            case "mod" | "modulo" | "remainder" | "modulus":
-                arguments = parse_args()
-                return e.Application(pos(node), e.Modulo(pos(fnode)), arguments)
-            case "neq" | "notequal":
-                arguments = parse_args()
-                return e.Application(pos(node), e.NotEqual(pos(fnode)), arguments)
-            case "lt" | "lessthan":
-                arguments = parse_args()
-                return e.Application(pos(node), e.LessThan(pos(fnode)), arguments)
-            case "le" | "lte" | "lessthanorequal":
-                arguments = parse_args()
-                return e.Application(
-                    pos(node), e.LessThanOrEqual(pos(fnode)), arguments
-                )
-            case "gt" | "greaterthan":
-                arguments = parse_args()
-                return e.Application(pos(node), e.GreaterThan(pos(fnode)), arguments)
-            case "ge" | "gte" | "greaterthanorequal":
-                arguments = parse_args()
-                return e.Application(
-                    pos(node), e.GreaterThanOrEqual(pos(fnode)), arguments
-                )
-            case "select" | "sel":
-                arguments = parse_args()
-                return e.Application(pos(node), e.Selection(pos(fnode)), arguments)
-            case "ite" | "ifthenelse" | "ifelse" | "if" | "if_":
-                arguments = parse_args()
-                return e.Application(pos(node), e.Ite(pos(fnode)), arguments)
             case _:
                 arguments = parse_args()
-                return e.Application(pos(node), function, arguments)
+                return self.expr_helper(pos(node), function.name, arguments)
+
+    def parse_app_of_app_expr(self, node: TSNode) -> e.Application:
+        """
+        (call
+            function: (call
+                function: {self.parse_identifier.__doc__}
+                arguments: (argument_list))
+            arguments: (argument_list))
+        """
+        call = node.child_by_field_name("function")
+        inner_args = call.child_by_field_name("arguments")
+        outer_args = node.child_by_field_name("arguments")
+
+        function = self.parse_identifier(call.child_by_field_name("function"))
+        outer_args = self.search(self.parse_expr, outer_args)
+        outer_args = [self.parse_expr(arg) for arg in outer_args]
+        inner_args = self.search(self.parse_expr, inner_args)
+        inner_args = [self.parse_expr(arg) for arg in inner_args]
+        arguments = outer_args + inner_args
+        return self.expr_helper(pos(node), function.name, arguments)
 
     def parse_select_expr(self, node: TSNode) -> e.Selection:
         """
@@ -383,6 +403,7 @@ class Parser:
             {self.parse_variant.__doc__}
             {self.parse_select_expr.__doc__}
             {self.parse_app_expr.__doc__}
+            {self.parse_app_of_app_expr.__doc__}
             {self.parse_binary_expression.__doc__}
             {self.parse_comparison_expression.__doc__}
             {self.parse_boolean_expression.__doc__}
@@ -398,6 +419,8 @@ class Parser:
                 return e.Application(id.position, id, [])
             case "attribute":
                 return self.parse_select_expr(node)
+            case "call" if node.child_by_field_name("function").type == "call":
+                return self.parse_app_of_app_expr(node)
             case "call":
                 return self.parse_app_expr(node)
             case "binary_operator":
