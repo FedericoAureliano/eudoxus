@@ -267,6 +267,13 @@ def expr2ucl(output, expr: e.Expression):
                             op2ucl(output, e.And(op.position))
                             output.write(" ")
                             expr2ucl(output, args[i + 1])
+                case e.Ite(_):
+                    output.write("if (")
+                    expr2ucl(output, args[0])
+                    output.write(") then ")
+                    expr2ucl(output, args[1])
+                    output.write(" else ")
+                    expr2ucl(output, args[2])
                 case _:
                     raise ValueError(f"Unsupported operator {op}")
         case e.Boolean(_, value) | e.Integer(_, value):

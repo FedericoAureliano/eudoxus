@@ -292,6 +292,10 @@ class TypeChecker(Checker):
                     case e.Divide(_):
                         name = "eudoxus.div"
                         all_equal_types(args)
+                    case e.Ite(_):
+                        name = "eudoxus.ite"
+                        all_equal_types(args[1:])
+                        all_some_type([args[0]], boolean)
                     case e.Quantifier(_, bindings):
                         name = (
                             "eudoxus.forall"

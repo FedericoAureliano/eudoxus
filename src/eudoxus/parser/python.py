@@ -387,6 +387,15 @@ class Parser:
         """(integer)"""
         return e.Integer(pos(node), int(self.text(node)))
 
+    def parse_boolean(self, node: TSNode) -> e.Constant:
+        """
+        [
+            (true)
+            (false)
+        ]
+        """
+        return e.Boolean(pos(node), self.text(node) == "True")
+
     def parse_string(self, node: TSNode) -> str:
         """(string)"""
         return self.text(node)[1:-1]
@@ -408,6 +417,7 @@ class Parser:
             {self.parse_comparison_expression.__doc__}
             {self.parse_boolean_expression.__doc__}
             {self.parse_integer.__doc__}
+            {self.parse_boolean.__doc__}
         ]
         """
         match node.type:
@@ -431,6 +441,8 @@ class Parser:
                 return self.parse_boolean_expression(node)
             case "integer":
                 return self.parse_integer(node)
+            case "true" | "false":
+                return self.parse_boolean(node)
             case "string":
                 return self.parse_variant(node)
             case _:

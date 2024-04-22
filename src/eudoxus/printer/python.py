@@ -244,6 +244,12 @@ def expr2py(output, expr: e.Expression):
                     op2py(output, op)
                     output.write(" ")
                     expr2py(output, args[0])
+                case e.Ite(_):
+                    expr2py(output, args[1])
+                    output.write(" if ")
+                    expr2py(output, args[0])
+                    output.write(" else ")
+                    expr2py(output, args[2])
                 case _:
                     for i, a in enumerate(args):
                         if i > 0:
