@@ -152,6 +152,19 @@ class Application(Expression):
 
 
 @dataclass(frozen=True)
-class Selection(Expression):
+class Select(Expression):
     record: Expression
     selector: Identifier
+
+
+@dataclass(frozen=True)
+class Index(Expression):
+    array: Expression
+    index: Expression
+
+
+@dataclass(frozen=True)
+class Store(Expression):
+    array: Expression
+    index: Expression
+    value: Expression

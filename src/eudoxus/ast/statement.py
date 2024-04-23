@@ -18,7 +18,7 @@ class Block(Statement):
 
 @dataclass(frozen=True)
 class Assignment(Statement):
-    target: Identifier
+    target: e.Expression
     value: e.Expression
 
 

@@ -3,4 +3,4 @@ class BVAlt(Module):
         self.x = BitVector(4)
 
     def next(self):
-        self.x = BitVector(0, 4)
+        self.x = BitVectorVal(0, 4)

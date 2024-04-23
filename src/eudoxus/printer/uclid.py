@@ -211,10 +211,22 @@ def expr2ucl(output, expr: e.Expression):
     match expr:
         case e.Variant(_, name):
             output.write(name)
-        case e.Selection(_, target, field):
+        case e.Select(_, target, field):
             expr2ucl(output, target)
             output.write(".")
             output.write(field.name)
+        case e.Index(_, target, index):
+            expr2ucl(output, target)
+            output.write("[")
+            expr2ucl(output, index)
+            output.write("]")
+        case e.Store(_, target, index, value):
+            expr2ucl(output, target)
+            output.write("[")
+            expr2ucl(output, index)
+            output.write(" -> ")
+            expr2ucl(output, value)
+            output.write("]")
         case e.Application(_, name, args) if isinstance(name, e.Identifier):
             name = name.name
             output.write(name)
@@ -289,9 +301,9 @@ def expr2ucl(output, expr: e.Expression):
 def stmt2ucl(output, stmt: s.Statement, indent, prime_assignments):
     space = "  " * indent
     match stmt:
-        case s.Assignment(_, target, value) if isinstance(target, e.Identifier):
-            target = target.name
-            output.write(space + target)
+        case s.Assignment(_, target, value):
+            output.write(space)
+            expr2ucl(output, target)
             if prime_assignments:
                 output.write("'")
             output.write(" = ")

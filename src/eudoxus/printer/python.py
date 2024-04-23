@@ -209,10 +209,15 @@ def expr2py(output, expr: e.Expression):
     match expr:
         case e.Variant(_, name):
             output.write('"' + name + '"')
-        case e.Selection(_, target, field):
+        case e.Select(_, target, field):
             expr2py(output, target)
             output.write(".")
             output.write(field.name)
+        case e.Index(_, target, index):
+            expr2py(output, target)
+            output.write("[")
+            expr2py(output, index)
+            output.write("]")
         case e.Application(_, f, args) if isinstance(f, e.Identifier):
             output.write("self." + f.name)
             if len(args) > 0:
@@ -260,7 +265,7 @@ def expr2py(output, expr: e.Expression):
         case e.Boolean(_, value) | e.Integer(_, value):
             output.write(repr(value))
         case e.BitVector(_, value, width):
-            output.write(f"BitVector({value}, {width})")
+            output.write(f"BitVectorVal({value}, {width})")
         case Hole(_):
             output.write("??")
         case _:
@@ -270,9 +275,20 @@ def expr2py(output, expr: e.Expression):
 def stmt2py(output, stmt: s.Statement, indent):
     space = "  " * indent
     match stmt:
-        case s.Assignment(_, target, value) if isinstance(target, e.Identifier):
-            target = target.name
-            output.write(space + "self." + target)
+        case s.Assignment(
+            _, target, e.Store(_, array, index, value)
+        ) if array == target:
+            output.write(space)
+            expr2py(output, target)
+            output.write("[")
+            expr2py(output, index)
+            output.write("]")
+            output.write(" = ")
+            expr2py(output, value)
+            output.write("\n")
+        case s.Assignment(_, target, value):
+            output.write(space)
+            expr2py(output, target)
             output.write(" = ")
             expr2py(output, value)
             output.write("\n")

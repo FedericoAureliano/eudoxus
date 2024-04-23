@@ -210,7 +210,7 @@ class Parser:
         self, pos: Position, f: str, args: List[e.Expression]
     ) -> e.Expression:
         match f.lower():
-            case "bitvector" | "bv" | "bitvec":
+            case bv if "bv" in bv or "bitvec" in bv:
                 match args:
                     case [e.Integer(_, value), e.Integer(_, size)]:
                         return e.BitVector(pos, value, size)
@@ -247,7 +247,7 @@ class Parser:
             case "ge" | "gte" | "greaterthanorequal":
                 return e.Application(pos, e.GreaterThanOrEqual(pos), args)
             case "select" | "sel":
-                return e.Application(pos, e.Selection(pos), args)
+                return e.Application(pos, e.Select(pos), args)
             case "ite" | "ifthenelse" | "ifelse" | "if" | "if_":
                 return e.Application(pos, e.Ite(pos), args)
             case _:
@@ -309,7 +309,17 @@ class Parser:
         arguments = outer_args + inner_args
         return self.expr_helper(pos(node), function.name, arguments)
 
-    def parse_select_expr(self, node: TSNode) -> e.Selection:
+    def parse_subscript_expr(self, node: TSNode) -> e.Index:
+        """
+        (subscript
+            value: (_)
+            subscript: (_))
+        """
+        array = self.parse_expr(node.child_by_field_name("value"))
+        index = self.parse_expr(node.child_by_field_name("subscript"))
+        return e.Index(pos(node), array, index)
+
+    def parse_select_expr(self, node: TSNode) -> e.Select:
         """
         (attribute
             object: (_)
@@ -318,7 +328,7 @@ class Parser:
         p = pos(node)
         record = self.parse_expr(node.child_by_field_name("object"))
         selector = self.parse_identifier(node.child_by_field_name("attribute"))
-        return e.Selection(p, record, selector)
+        return e.Select(p, record, selector)
 
     def parse_boolean_expression(self, node: TSNode) -> e.Application:
         """
@@ -411,6 +421,7 @@ class Parser:
             {self.parse_self_identifier.__doc__}
             {self.parse_variant.__doc__}
             {self.parse_select_expr.__doc__}
+            {self.parse_subscript_expr.__doc__}
             {self.parse_app_expr.__doc__}
             {self.parse_app_of_app_expr.__doc__}
             {self.parse_binary_expression.__doc__}
@@ -429,6 +440,8 @@ class Parser:
                 return e.Application(id.position, id, [])
             case "attribute":
                 return self.parse_select_expr(node)
+            case "subscript":
+                return self.parse_subscript_expr(node)
             case "call" if node.child_by_field_name("function").type == "call":
                 return self.parse_app_of_app_expr(node)
             case "call":
@@ -510,12 +523,16 @@ class Parser:
         """
         (expression_statement
             (assignment
-                left: {self.parse_identifier.__doc__}
+                left: {self.parse_expr.__doc__}
                 right: {self.parse_expr.__doc__}))
         """
         node = node.child(0)
-        lhs = self.parse_identifier(node.child_by_field_name("left"))
         rhs = self.parse_expr(node.child_by_field_name("right"))
+        lhs = self.parse_expr(node.child_by_field_name("left"))
+        match lhs:
+            case e.Index(_, array, index):
+                lhs = array
+                rhs = e.Store(pos(node), array, index, rhs)
         return s.Assignment(pos(node), lhs, rhs)
 
     def parse_if_statement(self, node: TSNode) -> s.If:

@@ -3,4 +3,4 @@ class M(Module):
         self.x = BitVector(8)
 
     def init(self):
-        self.x = self.x + BitVector(1, 8)
+        self.x = self.x + BitVectorVal(1, 8)

@@ -58,10 +58,10 @@ class Rewriter:
                     new_specification,
                     new_control,
                 )
-            case e.Selection(position, target, field):
+            case e.Select(position, target, field):
                 new_target = self.rewrite(target)
                 new_field = self.rewrite(field)
-                return e.Selection(position, new_target, new_field)
+                return e.Select(position, new_target, new_field)
             case e.Application(position, function, arguments):
                 new_function = self.rewrite(function)
                 new_arguments = [self.rewrite(a) for a in arguments]
