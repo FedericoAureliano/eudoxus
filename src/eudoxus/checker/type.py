@@ -1,5 +1,6 @@
 from typing import Dict, List
 
+import z3
 from z3 import ExprRef
 
 import eudoxus.ast.expression as e
@@ -18,19 +19,26 @@ integer = t.Integer(predefined)
 class TypeChecker(Checker):
     def __init__(self):
         super().__init__()
-        self.type_sort = self.declare_sort("eudoxus.type")
         self.term_sort = self.declare_sort("eudoxus.term")
-        self.get_type_expr = self.declare_function(
-            "eudoxus.type.get", self.term_sort, self.type_sort
+        self.symbol_sort = self.declare_sort("eudoxus.symbol")
+        self.type_adt = z3.Datatype("eudoxus.type")
+        self.type_adt.declare("boolean")
+        self.type_adt.declare("integer")
+        self.type_adt.declare("float")
+        self.type_adt.declare("bv", ("size", self.term_sort))
+        self.type_adt.declare("enum", ("values", z3.SeqSort(self.symbol_sort)))
+        self.type_adt.declare(
+            "array", ("index", self.type_adt), ("element", self.type_adt)
         )
-        # index is type name; element is function to build type
-        self.type_constructors = {}
-        # index is function name; element is corresponding function
-        self.type_destructors = {}
-        # index is type name; element is (function to build type, args)
-        self.type_instances = {}
+        self.type_adt = self.type_adt.create()
+
+        self.get_type_expr = self.declare_function(
+            "eudoxus.type.get", self.term_sort, self.type_adt
+        )
+
         self.variants = {}
         self.variables = {}
+        self.type_synonyms = {}
         self.ops = {}
         self.constants = {}
 
@@ -38,12 +46,6 @@ class TypeChecker(Checker):
         self.to_repair = {}
         # index is type term, element is node
         self.reverse_type_map = {}
-
-    def instance_name_from_type(self, t):
-        for k, (tf, args) in self.type_instances.items():
-            if tf(*args) == t:
-                return k
-        raise ValueError(f"Type {t} not found")
 
     def check(self, modules: List[Module]) -> Dict[Position, Node]:
         for module in modules:
@@ -83,7 +85,7 @@ class TypeChecker(Checker):
 
     def repair(self, model, original_node, assigned_term):
         match assigned_term.sort():
-            case self.type_sort:
+            case self.type_adt:
                 found = self.type_from_model(model, assigned_term)
                 return Hole(original_node.position) if found is None else found
             case self.term_sort:
@@ -141,7 +143,7 @@ class TypeChecker(Checker):
                 fresh_x = self.fresh_constant(self.term_sort, "eudoxus.term." + x + ".")
                 self.variables[x] = fresh_x
 
-                fresh_y = self.fresh_constant(self.type_sort, "eudoxus.type.")
+                fresh_y = self.fresh_constant(self.type_adt, "eudoxus.type.")
                 correct_y = self.type2z3(y)
 
                 self.add_hard_constraint(self.get_type_expr(fresh_x) == fresh_y)
@@ -192,84 +194,29 @@ class TypeChecker(Checker):
                 raise ValueError(f"Unsupported statement {stmt}")
 
     def type2z3(self, type: t.Type) -> ExprRef:
-        arg_types = []
-        arg_vals = []
-        type_name = ""
-        type_suffix = ""
         match type:
             case t.Boolean(_):
-                type_name = "eudoxus.type.bool"
+                return self.type_adt.boolean
             case t.Integer(_):
-                type_name = "eudoxus.type.int"
+                return self.type_adt.integer
             case t.Float(_):
-                type_name = "eudoxus.type.float"
+                return self.type_adt.float
             case t.BitVector(_, size):
-                type_name = "eudoxus.type.bv"
-                type_suffix = f".{size}"
                 size = self.expr2z3(e.Integer(predefined, size))
-                arg_vals = [size]
-                arg_types = [self.term_sort]
+                return self.type_adt.bv(size)
             case t.Synonym(_, t.Identifier(_, id)):
-                (tf, args) = self.type_instances[id]
-                out = tf(*args)
+                out = self.type_synonyms[id]
                 self.reverse_type_map[out] = type
                 return out
             case t.Array(_, index, value):
                 index = self.type2z3(index)
                 value = self.type2z3(value)
-                index_name = self.instance_name_from_type(index)
-                value_name = self.instance_name_from_type(value)
-                type_name = "eudoxus.type.array"
-                type_suffix = f".{index_name}.{value_name}"
-                arg_vals = [index, value]
-                arg_types = [self.type_sort, self.type_sort]
-
-                if "eudoxus.type.index" not in self.type_destructors:
-                    self.type_destructors["eudoxus.type.index"] = self.declare_function(
-                        "eudoxus.type.index", self.type_sort, self.type_sort
-                    )
-                if "eudoxus.type.element" not in self.type_destructors:
-                    self.type_destructors[
-                        "eudoxus.type.element"
-                    ] = self.declare_function(
-                        "eudoxus.type.element", self.type_sort, self.type_sort
-                    )
-
+                return self.type_adt.array(index, value)
             case t.Enumeration(_, values):
-                values = [v.name for v in values]
-                type_name = "eudoxus.type.enum" + ".".join(values)
+                values = [self.fresh_constant(self.symbol_sort, v) for v in values]
+                return self.type_adt.enum(z3.Seq(*values))
             case _:
                 raise ValueError(f"Unsupported type {type}")
-
-        if type_name not in self.type_constructors:
-            arg_types = arg_types + [self.type_sort]
-            self.type_constructors[type_name] = self.declare_function(
-                type_name, arg_types
-            )
-
-        f = self.type_constructors[type_name]
-
-        if type_name + type_suffix not in self.type_instances:
-            self.type_instances[type_name + type_suffix] = (f, arg_vals)
-            if "eudoxus" in type_name:
-                self.add_all_diff_hard(
-                    [
-                        ft(*args)
-                        for k, (ft, args) in self.type_instances.items()
-                        if "eudoxus" in k
-                    ]
-                )
-
-            if type_name == "eudoxus.type.array":
-                index_type = self.type_destructors["eudoxus.type.index"]
-                element_type = self.type_destructors["eudoxus.type.element"]
-                self.add_hard_constraint(index_type(f(*arg_vals)) == arg_vals[0])
-                self.add_hard_constraint(element_type(f(*arg_vals)) == arg_vals[1])
-
-        (tf, args) = self.type_instances[type_name + type_suffix]
-        out = tf(*args)
-        self.reverse_type_map[out] = type
-        return out
 
     def expr2z3(self, expr: e.Expression) -> ExprRef:
         def all_equal_types(args):
@@ -420,19 +367,28 @@ class TypeChecker(Checker):
                         name, [self.term_sort] * arity
                     )
                 eudoxus_store = self.ops[name]
+                out = eudoxus_store(z3a, z3i, z3v)
 
-                eudoxus_array = self.type_constructors["eudoxus.type.array"]
+                eudoxus_array_t = self.type_adt.array
+                eudoxus_index_t = self.type_adt.index
+                eudoxus_element_t = self.type_adt.element
 
                 self.add_hard_constraint(
-                    self.get_type_expr(z3a)
-                    == self.get_type_expr(eudoxus_store(z3a, z3i, z3v))
+                    self.get_type_expr(z3a) == self.get_type_expr(out)
                 )
                 self.add_hard_constraint(
                     self.get_type_expr(z3a)
-                    == eudoxus_array(self.get_type_expr(z3i), self.get_type_expr(z3v))
+                    == eudoxus_array_t(self.get_type_expr(z3i), self.get_type_expr(z3v))
+                )
+                self.add_hard_constraint(
+                    self.get_type_expr(z3i) == eudoxus_index_t(self.get_type_expr(z3a))
+                )
+                self.add_hard_constraint(
+                    self.get_type_expr(z3v)
+                    == eudoxus_element_t(self.get_type_expr(z3a))
                 )
 
-                return eudoxus_store(z3a, z3i, z3v)
+                return out
 
             case e.Index(_, a, i):
                 # Input: <a>[<i>]
@@ -449,18 +405,21 @@ class TypeChecker(Checker):
                         name, [self.term_sort] * arity
                     )
                 eudoxus_index = self.ops[name]
+                out = eudoxus_index(z3a, z3i)
 
-                eudoxus_index_type = self.type_destructors["eudoxus.type.index"]
-                eudoxus_element_type = self.type_destructors["eudoxus.type.element"]
+                eudoxus_array_t = self.type_adt.array
+                eudoxus_index_t = self.type_adt.index
+                eudoxus_element_t = self.type_adt.element
 
                 self.add_hard_constraint(
-                    eudoxus_index_type(self.get_type_expr(z3a))
-                    == self.get_type_expr(z3i)
+                    eudoxus_index_t(self.get_type_expr(z3a)) == self.get_type_expr(z3i)
                 )
+
                 self.add_hard_constraint(
-                    self.get_type_expr(eudoxus_index(z3a, z3i))
-                    == eudoxus_element_type(self.get_type_expr(z3a))
+                    self.get_type_expr(out)
+                    == eudoxus_element_t(self.get_type_expr(z3a))
                 )
-                return eudoxus_index(z3a, z3i)
+
+                return out
             case _:
                 raise ValueError(f"Unsupported expression {expr}")
