@@ -201,9 +201,9 @@ def expr2ucl(output, expr: e.Expression):
             expr2ucl(output, value)
             output.write("]")
         case e.Ite(_, cond, then, else_):
-            output.write("if ")
+            output.write("if (")
             expr2ucl(output, cond)
-            output.write(" then ")
+            output.write(") then ")
             expr2ucl(output, then)
             output.write(" else ")
             expr2ucl(output, else_)

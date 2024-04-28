@@ -10,7 +10,7 @@ class Checker:
     def __init__(self) -> None:
         z3.set_option("smt.random_seed", 0)
         self.opt_solver = z3.Optimize()
-        self.opt_solver.set("maxsat_engine", "wmax")
+        self.opt_solver.set("maxsat_engine", "pd-maxres")
         self.hard_constraints = set()
         self.soft_constraints = set()
 
@@ -56,6 +56,7 @@ class Checker:
         self.opt_solver.push()
 
         for c in sorted(list(self.hard_constraints), key=str):
+            # print(f"(on)\t{c}")
             self.opt_solver.add(c)
 
         for p, r, c in sorted(list(self.soft_constraints), key=str):
@@ -66,21 +67,12 @@ class Checker:
         model = self.opt_solver.model()
         self.opt_solver.pop()
 
-        final_solver = z3.Solver()
-
-        for c in self.hard_constraints:
-            final_solver.add(c)
-
         positions = []
         for p, r, c in self.soft_constraints:
             if model.eval(c) == z3.BoolVal(False):
                 # print(f"(off)\t{c}")
                 positions.append(p)
-            else:
-                # print(f"(on)\t{c}")
-                final_solver.add(c)
-
-        final_solver.check()
-        model = final_solver.model()
+            # else:
+            #     print(f"(on)\t{c}")
 
         return (positions, model)

@@ -175,10 +175,10 @@ class TypeChecker(Checker):
             case "bad_constant":
                 return 1
             case "bad_type":
-                return 100
+                return 5
             case "bad_identifier":
-                return 1000
-        return 10
+                return 10
+        return 2
 
     def encode(self, cls, pos, children) -> Node:
         match cls:
@@ -204,28 +204,30 @@ class TypeChecker(Checker):
                 # Input: int
                 # Soft: int == int'
                 # Output: int'
-                intp = self.fresh_constant(self.universe.type, "IntegerType")
-                self.add_soft_constraint(
-                    self.universe.type.IntegerType == intp, pos, "bad_type"
-                )
-                return intp
+                i = self.universe.type.IntegerType
+                ip = self.fresh_constant(self.universe.type, "IntegerTypeHole")
+                self.add_soft_constraint(i == ip, pos, "bad_type")
+                return ip
             case t.BooleanType:
                 # Input: bool
                 # Soft: bool == bool'
                 # Output: bool'
-                boolp = self.fresh_constant(self.universe.type, "BooleanType")
-                self.add_soft_constraint(
-                    self.universe.type.BooleanType == boolp, pos, "bad_type"
-                )
-                return boolp
+                bt = self.universe.type.BooleanType
+                btp = self.fresh_constant(self.universe.type, "BooleanTypeHole")
+                self.add_soft_constraint(bt == btp, pos, "bad_type")
+                return btp
             case t.BitVectorType:
                 # Input: BitVector(w)
                 # Soft: w == w'
-                # Output: BitVector(w')
+                # Soft bvtp = BitVector(w')
+                # Output: bvtp
                 w = children[0]
+                bvt = self.universe.type.BitVectorType(w)
+                bvtp = self.fresh_constant(self.universe.type, "BitVectorTypeHole")
                 wp = self.fresh_constant(z3.IntSort(), str(w))
+                self.add_soft_constraint(bvt == bvtp, pos, "bad_type")
                 self.add_soft_constraint(w == wp, pos, "bad_type")
-                return self.universe.type.BitVectorType(wp)
+                return bvtp
             case s.Block:
                 arg = foldl(
                     lambda x, y: self.universe.stmt_list.cons(y, x),
@@ -301,8 +303,8 @@ class TypeChecker(Checker):
                 )
                 return self.universe.stmt.Assume(cz3)
             case e.IntegerValue:
-                # Input: IntegerValue(z)
-                # Hard: type(z') == int
+                # Input: z
+                # Hard: type(IntValue(z)) == int
                 # Soft: z == z'
                 # Output: z'
                 z = children[0]
@@ -314,8 +316,8 @@ class TypeChecker(Checker):
                 self.add_soft_constraint(zz3 == zp, pos, "bad_constant")
                 return zp
             case e.BooleanValue:
-                # Input: BooleanValue(b)
-                # Hard: type(b') == bool
+                # Input: b
+                # Hard: type(BoolVal(b)) == bool
                 # Soft: b == b'
                 # Output: b'
                 b = children[0]
@@ -326,6 +328,26 @@ class TypeChecker(Checker):
                 )
                 self.add_soft_constraint(bz3 == bp, pos, "bad_constant")
                 return bp
+            case e.BitVectorValue:
+                # Input: v, w
+                # Hard: type(BitVectorValue(v, w)) == BitVector(w)
+                # Soft: v == v'
+                # Soft: w == w'
+                # Soft bv' = BitVectorValue(v', w')
+                # Output: bv'
+                v = children[0]
+                w = children[1]
+                bv = self.universe.expr.BitVectorValue(v, w)
+                vp = self.fresh_constant(z3.IntSort(), str(v))
+                wp = self.fresh_constant(z3.IntSort(), str(w))
+                bvp = self.fresh_constant(self.universe.expr, str(bv))
+                self.add_hard_constraint(
+                    self.type_of(bv) == self.universe.type.BitVectorType(w)
+                )
+                self.add_soft_constraint(bv == bvp, pos, "bad_constant")
+                self.add_soft_constraint(v == vp, pos, "bad_constant")
+                self.add_soft_constraint(w == wp, pos, "bad_constant")
+                return bvp
             case e.Add:
                 # Input: x + y
                 # Hard: type(x) == type(y)
@@ -421,6 +443,22 @@ class TypeChecker(Checker):
                     self.type_of(not_x) == self.universe.type.BooleanType
                 )
                 return not_x
+            case e.Ite:
+                # Input: ite(c, t, e)
+                # Hard: type(c) == bool
+                # Hard: type(t) == type(e)
+                # Hard: type(ite(c, t, e)) == type(t)
+                # Output: ite(c, t, e)
+                cond = children[0]
+                then_ = children[1]
+                else_ = children[2]
+                ite = self.universe.expr.Ite(cond, then_, else_)
+                self.add_hard_constraint(
+                    self.type_of(cond) == self.universe.type.BooleanType
+                )
+                self.add_hard_constraint(self.type_of(then_) == self.type_of(else_))
+                self.add_hard_constraint(self.type_of(ite) == self.type_of(then_))
+                return ite
             case e.FunctionApplication:
                 arg = foldl(
                     lambda x, y: self.universe.expr_list.cons(y, x),
