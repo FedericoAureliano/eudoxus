@@ -41,6 +41,11 @@ class Parser:
         self.tree = parser.parse(read_callable_byte_offset)
 
         self.enum_count = 0
+        self.position_count = -1
+
+    def fresh_pos(self) -> Position:
+        self.position_count -= 1
+        return Position(self.position_count)
 
     def search(self, func, node: TSNode, strict=True) -> List[TSNode]:
         """
@@ -363,33 +368,41 @@ class Parser:
         args = [self.parse_expr(arg) for arg in args]
         match self.text(node.child(1)):
             case "==":
-                return foldl(
-                    lambda x, y: e.And(p, x, y), e.Equal(p, *args[:2]), args[2:]
-                )
+                base = e.Equal(p, *args[:2])
+                for i, arg in enumerate(args):
+                    if i > 1:
+                        base = e.And(p, base, e.Equal(p, args[i - 1], arg))
+                return base
             case "!=":
-                return foldl(
-                    lambda x, y: e.And(p, x, y), e.NotEqual(p, *args[:2]), args[2:]
-                )
+                base = e.NotEqual(p, *args[:2])
+                for i, arg in enumerate(args):
+                    if i > 1:
+                        base = e.And(p, base, e.NotEqual(p, args[i - 1], arg))
+                return base
             case "<":
-                return foldl(
-                    lambda x, y: e.And(p, x, y), e.LessThan(p, *args[:2]), args[2:]
-                )
+                base = e.LessThan(p, *args[:2])
+                for i, arg in enumerate(args):
+                    if i > 1:
+                        base = e.And(p, base, e.LessThan(p, args[i - 1], arg))
+                return base
             case ">":
-                return foldl(
-                    lambda x, y: e.And(p, x, y), e.GreaterThan(p, *args[:2]), args[2:]
-                )
+                base = e.GreaterThan(p, *args[:2])
+                for i, arg in enumerate(args):
+                    if i > 1:
+                        base = e.And(p, base, e.GreaterThan(p, args[i - 1], arg))
+                return base
             case "<=":
-                return foldl(
-                    lambda x, y: e.And(p, x, y),
-                    e.LessThanOrEqual(p, *args[:2]),
-                    args[2:],
-                )
+                base = e.LessThanOrEqual(p, *args[:2])
+                for i, arg in enumerate(args):
+                    if i > 1:
+                        base = e.And(p, base, e.LessThanOrEqual(p, args[i - 1], arg))
+                return base
             case ">=":
-                return foldl(
-                    lambda x, y: e.And(p, x, y),
-                    e.GreaterThanOrEqual(p, *args[:2]),
-                    args[2:],
-                )
+                base = e.GreaterThanOrEqual(p, *args[:2])
+                for i, arg in enumerate(args):
+                    if i > 1:
+                        base = e.And(p, base, e.GreaterThanOrEqual(p, args[i - 1], arg))
+                return base
             case _:
                 raise ValueError(f"Unsupported object: {node.sexp()}")
 
@@ -809,7 +822,6 @@ class Parser:
         """
         name = self.parse_identifier(node.child_by_field_name("name"))
         body = node.child_by_field_name("body")
-        pn = pos(node)
 
         def has_name(node: TSNode, name: str) -> bool:
             return self.text(node.child_by_field_name("name")) == name
@@ -818,14 +830,15 @@ class Parser:
             b for b in self.search(self.parse_type_block, body) if has_name(b, "types")
         ]
         types = s.Block(
-            pn, [t for b in type_blocks for t in self.parse_type_block(b).statements]
+            self.fresh_pos(),
+            [t for b in type_blocks for t in self.parse_type_block(b).statements],
         )
 
         locals_blocks = [
             b for b in self.search(self.parse_var_block, body) if has_name(b, "locals")
         ]
         locals = s.Block(
-            pn,
+            self.fresh_pos(),
             [
                 v
                 for b in locals_blocks
@@ -837,7 +850,7 @@ class Parser:
             b for b in self.search(self.parse_var_block, body) if has_name(b, "inputs")
         ]
         inputs = s.Block(
-            pn,
+            self.fresh_pos(),
             [
                 v
                 for b in inputs_blocks
@@ -849,7 +862,7 @@ class Parser:
             b for b in self.search(self.parse_var_block, body) if has_name(b, "outputs")
         ]
         outputs = s.Block(
-            pn,
+            self.fresh_pos(),
             [
                 v
                 for b in outputs_blocks
@@ -863,7 +876,7 @@ class Parser:
             if has_name(b, "sharedvars")
         ]
         sharedvars = s.Block(
-            pn,
+            self.fresh_pos(),
             [
                 v
                 for b in sharedvars_blocks
@@ -877,7 +890,7 @@ class Parser:
             if has_name(b, "instances")
         ]
         instances = s.Block(
-            pn,
+            self.fresh_pos(),
             [
                 i
                 for b in instances_blocks
@@ -889,14 +902,16 @@ class Parser:
             b for b in self.search(self.parse_stmt_block, body) if has_name(b, "init")
         ]
         init = s.Block(
-            pn, [s for b in init_blocks for s in self.parse_stmt_block(b).statements]
+            self.fresh_pos(),
+            [s for b in init_blocks for s in self.parse_stmt_block(b).statements],
         )
 
         next_blocks = [
             b for b in self.search(self.parse_stmt_block, body) if has_name(b, "next")
         ]
         next = s.Block(
-            pn, [s for b in next_blocks for s in self.parse_stmt_block(b).statements]
+            self.fresh_pos(),
+            [s for b in next_blocks for s in self.parse_stmt_block(b).statements],
         )
 
         spec_blocks = [
@@ -905,11 +920,13 @@ class Parser:
             if has_name(b, "specification")
         ]
         if len(spec_blocks) == 0:
-            spec = e.BooleanValue(pn, True)
+            spec = e.BooleanValue(self.fresh_pos(), True)
         elif len(spec_blocks) == 1:
             spec = self.parse_spec_block(spec_blocks[0])
         else:
-            spec = e.And(pn, *[self.parse_spec_block(b) for b in spec_blocks])
+            spec = e.And(
+                self.fresh_pos(), *[self.parse_spec_block(b) for b in spec_blocks]
+            )
 
         control_blocks = [
             b
@@ -917,12 +934,12 @@ class Parser:
             if has_name(b, "control") or has_name(b, "proof")
         ]
         control = p.Block(
-            pn,
+            self.fresh_pos(),
             [s for b in control_blocks for s in self.parse_control_block(b).commands],
         )
 
         return Module(
-            pn,
+            pos(node),
             name,
             types,
             locals,

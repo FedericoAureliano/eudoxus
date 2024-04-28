@@ -42,102 +42,97 @@ class ArrayValue(Value):
 
 
 @dataclass(frozen=True)
-class Operator(Node):
-    pass
-
-
-@dataclass(frozen=True)
-class Add(Operator):
+class Add(Expression):
     arg1: Expression
     arg2: Expression
 
 
 @dataclass(frozen=True)
-class Subtract(Operator):
+class Subtract(Expression):
     arg1: Expression
     arg2: Expression
 
 
 @dataclass(frozen=True)
-class Multiply(Operator):
+class Multiply(Expression):
     arg1: Expression
     arg2: Expression
 
 
 @dataclass(frozen=True)
-class Divide(Operator):
+class Divide(Expression):
     arg1: Expression
     arg2: Expression
 
 
 @dataclass(frozen=True)
-class Equal(Operator):
+class Equal(Expression):
     arg1: Expression
     arg2: Expression
 
 
 @dataclass(frozen=True)
-class NotEqual(Operator):
+class NotEqual(Expression):
     arg1: Expression
     arg2: Expression
 
 
 @dataclass(frozen=True)
-class LessThan(Operator):
+class LessThan(Expression):
     arg1: Expression
     arg2: Expression
 
 
 @dataclass(frozen=True)
-class LessThanOrEqual(Operator):
+class LessThanOrEqual(Expression):
     arg1: Expression
     arg2: Expression
 
 
 @dataclass(frozen=True)
-class GreaterThan(Operator):
+class GreaterThan(Expression):
     arg1: Expression
     arg2: Expression
 
 
 @dataclass(frozen=True)
-class GreaterThanOrEqual(Operator):
+class GreaterThanOrEqual(Expression):
     arg1: Expression
     arg2: Expression
 
 
 @dataclass(frozen=True)
-class And(Operator):
+class And(Expression):
     arg1: Expression
     arg2: Expression
 
 
 @dataclass(frozen=True)
-class Or(Operator):
+class Or(Expression):
     arg1: Expression
     arg2: Expression
 
 
 @dataclass(frozen=True)
-class Not(Operator):
+class Not(Expression):
     arg: Expression
 
 
 @dataclass(frozen=True)
-class Ite(Operator):
+class Ite(Expression):
     cond: Expression
     then_: Expression
     else_: Expression
 
 
 @dataclass(frozen=True)
-class Implies(Operator):
+class Implies(Expression):
     arg1: Expression
     arg2: Expression
 
 
 @dataclass(frozen=True)
-class Quantifier(Operator):
+class Quantifier(Expression):
     bound: Identifier
     sort: Type
     body: Expression

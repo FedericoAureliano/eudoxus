@@ -26,7 +26,19 @@ class Node:
             if isinstance(child, Node):
                 new_children.append(child.visit(visitor))
             elif isinstance(child, list):
-                new_children.append([c.visit(visitor) for c in child])
+                inner_children = []
+                for c in child:
+                    if isinstance(c, Node):
+                        inner_children.append(c.visit(visitor))
+                    elif isinstance(c, Position):
+                        continue
+                    elif isinstance(c, tuple):
+                        left = c[0].visit(visitor) if isinstance(c[0], Node) else c[0]
+                        right = c[1].visit(visitor) if isinstance(c[1], Node) else c[1]
+                        inner_children.append((left, right))
+                    else:
+                        inner_children.append(c)
+                new_children.append(inner_children)
             elif isinstance(child, Position):
                 continue
             else:
