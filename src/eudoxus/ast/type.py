@@ -10,47 +10,42 @@ class Type(Node):
 
 
 @dataclass(frozen=True)
-class Boolean(Type):
+class BooleanType(Type):
     pass
 
 
 @dataclass(frozen=True)
-class Integer(Type):
+class IntegerType(Type):
     pass
 
 
 @dataclass(frozen=True)
-class Float(Type):
-    pass
-
-
-@dataclass(frozen=True)
-class BitVector(Type):
+class BitVectorType(Type):
     width: int
 
 
 @dataclass(frozen=True)
-class Function(Type):
-    domain: list[Type]
+class FunctionType(Type):
+    domain: List[Type]
     codomain: Type
 
 
 @dataclass(frozen=True)
-class Array(Type):
+class ArrayType(Type):
     index: Type
     element: Type
 
 
 @dataclass(frozen=True)
-class Synonym(Type):
+class SynonymType(Type):
     name: Identifier
 
 
 @dataclass(frozen=True)
-class Enumeration(Type):
-    values: list[Identifier]
+class EnumeratedType(Type):
+    values: List[Identifier]
 
 
 @dataclass(frozen=True)
-class Record(Type):
+class RecordType(Type):
     fields: List[Tuple[Identifier, Type]]

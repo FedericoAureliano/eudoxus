@@ -1,425 +1,327 @@
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 import z3
-from z3 import ExprRef
 
 import eudoxus.ast.expression as e
+import eudoxus.ast.module as m
+import eudoxus.ast.node as n
+import eudoxus.ast.proof as p
 import eudoxus.ast.statement as s
 import eudoxus.ast.type as t
-from eudoxus.ast.module import Module
-from eudoxus.ast.node import Hole, Node, Position
+from eudoxus.ast.node import Identifier, Node, Position
 from eudoxus.checker.interface import Checker
+from eudoxus.utils import foldl
 
-predefined = Position(0)
 
-boolean = t.Boolean(predefined)
-integer = t.Integer(predefined)
+def get_leafs(parent, mod):
+    leafs = {}
+    for name, cls in mod.__dict__.items():
+        if (
+            isinstance(cls, type)
+            and issubclass(cls, parent)
+            and cls.__module__ == mod.__name__
+        ):
+            leafs[name] = cls
+
+    to_delete = set()
+    for n1, c1 in leafs.items():
+        for n2, c2 in leafs.items():
+            if n1 != n2 and issubclass(c1, c2):
+                to_delete.add(n2)
+
+    for ni in to_delete:
+        del leafs[ni]
+
+    return leafs
+
+
+class Universe:
+    def __init__(self):
+        self.symbol = z3.DeclareSort("Symbol")
+
+        self.expr = z3.Datatype(e.Expression.__name__)
+        self.type = z3.Datatype(t.Type.__name__)
+        self.stmt = z3.Datatype(s.Statement.__name__)
+        self.cmd = z3.Datatype(p.Command.__name__)
+        self.mod = z3.Datatype(m.Module.__name__)
+
+        self.expr_list = z3.Datatype(f"{e.Expression.__name__}_list")
+        self.expr_list.declare("empty")
+        self.expr_list.declare("cons", ("head", self.expr), ("tail", self.expr_list))
+
+        self.type_list = z3.Datatype(f"{t.Type.__name__}_list")
+        self.type_list.declare("empty")
+        self.type_list.declare("cons", ("head", self.type), ("tail", self.type_list))
+
+        self.stmt_list = z3.Datatype(f"{s.Statement.__name__}_list")
+        self.stmt_list.declare("empty")
+        self.stmt_list.declare("cons", ("head", self.stmt), ("tail", self.stmt_list))
+
+        self.cmd_list = z3.Datatype(f"{p.Command.__name__}_list")
+        self.cmd_list.declare("empty")
+        self.cmd_list.declare("cons", ("head", self.cmd), ("tail", self.cmd_list))
+
+        self.symbol_list = z3.Datatype(f"{Identifier.__name__}_list")
+        self.symbol_list.declare("empty")
+        self.symbol_list.declare(
+            "cons", ("head", self.symbol), ("tail", self.symbol_list)
+        )
+
+        self.id_type_pair = z3.Datatype("id_type_pair")
+        self.id_type_pair.declare("pair", ("id", self.symbol), ("type", self.type))
+
+        self.id_type_pair_list = z3.Datatype("id_type_pair_list")
+        self.id_type_pair_list.declare("empty")
+        self.id_type_pair_list.declare(
+            "cons", ("head", self.id_type_pair), ("tail", self.id_type_pair_list)
+        )
+
+        self.id_expr_pair = z3.Datatype("id_expr_pair")
+        self.id_expr_pair.declare("pair", ("id", self.symbol), ("expr", self.expr))
+
+        self.id_expr_pair_list = z3.Datatype("id_expr_pair_list")
+        self.id_expr_pair_list.declare("empty")
+        self.id_expr_pair_list.declare(
+            "cons", ("head", self.id_expr_pair), ("tail", self.id_expr_pair_list)
+        )
+
+        expr_leafs = get_leafs(e.Expression, e)
+        type_leafs = get_leafs(t.Type, t)
+        stmt_leafs = get_leafs(s.Statement, s)
+        cmd_leafs = get_leafs(p.Command, p)
+        mod_leafs = get_leafs(m.Module, m)
+
+        def declare_from_leafs(leafs, adt):
+            for name, cls in leafs.items():
+                fields = []
+                for field_name, field_type in cls.__annotations__.items():
+                    if field_type == int:
+                        field_type = z3.IntSort()
+                    elif field_type == bool:
+                        field_type = z3.BoolSort()
+                    elif field_type == Identifier or field_type == str:
+                        field_type = self.symbol
+                    elif field_type == e.Expression:
+                        field_type = self.expr
+                    elif field_type == t.Type:
+                        field_type = self.type
+                    elif field_type == s.Statement:
+                        field_type = self.stmt
+                    elif field_type == p.Command:
+                        field_type = self.cmd
+                    elif field_type == List[e.Expression]:
+                        field_type = self.expr_list
+                    elif field_type == List[t.Type]:
+                        field_type = self.type_list
+                    elif field_type == List[s.Statement]:
+                        field_type = self.stmt_list
+                    elif field_type == List[p.Command]:
+                        field_type = self.cmd_list
+                    elif field_type == List[n.Identifier]:
+                        field_type = self.symbol_list
+                    elif field_type == List[Tuple[n.Identifier, t.Type]]:
+                        field_type = self.id_type_pair_list
+                    elif field_type == List[Tuple[n.Identifier, e.Expression]]:
+                        field_type = self.id_expr_pair_list
+                    else:
+                        raise NotImplementedError(
+                            f"Unsupported field type {field_type} for {field_name}"
+                        )
+                    fields.append((field_name, field_type))
+                adt.declare(name, *fields)
+
+        declare_from_leafs(expr_leafs, self.expr)
+        declare_from_leafs(type_leafs, self.type)
+        declare_from_leafs(stmt_leafs, self.stmt)
+        declare_from_leafs(cmd_leafs, self.cmd)
+        declare_from_leafs(mod_leafs, self.mod)
+
+        (
+            self.mod,
+            self.expr,
+            self.type,
+            self.stmt,
+            self.cmd,
+            self.expr_list,
+            self.type_list,
+            self.stmt_list,
+            self.cmd_list,
+            self.symbol_list,
+            self.id_type_pair,
+            self.id_type_pair_list,
+            self.id_expr_pair,
+            self.id_expr_pair_list,
+        ) = z3.CreateDatatypes(
+            self.mod,
+            self.expr,
+            self.type,
+            self.stmt,
+            self.cmd,
+            self.expr_list,
+            self.type_list,
+            self.stmt_list,
+            self.cmd_list,
+            self.symbol_list,
+            self.id_type_pair,
+            self.id_type_pair_list,
+            self.id_expr_pair,
+            self.id_expr_pair_list,
+        )
 
 
 class TypeChecker(Checker):
-    def __init__(self):
-        super().__init__()
-        self.term_sort = self.declare_sort("eudoxus.term")
-        self.symbol_sort = self.declare_sort("eudoxus.symbol")
-        self.type_adt = z3.Datatype("eudoxus.type")
-        self.type_adt.declare("boolean")
-        self.type_adt.declare("integer")
-        self.type_adt.declare("float")
-        self.type_adt.declare("bv", ("size", self.term_sort))
-        self.type_adt.declare("enum", ("values", z3.SeqSort(self.symbol_sort)))
-        self.type_adt.declare(
-            "array", ("index", self.type_adt), ("element", self.type_adt)
+    def encode(self, cls, pos, children) -> Node:
+        match cls:
+            case m.Module:
+                return self.universe.mod.Module(*children)
+            case n.Identifier:
+                # Input: x
+                # Soft: x == x'
+                # Output: x'
+                if children[0] not in self.name_map:
+                    self.name_map[children[0]] = self.fresh_constant(
+                        self.universe.symbol, children[0]
+                    )
+                x = self.name_map[children[0]]
+                xp = self.fresh_constant(self.universe.symbol, children[0])
+                self.add_soft_constraint(x == xp, pos)
+                return xp
+            case t.IntegerType:
+                # Input: int
+                # Soft: int == int'
+                # Output: int'
+                intp = self.fresh_constant(self.universe.type, "IntegerType")
+                self.add_soft_constraint(self.universe.type.IntegerType == intp, pos)
+                return intp
+            case t.BooleanType:
+                # Input: bool
+                # Soft: bool == bool'
+                # Output: bool'
+                boolp = self.fresh_constant(self.universe.type, "BooleanType")
+                self.add_soft_constraint(self.universe.type.BooleanType == boolp, pos)
+                return boolp
+            case s.Block:
+                arg = foldl(
+                    lambda x, y: self.universe.stmt_list.cons(y, x),
+                    self.universe.stmt_list.empty,
+                    children[0],
+                )
+                return self.universe.stmt.Block(arg)
+            case s.Assignment:
+                # Input: x = y;
+                # Hard: type(x) == type(y)
+                # Output: x = y;
+                x = children[0]
+                y = children[1]
+                self.add_hard_constraint(self.type_of(x) == self.type_of(y))
+                return self.universe.stmt.Assignment(x, y)
+            case s.LocalDecl:
+                # Input: var x: t;
+                # Hard: type(x) == t
+                # Output: var x: t;
+                xsym = children[0]
+                xapp = self.universe.expr.FunctionApplication(
+                    xsym, self.universe.expr_list.empty
+                )
+                tz3 = children[1]
+                self.add_hard_constraint(self.type_of(xapp) == tz3)
+                return self.universe.stmt.LocalDecl(xsym, tz3)
+            case s.If:
+                # Input: if c then t else e
+                # Hard: type(c) == bool
+                # Output: if c then t else e
+                cz3 = children[0]
+                tc3 = children[1]
+                ez3 = children[2]
+                self.add_hard_constraint(
+                    self.type_of(cz3) == self.universe.type.BooleanType
+                )
+                return self.universe.stmt.If(cz3, tc3, ez3)
+            case e.IntegerValue:
+                # Input: IntegerValue(z)
+                # Hard: type(z') == int
+                # Soft: z == z'
+                # Output: z'
+                z = children[0]
+                zz3 = self.universe.expr.IntegerValue(z)
+                zp = self.fresh_constant(self.universe.expr, str(z))
+                self.add_hard_constraint(
+                    self.type_of(zp) == self.universe.type.IntegerType
+                )
+                self.add_soft_constraint(zz3 == zp, pos)
+                return zp
+            case e.BooleanValue:
+                # Input: BooleanValue(b)
+                # Hard: type(b') == bool
+                # Soft: b == b'
+                # Output: b'
+                b = children[0]
+                bz3 = self.universe.expr.BooleanValue(b)
+                bp = self.fresh_constant(self.universe.expr, str(b))
+                self.add_hard_constraint(
+                    self.type_of(bp) == self.universe.type.BooleanType
+                )
+                self.add_soft_constraint(bz3 == bp, pos)
+                return bp
+            case e.FunctionApplication:
+                arg = foldl(
+                    lambda x, y: self.universe.expr_list.cons(y, x),
+                    self.universe.expr_list.empty,
+                    children[1],
+                )
+                return self.universe.expr.FunctionApplication(children[0], arg)
+            case p.Block:
+                arg = foldl(
+                    lambda x, y: self.universe.cmd_list.cons(y, x),
+                    self.universe.cmd_list.empty,
+                    children[0],
+                )
+                return self.universe.cmd.Block(arg)
+            case _:
+                raise NotImplementedError(f"Unsupported class {cls}")
+
+    def z3_to_ast(self, z3expr, position) -> Node:
+        match z3expr.sort():
+            case self.universe.type:
+                if self.model.eval(self.universe.type.is_IntegerType(z3expr)):
+                    return t.IntegerType(position)
+                elif self.model.eval(self.universe.type.is_BooleanType(z3expr)):
+                    return t.BooleanType(position)
+
+        return n.Hole(position)
+
+    def repair(self, cls, pos, children) -> Node:
+        if pos not in self.positions:
+            return cls(pos, *children)
+
+        match cls:
+            case t.BooleanType:
+                z3expr = self.pos_to_z3expr[pos]
+                new_node = self.z3_to_ast(z3expr, pos)
+                self.to_repair[pos] = new_node
+
+        cls(pos, *children)
+
+    def check(self, modules: List[m.Module]) -> Dict[Position, Node]:
+        self.universe = Universe()
+        self.type_of = self.declare_function(
+            "TypeOf", self.universe.expr, self.universe.type
         )
-        self.type_adt = self.type_adt.create()
+        self.name_map = {}
+        self.pos_to_z3expr = {}
 
-        self.get_type_expr = self.declare_function(
-            "eudoxus.type.get", self.term_sort, self.type_adt
-        )
+        def encode_and_save(cls, pos, children):
+            node = self.encode(cls, pos, children)
+            self.pos_to_z3expr[pos] = node
+            return node
 
-        self.variants = {}
-        self.variables = {}
-        self.type_synonyms = {}
-        self.ops = {}
-        self.constants = {}
-
-        # index is position; element is (term, node)
-        self.to_repair = {}
-        # index is type term, element is node
-        self.reverse_type_map = {}
-
-    def check(self, modules: List[Module]) -> Dict[Position, Node]:
         for module in modules:
-            for decl in module.types.statements:
-                self.decl2z3(decl)
-            vars = (
-                module.locals.statements
-                + module.inputs.statements
-                + module.outputs.statements
-                + module.sharedvars.statements
-            )
-            for decl in vars:
-                self.decl2z3(decl)
-            self.stmt2z3(module.init)
-            self.stmt2z3(module.next)
-            spec = self.expr2z3(module.specification)
-            pos = module.specification.position
-            self.add_soft_constraint(
-                self.get_type_expr(spec) == self.type2z3(boolean), pos
-            )
-        positions, model = self.solve()
-        holes = {}
-        for pos in positions:
-            if pos in self.to_repair:
-                original_term, original_node = self.to_repair[pos]
-                assigned_term = model.eval(original_term, model_completion=True)
-                holes[pos] = self.repair(model, original_node, assigned_term)
-            else:
-                holes[pos] = Hole(pos)
-        return holes
+            module.visit(encode_and_save)
 
-    def type_from_model(self, model, assigned_type):
-        for x, v in self.reverse_type_map.items():
-            if model.eval(x == assigned_type):
-                return v
-        return None
+        self.positions, self.model = self.solve()
+        self.to_repair = {position: n.Hole(position) for position in self.positions}
 
-    def repair(self, model, original_node, assigned_term):
-        match assigned_term.sort():
-            case self.type_adt:
-                found = self.type_from_model(model, assigned_term)
-                return Hole(original_node.position) if found is None else found
-            case self.term_sort:
-                found = self.type_from_model(model, self.get_type_expr(assigned_term))
-                match original_node:
-                    case e.Integer(_, v) if isinstance(found, t.BitVector):
-                        return e.BitVector(found.position, v, found.width)
-                    case e.Integer(_, 0) if isinstance(found, t.Boolean):
-                        return e.Boolean(found.position, False)
-                    case e.Integer(_, 1) if isinstance(found, t.Boolean):
-                        return e.Boolean(found.position, True)
-                    case _:
-                        return Hole(original_node.position)
-            case _:
-                return Hole(original_node.position)
+        for module in modules:
+            module.visit(self.repair)
 
-    def decl2z3(self, decl: s.Declaration) -> None:
-        match decl:
-            case s.Type(_, e.Identifier(_, x), y):
-                # Input: type <x> = <y>;
-                # Constraints:
-                #  - fresh_x == fresh_y     (hard)
-                #  - fresh_y == correct_y   (soft)
-                fresh_x = self.declare_function("eudoxus.type." + x, [self.type_sort])
-                self.type_instances[x] = (fresh_x, [])
-
-                fresh_y = self.fresh_constant(self.type_sort, "eudoxus.type.")
-                correct_y = self.type2z3(y)
-
-                self.add_hard_constraint(fresh_x() == fresh_y)
-                self.add_soft_constraint(fresh_y == correct_y, y.position)
-                self.to_repair[y.position] = (fresh_y, y)
-
-                if isinstance(y, t.Enumeration):
-                    # If y is an enum, then add constraints to say that
-                    # all variants belong to y
-                    for variant in y.values:
-                        if variant.name in self.variants:
-                            new_variant = self.variants[variant.name]
-                        else:
-                            new_variant = self.fresh_constant(
-                                self.term_sort, "eudoxus.term." + variant.name + "."
-                            )
-                            self.variants[variant.name] = new_variant
-                        self.add_soft_constraint(
-                            self.get_type_expr(new_variant) == self.type2z3(y),
-                            variant.position,
-                        )
-
-            case s.Variable(_, e.Identifier(_, x), y):
-                # Input: var <x>: <y>;
-                # Constraints:
-                #  - type(fresh_x) == fresh_y (hard)
-                #  - fresh_y == correct_y     (soft)
-                fresh_x = self.fresh_constant(self.term_sort, "eudoxus.term." + x + ".")
-                self.variables[x] = fresh_x
-
-                fresh_y = self.fresh_constant(self.type_adt, "eudoxus.type.")
-                correct_y = self.type2z3(y)
-
-                self.add_hard_constraint(self.get_type_expr(fresh_x) == fresh_y)
-                self.add_soft_constraint(fresh_y == correct_y, y.position)
-                self.to_repair[y.position] = (fresh_y, y)
-            case _:
-                raise ValueError(f"Unsupported declaration {decl}")
-
-    def stmt2z3(self, stmt: s.Statement) -> None:
-        match stmt:
-            case s.Assignment(_, x, y):
-                # Input: <x> = <y>
-                # Constraints:
-                #  - type(z3x) == type(z3y)  (hard)
-                z3x = self.expr2z3(x)
-                z3y = self.expr2z3(y)
-                self.add_soft_constraint(
-                    self.get_type_expr(z3x) == self.get_type_expr(z3y), y.position
-                )
-            case s.If(_, x, y, z):
-                # Input: if <x> then <y> else <z>
-                # Constraints:
-                #  - type(z3x) == z3boolean  (hard)
-                #  - constraints from y
-                #  - constraints from z
-                z3x = self.expr2z3(x)
-                z3boolean = self.type2z3(boolean)
-                self.add_soft_constraint(
-                    self.get_type_expr(z3x) == z3boolean, x.position
-                )
-                self.stmt2z3(y)
-                self.stmt2z3(z)
-            case s.Block(_, statements):
-                for statement in statements:
-                    self.stmt2z3(statement)
-            case s.Havoc(_, _):
-                return
-            case s.Assume(_, x) | s.Assert(_, x):
-                # Input: assume/assert x;
-                # Constraints:
-                #  - type(z3x) == z3boolean  (hard)
-                z3x = self.expr2z3(x)
-                z3boolean = self.type2z3(boolean)
-                self.add_soft_constraint(
-                    self.get_type_expr(z3x) == z3boolean, x.position
-                )
-            case _:
-                raise ValueError(f"Unsupported statement {stmt}")
-
-    def type2z3(self, type: t.Type) -> ExprRef:
-        match type:
-            case t.Boolean(_):
-                return self.type_adt.boolean
-            case t.Integer(_):
-                return self.type_adt.integer
-            case t.Float(_):
-                return self.type_adt.float
-            case t.BitVector(_, size):
-                size = self.expr2z3(e.Integer(predefined, size))
-                return self.type_adt.bv(size)
-            case t.Synonym(_, t.Identifier(_, id)):
-                out = self.type_synonyms[id]
-                self.reverse_type_map[out] = type
-                return out
-            case t.Array(_, index, value):
-                index = self.type2z3(index)
-                value = self.type2z3(value)
-                return self.type_adt.array(index, value)
-            case t.Enumeration(_, values):
-                values = [self.fresh_constant(self.symbol_sort, v) for v in values]
-                return self.type_adt.enum(z3.Seq(*values))
-            case _:
-                raise ValueError(f"Unsupported type {type}")
-
-    def expr2z3(self, expr: e.Expression) -> ExprRef:
-        def all_equal_types(args):
-            a0 = self.expr2z3(args[0])
-            for i in range(1, len(args)):
-                ai = self.expr2z3(args[i])
-                self.add_hard_constraint(
-                    self.get_type_expr(ai) == self.get_type_expr(a0)
-                )
-
-        def all_some_type(args, ty):
-            for i in range(len(args)):
-                ai = self.expr2z3(args[i])
-                self.add_hard_constraint(self.get_type_expr(ai) == self.type2z3(ty))
-
-        if isinstance(expr, e.Constant) and expr in self.constants:
-            return self.constants[expr]
-
-        match expr:
-            case e.Boolean(_, c):
-                fresh = self.fresh_constant(
-                    self.term_sort, "eudoxus.term.boolean." + str(c) + "."
-                )
-                self.constants[expr] = fresh
-                self.add_soft_constraint(
-                    self.get_type_expr(fresh) == self.type2z3(boolean), expr.position
-                )
-                self.to_repair[expr.position] = (fresh, expr)
-                return fresh
-            case e.Integer(_, c):
-                fresh = self.fresh_constant(
-                    self.term_sort, "eudoxus.term.integer." + str(c) + "."
-                )
-                self.constants[expr] = fresh
-                expected = self.type2z3(integer)
-                self.add_soft_constraint(
-                    self.get_type_expr(fresh) == expected, expr.position
-                )
-                self.to_repair[expr.position] = (fresh, expr)
-                return fresh
-            case e.BitVector(_, c, width):
-                fresh = self.fresh_constant(
-                    self.term_sort, "eudoxus.term.bv." + str(c) + "." + str(width) + "."
-                )
-                self.constants[expr] = fresh
-                expected = self.type2z3(t.BitVector(predefined, width))
-                self.add_soft_constraint(
-                    self.get_type_expr(fresh) == expected, expr.position
-                )
-                self.to_repair[expr.position] = (fresh, expr)
-                return fresh
-            case e.Application(_, op, args) if isinstance(op, e.Operator):
-                old_variables = self.variables.copy()
-                arity = len(args) + 1
-                match op:
-                    case e.Or(_):
-                        name = "eudoxus.term.or"
-                        all_some_type(args, boolean)
-                    case e.And(_):
-                        name = "eudoxus.term.and"
-                        all_some_type(args, boolean)
-                    case e.Not(_):
-                        name = "eudoxus.term.not"
-                        all_some_type(args, boolean)
-                    case e.Equal(_):
-                        name = "eudoxus.term.eq"
-                        all_equal_types(args)
-                    case e.NotEqual(_):
-                        name = "eudoxus.term.neq"
-                        all_equal_types(args)
-                    case e.LessThan(_):
-                        name = "eudoxus.term.lt"
-                        all_equal_types(args)
-                    case e.GreaterThan(_):
-                        name = "eudoxus.term.gt"
-                        all_equal_types(args)
-                    case e.LessThanOrEqual(_):
-                        name = "eudoxus.term.lte"
-                        all_equal_types(args)
-                    case e.GreaterThanOrEqual(_):
-                        name = "eudoxus.term.gte"
-                        all_equal_types(args)
-                    case e.Add(_):
-                        name = "eudoxus.term.add"
-                        all_equal_types(args)
-                    case e.Subtract(_):
-                        name = "eudoxus.term.sub"
-                        all_equal_types(args)
-                    case e.Multiply(_):
-                        name = "eudoxus.term.mul"
-                        all_equal_types(args)
-                    case e.Divide(_):
-                        name = "eudoxus.term.div"
-                        all_equal_types(args)
-                    case e.Ite(_):
-                        name = "eudoxus.term.ite"
-                        all_equal_types(args[1:])
-                        all_some_type([args[0]], boolean)
-                    case e.Quantifier(_, bindings):
-                        name = (
-                            "eudoxus.term.forall"
-                            if isinstance(op, e.Forall)
-                            else "eudoxus.term.exists"
-                        )
-                        for na, ty in bindings:
-                            na = na.name
-                            self.variables[na] = self.fresh_constant(
-                                self.term_sort, "term." + na + "."
-                            )
-                            self.add_soft_constraint(
-                                self.get_type_expr(self.variables[na])
-                                == self.type2z3(ty),
-                                ty.position,
-                            )
-                        all_some_type(args, boolean)
-                    case _:
-                        raise ValueError(f"Unsupported operator {op}")
-
-                name = name + str(arity - 1)
-                if name not in self.ops:
-                    self.ops[name] = self.declare_function(
-                        name, [self.term_sort] * arity
-                    )
-
-                f = self.ops[name]
-                args = [self.expr2z3(arg) for arg in args]
-                self.variables = old_variables
-                return f(*args)
-            case e.Application(_, e.Identifier(_, name), []):
-                return self.variables[name]
-            case e.Variant(_, name):
-                return self.variants[name]
-            case e.Store(_, a, i, v):
-                # Input: <a>[<i>] = <v>
-                # Constraints:
-                #  - type(z3a) == type(eudoxus.store(z3a, z3i, z3v))    (hard)
-                #  - type(z3a) == eudoxus.array(type(z3i), type(z3v))   (hard)
-                #  - type(z3i) == eudoxus.type.index(z3a)               (hard)
-                #  - type(z3v) == eudoxus.element.type(z3a)             (hard)
-                z3a = self.expr2z3(a)
-                z3i = self.expr2z3(i)
-                z3v = self.expr2z3(v)
-
-                name = "eudoxus.term.store"
-                arity = 4
-                if name not in self.ops:
-                    self.ops[name] = self.declare_function(
-                        name, [self.term_sort] * arity
-                    )
-                eudoxus_store = self.ops[name]
-                out = eudoxus_store(z3a, z3i, z3v)
-
-                eudoxus_array_t = self.type_adt.array
-                eudoxus_index_t = self.type_adt.index
-                eudoxus_element_t = self.type_adt.element
-
-                self.add_hard_constraint(
-                    self.get_type_expr(z3a) == self.get_type_expr(out)
-                )
-                self.add_hard_constraint(
-                    self.get_type_expr(z3a)
-                    == eudoxus_array_t(self.get_type_expr(z3i), self.get_type_expr(z3v))
-                )
-                self.add_hard_constraint(
-                    self.get_type_expr(z3i) == eudoxus_index_t(self.get_type_expr(z3a))
-                )
-                self.add_hard_constraint(
-                    self.get_type_expr(z3v)
-                    == eudoxus_element_t(self.get_type_expr(z3a))
-                )
-
-                return out
-
-            case e.Index(_, a, i):
-                # Input: <a>[<i>]
-                # Constraints:
-                #  - eudoxus.type.index(type(z3a)) == type(z3i) (hard)
-                #  - type(eudoxus.index(a, i)) == eudoxus.element.type(type(z3a)) (hard)
-                z3a = self.expr2z3(a)
-                z3i = self.expr2z3(i)
-
-                name = "eudoxus.term.index"
-                arity = 3
-                if name not in self.ops:
-                    self.ops[name] = self.declare_function(
-                        name, [self.term_sort] * arity
-                    )
-                eudoxus_index = self.ops[name]
-                out = eudoxus_index(z3a, z3i)
-
-                eudoxus_array_t = self.type_adt.array
-                eudoxus_index_t = self.type_adt.index
-                eudoxus_element_t = self.type_adt.element
-
-                self.add_hard_constraint(
-                    eudoxus_index_t(self.get_type_expr(z3a)) == self.get_type_expr(z3i)
-                )
-
-                self.add_hard_constraint(
-                    self.get_type_expr(out)
-                    == eudoxus_element_t(self.get_type_expr(z3a))
-                )
-
-                return out
-            case _:
-                raise ValueError(f"Unsupported expression {expr}")
+        return self.to_repair

@@ -13,7 +13,7 @@ class Statement(Node):
 
 @dataclass(frozen=True)
 class Block(Statement):
-    statements: list[Statement]
+    statements: List[Statement]
 
 
 @dataclass(frozen=True)
@@ -25,8 +25,8 @@ class Assignment(Statement):
 @dataclass(frozen=True)
 class If(Statement):
     condition: e.Expression
-    then_branch: Block
-    else_branch: Block
+    then_branch: Statement
+    else_branch: Statement
 
 
 @dataclass(frozen=True)
@@ -55,44 +55,42 @@ class Declaration(Statement):
 
 
 @dataclass(frozen=True)
-class Variable(Declaration):
+class VariableDecl(Declaration):
+    pass
+
+
+@dataclass(frozen=True)
+class LocalDecl(VariableDecl):
     target: Identifier
     type: t.Type
 
 
 @dataclass(frozen=True)
-class Local(Variable):
-    pass
-
-
-@dataclass(frozen=True)
-class Input(Variable):
-    pass
-
-
-@dataclass(frozen=True)
-class Output(Variable):
-    pass
-
-
-@dataclass(frozen=True)
-class SharedVar(Variable):
-    pass
-
-
-@dataclass(frozen=True)
-class Constant(Variable):
-    value: e.Expression
-
-
-@dataclass(frozen=True)
-class Type(Declaration):
+class InputDecl(VariableDecl):
     target: Identifier
-    type: t.Type | None
+    type: t.Type
 
 
 @dataclass(frozen=True)
-class Instance(Declaration):
+class OutputDecl(VariableDecl):
+    target: Identifier
+    type: t.Type
+
+
+@dataclass(frozen=True)
+class SharedDecl(VariableDecl):
+    target: Identifier
+    type: t.Type
+
+
+@dataclass(frozen=True)
+class TypeDecl(Declaration):
+    target: Identifier
+    type: t.Type
+
+
+@dataclass(frozen=True)
+class InstanceDecl(Declaration):
     target: Identifier
     module: Identifier
     arguments: List[Tuple[Identifier, e.Expression]]
