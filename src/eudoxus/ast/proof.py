@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import List
 
 from eudoxus.ast.node import Node
 
@@ -10,7 +11,7 @@ class Command(Node):
 
 @dataclass(frozen=True)
 class Block(Command):
-    commands: list[Command]
+    commands: List[Command]
 
 
 @dataclass(frozen=True)

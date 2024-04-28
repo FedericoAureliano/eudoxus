@@ -11,6 +11,7 @@ import eudoxus.ast.statement as s
 import eudoxus.ast.type as t
 from eudoxus.ast.module import Module
 from eudoxus.ast.node import Identifier, Position
+from eudoxus.utils import foldl
 
 RESERVED_STATEMENTS = ["assume", "assert", "havoc"]
 
@@ -24,7 +25,7 @@ def search(query: str, node: TSNode) -> List[TSNode]:
 
 
 def pos(node: TSNode) -> Position:
-    return Position(node.start_byte)
+    return Position(node.id)
 
 
 class Parser:
@@ -40,6 +41,11 @@ class Parser:
         self.tree = parser.parse(read_callable_byte_offset)
 
         self.enum_count = 0
+        self.position_count = -1
+
+    def fresh_pos(self) -> Position:
+        self.position_count -= 1
+        return Position(self.position_count)
 
     def search(self, func, node: TSNode, strict=True) -> List[TSNode]:
         """
@@ -103,15 +109,13 @@ class Parser:
         p = id.position
         name = id.name
         if "bool" in name.lower():
-            return t.Boolean(p)
+            return t.BooleanType(p)
         elif "int" in name.lower():
-            return t.Integer(p)
-        elif "float" in name.lower():
-            return t.Float(p)
+            return t.IntegerType(p)
         elif "bv" in name.lower() or "bitvector" in name.lower():
             size = self.search(self.parse_integer, args)[0]
             size = self.parse_integer(size).value
-            return t.BitVector(p, size)
+            return t.BitVectorType(p, size)
         elif "arr" in name.lower():
             args_list = self.search(self.parse_type_expr, args)
             if len(args_list) == 0:
@@ -126,7 +130,7 @@ class Parser:
                 elem_t = self.parse_type_expr(args_list[1])
             else:
                 raise ValueError(f"Unsupported object: {self.text(args)}")
-            return t.Array(p, index_t, elem_t)
+            return t.ArrayType(p, index_t, elem_t)
         elif "enum" in name.lower():
             if (
                 args.child_count >= 3
@@ -149,9 +153,9 @@ class Parser:
                 for _ in range(k.value):
                     args_list.append(Identifier(p, "anon_enum_" + str(self.enum_count)))
                     self.enum_count += 1
-            return t.Enumeration(p, args_list)
+            return t.EnumeratedType(p, args_list)
         else:
-            return t.Synonym(p, id)
+            return t.SynonymType(p, id)
 
     def parse_app_type(self, node: TSNode) -> t.Type:
         """
@@ -179,7 +183,7 @@ class Parser:
             case _:
                 raise ValueError(f"Unsupported object: {node.sexp()}")
 
-    def parse_type_declaration(self, node: TSNode) -> s.Type:
+    def parse_type_declaration(self, node: TSNode) -> s.TypeDecl:
         """
         (assignment
             left: {self.parse_identifier.__doc__}
@@ -187,13 +191,13 @@ class Parser:
         """
         id = self.parse_identifier(node.child_by_field_name("left"))
         rhs = self.parse_type_expr(node.child_by_field_name("right"))
-        if isinstance(rhs, t.Enumeration):
+        if isinstance(rhs, t.EnumeratedType):
             fst = rhs.values[0]
             if fst.name == id.name:
                 # e.g., self.t = Enum('t', 'A', 'B', 'C')
-                rhs = t.Enumeration(rhs.position, rhs.values[1:])
+                rhs = t.EnumeratedType(rhs.position, rhs.values[1:])
 
-        return s.Type(pos(node), id, rhs)
+        return s.TypeDecl(pos(node), id, rhs)
 
     def parse_name_type_pair(self, node: TSNode) -> Tuple[Identifier, t.Type]:
         """
@@ -212,48 +216,48 @@ class Parser:
         match f.lower():
             case bv if "bv" in bv or "bitvec" in bv:
                 match args:
-                    case [e.Integer(_, value), e.Integer(_, size)]:
-                        return e.BitVector(pos, value, size)
+                    case [e.IntegerValue(_, value), e.IntegerValue(_, size)]:
+                        return e.BitVectorValue(pos, value, size)
                     case _:
                         raise ValueError(f"Unsupported args: {args}")
             case "and" | "conjunct" | "conjunction":
-                return e.Application(pos, e.And(pos), args)
+                return e.And(pos, *args)
             case "or" | "disjunct" | "disjunction":
-                return e.Application(pos, e.Or(pos), args)
+                return e.Or(pos, *args)
             case "implies" | "impl":
-                return e.Application(pos, e.Implies(pos), args)
+                return e.Implies(pos, *args)
             case "iff" | "equiv" | "eq" | "equal":
-                return e.Application(pos, e.Equal(pos), args)
+                return e.Equal(pos, *args)
             case "not" | "neg":
-                return e.Application(pos, e.Not(pos), args)
+                return e.Not(pos, *args)
             case "add" | "plus" | "sum" | "addition":
-                return e.Application(pos, e.Add(pos), args)
+                return e.Add(pos, *args)
             case "sub" | "subtract" | "minus":
-                return e.Application(pos, e.Subtract(pos), args)
+                return e.Subtract(pos, *args)
             case "mul" | "multiply" | "times":
-                return e.Application(pos, e.Multiply(pos), args)
+                return e.Multiply(pos, *args)
             case "div" | "divide" | "quotient":
-                return e.Application(pos, e.Divide(pos), args)
+                return e.Divide(pos, *args)
             case "mod" | "modulo" | "remainder" | "modulus":
-                return e.Application(pos, e.Modulo(pos), args)
+                return e.Modulo(pos, *args)
             case "neq" | "notequal":
-                return e.Application(pos, e.NotEqual(pos), args)
+                return e.NotEqual(pos, *args)
             case "lt" | "lessthan":
-                return e.Application(pos, e.LessThan(pos), args)
+                return e.LessThan(pos, *args)
             case "le" | "lte" | "lessthanorequal":
-                return e.Application(pos, e.LessThanOrEqual(pos), args)
+                return e.LessThanOrEqual(pos, *args)
             case "gt" | "greaterthan":
-                return e.Application(pos, e.GreaterThan(pos), args)
+                return e.GreaterThan(pos, *args)
             case "ge" | "gte" | "greaterthanorequal":
-                return e.Application(pos, e.GreaterThanOrEqual(pos), args)
+                return e.GreaterThanOrEqual(pos, *args)
             case "select" | "sel":
-                return e.Application(pos, e.Select(pos), args)
+                return e.RecordSelect(pos, *args)
             case "ite" | "ifthenelse" | "ifelse" | "if" | "if_":
-                return e.Application(pos, e.Ite(pos), args)
+                return e.Ite(pos, *args)
             case _:
-                return e.Application(pos, Identifier(pos, f), args)
+                raise ValueError(f"Unsupported function: {f}")
 
-    def parse_app_expr(self, node: TSNode) -> e.Application:
+    def parse_app_expr(self, node: TSNode) -> e.Expression:
         """
         (call
             function: {self.parse_identifier.__doc__}
@@ -279,17 +283,23 @@ class Parser:
                 bindings = [self.parse_name_type_pair(binding) for binding in bindings]
                 body = arguments.child(3)
                 body = self.parse_expr(body)
-                quant = (
-                    e.Forall(pos(node), bindings)
-                    if function.name == "forall"
-                    else e.Exists(pos(node), bindings)
-                )
-                return e.Application(pos(node), quant, [body])
+                if function.name == "forall":
+                    return foldl(
+                        lambda x, y: e.Forall(pos(node), *x, y),
+                        e.Forall(pos(node), *bindings[0], body),
+                        bindings[1:],
+                    )
+                else:
+                    return foldl(
+                        lambda x, y: e.Exists(pos(node), *x, y),
+                        e.Exists(pos(node), *bindings[0], body),
+                        bindings[1:],
+                    )
             case _:
                 arguments = parse_args()
                 return self.expr_helper(pos(node), function.name, arguments)
 
-    def parse_app_of_app_expr(self, node: TSNode) -> e.Application:
+    def parse_app_of_app_expr(self, node: TSNode) -> e.Expression:
         """
         (call
             function: (call
@@ -309,7 +319,7 @@ class Parser:
         arguments = outer_args + inner_args
         return self.expr_helper(pos(node), function.name, arguments)
 
-    def parse_subscript_expr(self, node: TSNode) -> e.Index:
+    def parse_subscript_expr(self, node: TSNode) -> e.ArraySelect:
         """
         (subscript
             value: (_)
@@ -317,9 +327,9 @@ class Parser:
         """
         array = self.parse_expr(node.child_by_field_name("value"))
         index = self.parse_expr(node.child_by_field_name("subscript"))
-        return e.Index(pos(node), array, index)
+        return e.ArraySelect(pos(node), array, index)
 
-    def parse_select_expr(self, node: TSNode) -> e.Select:
+    def parse_select_expr(self, node: TSNode) -> e.RecordSelect:
         """
         (attribute
             object: (_)
@@ -328,9 +338,9 @@ class Parser:
         p = pos(node)
         record = self.parse_expr(node.child_by_field_name("object"))
         selector = self.parse_identifier(node.child_by_field_name("attribute"))
-        return e.Select(p, record, selector)
+        return e.RecordSelect(p, record, selector)
 
-    def parse_boolean_expression(self, node: TSNode) -> e.Application:
+    def parse_boolean_expression(self, node: TSNode) -> e.Expression:
         """
         (boolean_operator
             left: (_)
@@ -341,15 +351,15 @@ class Parser:
         right = self.parse_expr(node.child_by_field_name("right"))
         match self.text(node.child_by_field_name("operator")):
             case "and":
-                return e.Application(p, e.And(p), [left, right])
+                return e.And(p, left, right)
             case "or":
-                return e.Application(p, e.Or(p), [left, right])
+                return e.Or(p, left, right)
             case "not":
-                return e.Application(p, e.Not(p), [left])
+                return e.Not(p, left)
             case _:
                 raise ValueError(f"Unsupported object: {node.sexp()}")
 
-    def parse_comparison_expression(self, node: TSNode) -> e.Application:
+    def parse_comparison_expression(self, node: TSNode) -> e.Expression:
         """
         (comparison_operator)
         """
@@ -358,21 +368,45 @@ class Parser:
         args = [self.parse_expr(arg) for arg in args]
         match self.text(node.child(1)):
             case "==":
-                return e.Application(p, e.Equal(p), args)
+                base = e.Equal(p, *args[:2])
+                for i, arg in enumerate(args):
+                    if i > 1:
+                        base = e.And(p, base, e.Equal(p, args[i - 1], arg))
+                return base
             case "!=":
-                return e.Application(p, e.NotEqual(p), args)
+                base = e.NotEqual(p, *args[:2])
+                for i, arg in enumerate(args):
+                    if i > 1:
+                        base = e.And(p, base, e.NotEqual(p, args[i - 1], arg))
+                return base
             case "<":
-                return e.Application(p, e.LessThan(p), args)
+                base = e.LessThan(p, *args[:2])
+                for i, arg in enumerate(args):
+                    if i > 1:
+                        base = e.And(p, base, e.LessThan(p, args[i - 1], arg))
+                return base
             case ">":
-                return e.Application(p, e.GreaterThan(p), args)
+                base = e.GreaterThan(p, *args[:2])
+                for i, arg in enumerate(args):
+                    if i > 1:
+                        base = e.And(p, base, e.GreaterThan(p, args[i - 1], arg))
+                return base
             case "<=":
-                return e.Application(p, e.LessThanOrEqual(p), args)
+                base = e.LessThanOrEqual(p, *args[:2])
+                for i, arg in enumerate(args):
+                    if i > 1:
+                        base = e.And(p, base, e.LessThanOrEqual(p, args[i - 1], arg))
+                return base
             case ">=":
-                return e.Application(p, e.GreaterThanOrEqual(p), args)
+                base = e.GreaterThanOrEqual(p, *args[:2])
+                for i, arg in enumerate(args):
+                    if i > 1:
+                        base = e.And(p, base, e.GreaterThanOrEqual(p, args[i - 1], arg))
+                return base
             case _:
                 raise ValueError(f"Unsupported object: {node.sexp()}")
 
-    def parse_binary_expression(self, node: TSNode) -> e.Application:
+    def parse_binary_expression(self, node: TSNode) -> e.Expression:
         """
         (binary_operator
             left: (_)
@@ -383,36 +417,36 @@ class Parser:
         right = self.parse_expr(node.child_by_field_name("right"))
         match self.text(node.child_by_field_name("operator")):
             case "+":
-                return e.Application(p, e.Add(p), [left, right])
+                return e.Add(p, left, right)
             case "-":
-                return e.Application(p, e.Subtract(p), [left, right])
+                return e.Subtract(p, left, right)
             case "*":
-                return e.Application(p, e.Multiply(p), [left, right])
+                return e.Multiply(p, left, right)
             case "/":
-                return e.Application(p, e.Divide(p), [left, right])
+                return e.Divide(p, left, right)
             case _:
                 raise ValueError(f"Unsupported object: {node.sexp()}")
 
-    def parse_integer(self, node: TSNode) -> e.Constant:
+    def parse_integer(self, node: TSNode) -> e.Value:
         """(integer)"""
-        return e.Integer(pos(node), int(self.text(node)))
+        return e.IntegerValue(pos(node), int(self.text(node)))
 
-    def parse_boolean(self, node: TSNode) -> e.Constant:
+    def parse_boolean(self, node: TSNode) -> e.Value:
         """
         [
             (true)
             (false)
         ]
         """
-        return e.Boolean(pos(node), self.text(node) == "True")
+        return e.BooleanValue(pos(node), self.text(node) == "True")
 
     def parse_string(self, node: TSNode) -> str:
         """(string)"""
         return self.text(node)[1:-1]
 
-    def parse_variant(self, node: TSNode) -> e.Constant:
+    def parse_variant(self, node: TSNode) -> e.Value:
         """(string)"""
-        return e.Variant(pos(node), self.parse_string(node))
+        return e.EnumValue(pos(node), self.parse_string(node))
 
     def parse_expr(self, node: TSNode) -> e.Expression:
         """
@@ -434,10 +468,10 @@ class Parser:
         match node.type:
             case "identifier":
                 id = self.parse_flat_identifier(node)
-                return e.Application(id.position, id, [])
+                return e.FunctionApplication(id.position, id, [])
             case "attribute" if self.text(node.child_by_field_name("object")) == "self":
                 id = self.parse_self_identifier(node)
-                return e.Application(id.position, id, [])
+                return e.FunctionApplication(id.position, id, [])
             case "attribute":
                 return self.parse_select_expr(node)
             case "subscript":
@@ -463,7 +497,7 @@ class Parser:
                     f"Unsupported object: {node.sexp()} of type {node.type}"
                 )
 
-    def parse_var_declaration(self, node: TSNode, kind: str) -> s.Variable:
+    def parse_var_declaration(self, node: TSNode, kind: str) -> s.VariableDecl:
         """
         (assignment
             left: {self.parse_identifier.__doc__}
@@ -473,13 +507,13 @@ class Parser:
         rhs = self.parse_type_expr(node.child_by_field_name("right"))
         match kind:
             case "locals":
-                return s.Local(pos(node), id, rhs)
+                return s.LocalDecl(pos(node), id, rhs)
             case "inputs":
-                return s.Input(pos(node), id, rhs)
+                return s.InputDecl(pos(node), id, rhs)
             case "outputs":
-                return s.Output(pos(node), id, rhs)
+                return s.OutputDecl(pos(node), id, rhs)
             case "sharedvars":
-                return s.SharedVar(pos(node), id, rhs)
+                return s.SharedDecl(pos(node), id, rhs)
             case _:
                 raise ValueError(f"Unsupported object: {kind}")
 
@@ -503,7 +537,7 @@ class Parser:
         value = self.parse_expr(node.child_by_field_name("value"))
         return (name, value)
 
-    def parse_instances_declaration(self, node: TSNode) -> s.Instance:
+    def parse_instances_declaration(self, node: TSNode) -> s.InstanceDecl:
         """
         (assignment
             left: {self.parse_identifier.__doc__}
@@ -517,7 +551,7 @@ class Parser:
         args = call.child_by_field_name("arguments")
         args = self.search(self.parse_keyword_argument, args)
         args = [self.parse_keyword_argument(arg) for arg in args]
-        return s.Instance(pos(node), target, mod, args)
+        return s.InstanceDecl(pos(node), target, mod, args)
 
     def parse_assignment(self, node: TSNode) -> s.Assignment:
         """
@@ -530,9 +564,9 @@ class Parser:
         rhs = self.parse_expr(node.child_by_field_name("right"))
         lhs = self.parse_expr(node.child_by_field_name("left"))
         match lhs:
-            case e.Index(_, array, index):
+            case e.ArraySelect(_, array, index):
                 lhs = array
-                rhs = e.Store(pos(node), array, index, rhs)
+                rhs = e.ArrayStore(pos(node), array, index, rhs)
         return s.Assignment(pos(node), lhs, rhs)
 
     def parse_if_statement(self, node: TSNode) -> s.If:
@@ -736,11 +770,11 @@ class Parser:
                 expressions = self.search(self.parse_expr, body)
                 expressions = [self.parse_expr(expr) for expr in expressions]
                 if len(expressions) == 0:
-                    return e.Boolean(pos(node), True)
+                    return e.BooleanValue(pos(node), True)
                 elif len(expressions) == 1:
                     return expressions[0]
                 elif len(expressions) > 1:
-                    return e.Application(pos(node), e.And(pos(node)), expressions)
+                    return e.And(pos(node), *expressions)
             case _:
                 raise ValueError(f"Unsupported object: {name}")
 
@@ -788,7 +822,6 @@ class Parser:
         """
         name = self.parse_identifier(node.child_by_field_name("name"))
         body = node.child_by_field_name("body")
-        pn = pos(node)
 
         def has_name(node: TSNode, name: str) -> bool:
             return self.text(node.child_by_field_name("name")) == name
@@ -797,14 +830,15 @@ class Parser:
             b for b in self.search(self.parse_type_block, body) if has_name(b, "types")
         ]
         types = s.Block(
-            pn, [t for b in type_blocks for t in self.parse_type_block(b).statements]
+            self.fresh_pos(),
+            [t for b in type_blocks for t in self.parse_type_block(b).statements],
         )
 
         locals_blocks = [
             b for b in self.search(self.parse_var_block, body) if has_name(b, "locals")
         ]
         locals = s.Block(
-            pn,
+            self.fresh_pos(),
             [
                 v
                 for b in locals_blocks
@@ -816,7 +850,7 @@ class Parser:
             b for b in self.search(self.parse_var_block, body) if has_name(b, "inputs")
         ]
         inputs = s.Block(
-            pn,
+            self.fresh_pos(),
             [
                 v
                 for b in inputs_blocks
@@ -828,7 +862,7 @@ class Parser:
             b for b in self.search(self.parse_var_block, body) if has_name(b, "outputs")
         ]
         outputs = s.Block(
-            pn,
+            self.fresh_pos(),
             [
                 v
                 for b in outputs_blocks
@@ -842,7 +876,7 @@ class Parser:
             if has_name(b, "sharedvars")
         ]
         sharedvars = s.Block(
-            pn,
+            self.fresh_pos(),
             [
                 v
                 for b in sharedvars_blocks
@@ -856,7 +890,7 @@ class Parser:
             if has_name(b, "instances")
         ]
         instances = s.Block(
-            pn,
+            self.fresh_pos(),
             [
                 i
                 for b in instances_blocks
@@ -868,14 +902,16 @@ class Parser:
             b for b in self.search(self.parse_stmt_block, body) if has_name(b, "init")
         ]
         init = s.Block(
-            pn, [s for b in init_blocks for s in self.parse_stmt_block(b).statements]
+            self.fresh_pos(),
+            [s for b in init_blocks for s in self.parse_stmt_block(b).statements],
         )
 
         next_blocks = [
             b for b in self.search(self.parse_stmt_block, body) if has_name(b, "next")
         ]
         next = s.Block(
-            pn, [s for b in next_blocks for s in self.parse_stmt_block(b).statements]
+            self.fresh_pos(),
+            [s for b in next_blocks for s in self.parse_stmt_block(b).statements],
         )
 
         spec_blocks = [
@@ -884,12 +920,12 @@ class Parser:
             if has_name(b, "specification")
         ]
         if len(spec_blocks) == 0:
-            spec = e.Boolean(pn, True)
+            spec = e.BooleanValue(self.fresh_pos(), True)
         elif len(spec_blocks) == 1:
             spec = self.parse_spec_block(spec_blocks[0])
         else:
-            spec = e.Application(
-                pn, e.And(pn), [self.parse_spec_block(b) for b in spec_blocks]
+            spec = e.And(
+                self.fresh_pos(), *[self.parse_spec_block(b) for b in spec_blocks]
             )
 
         control_blocks = [
@@ -898,12 +934,12 @@ class Parser:
             if has_name(b, "control") or has_name(b, "proof")
         ]
         control = p.Block(
-            pn,
+            self.fresh_pos(),
             [s for b in control_blocks for s in self.parse_control_block(b).commands],
         )
 
         return Module(
-            pn,
+            pos(node),
             name,
             types,
             locals,

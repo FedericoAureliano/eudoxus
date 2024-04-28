@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import List
 
 from eudoxus.ast.node import Identifier, Node
 from eudoxus.ast.type import Type
@@ -10,129 +11,131 @@ class Expression(Node):
 
 
 @dataclass(frozen=True)
-class Constant(Expression):
+class Value(Expression):
     pass
 
 
 @dataclass(frozen=True)
-class Boolean(Constant):
+class EnumValue(Value):
+    value: str
+
+
+@dataclass(frozen=True)
+class BooleanValue(Value):
     value: bool
 
 
 @dataclass(frozen=True)
-class Integer(Constant):
+class IntegerValue(Value):
     value: int
 
 
 @dataclass(frozen=True)
-class Float(Constant):
-    value: float
-
-
-@dataclass(frozen=True)
-class BitVector(Constant):
+class BitVectorValue(Value):
     value: int
     width: int
 
 
 @dataclass(frozen=True)
-class Array(Constant):
+class ArrayValue(Value):
     default: Expression
 
 
 @dataclass(frozen=True)
-class Variant(Constant):
-    value: str
+class Add(Expression):
+    arg1: Expression
+    arg2: Expression
 
 
 @dataclass(frozen=True)
-class Operator(Node):
-    pass
+class Subtract(Expression):
+    arg1: Expression
+    arg2: Expression
 
 
 @dataclass(frozen=True)
-class Add(Operator):
-    pass
+class Multiply(Expression):
+    arg1: Expression
+    arg2: Expression
 
 
 @dataclass(frozen=True)
-class Subtract(Operator):
-    pass
+class Divide(Expression):
+    arg1: Expression
+    arg2: Expression
 
 
 @dataclass(frozen=True)
-class Multiply(Operator):
-    pass
+class Equal(Expression):
+    arg1: Expression
+    arg2: Expression
 
 
 @dataclass(frozen=True)
-class Divide(Operator):
-    pass
+class NotEqual(Expression):
+    arg1: Expression
+    arg2: Expression
 
 
 @dataclass(frozen=True)
-class Modulo(Operator):
-    pass
+class LessThan(Expression):
+    arg1: Expression
+    arg2: Expression
 
 
 @dataclass(frozen=True)
-class Equal(Operator):
-    pass
+class LessThanOrEqual(Expression):
+    arg1: Expression
+    arg2: Expression
 
 
 @dataclass(frozen=True)
-class NotEqual(Operator):
-    pass
+class GreaterThan(Expression):
+    arg1: Expression
+    arg2: Expression
 
 
 @dataclass(frozen=True)
-class LessThan(Operator):
-    pass
+class GreaterThanOrEqual(Expression):
+    arg1: Expression
+    arg2: Expression
 
 
 @dataclass(frozen=True)
-class LessThanOrEqual(Operator):
-    pass
+class And(Expression):
+    arg1: Expression
+    arg2: Expression
 
 
 @dataclass(frozen=True)
-class GreaterThan(Operator):
-    pass
+class Or(Expression):
+    arg1: Expression
+    arg2: Expression
 
 
 @dataclass(frozen=True)
-class GreaterThanOrEqual(Operator):
-    pass
+class Not(Expression):
+    arg: Expression
 
 
 @dataclass(frozen=True)
-class And(Operator):
-    pass
+class Ite(Expression):
+    cond: Expression
+    then_: Expression
+    else_: Expression
 
 
 @dataclass(frozen=True)
-class Or(Operator):
-    pass
+class Implies(Expression):
+    arg1: Expression
+    arg2: Expression
 
 
 @dataclass(frozen=True)
-class Not(Operator):
-    pass
-
-
-@dataclass(frozen=True)
-class Ite(Operator):
-    pass
-
-
-@dataclass(frozen=True)
-class Implies(Operator):
-    pass
-
-
-@dataclass(frozen=True)
-class Quantifier(Operator):
-    bindings: list[tuple[Identifier, Type]]
+class Quantifier(Expression):
+    bound: Identifier
+    sort: Type
+    body: Expression
 
 
 @dataclass(frozen=True)
@@ -146,25 +149,25 @@ class Exists(Quantifier):
 
 
 @dataclass(frozen=True)
-class Application(Expression):
-    callee: Identifier | Operator
-    arguments: list[Expression]
+class FunctionApplication(Expression):
+    callee: Identifier
+    arguments: List[Expression]
 
 
 @dataclass(frozen=True)
-class Select(Expression):
+class RecordSelect(Expression):
     record: Expression
     selector: Identifier
 
 
 @dataclass(frozen=True)
-class Index(Expression):
+class ArraySelect(Expression):
     array: Expression
     index: Expression
 
 
 @dataclass(frozen=True)
-class Store(Expression):
+class ArrayStore(Expression):
     array: Expression
     index: Expression
     value: Expression

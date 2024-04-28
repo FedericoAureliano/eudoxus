@@ -75,7 +75,7 @@ def next2py(output, next: s.Block, indent):
 
 def specs2py(output, spec: e.Expression, indent):
     match spec:
-        case e.Boolean(_, True):
+        case e.BooleanValue(_, True):
             return
     space = "  " * indent
     output.write(f"{space}def specification(self):\n")
@@ -97,13 +97,15 @@ def control2py(output, control: p.Command, indent):
 def decl2py(output, decl: s.Declaration, indent):
     space = "  " * indent
     match decl:
-        case s.Variable(_, name, type):
+        case s.LocalDecl(_, name, type) | s.InputDecl(_, name, type) | s.OutputDecl(
+            _, name, type
+        ) | s.SharedDecl(_, name, type):
             name = name.name
             output.write(space + "self." + name)
             output.write(" = ")
             type2py(output, type)
             output.write("\n")
-        case s.Type(_, name, type):
+        case s.TypeDecl(_, name, type):
             name = name.name
             output.write(space + "self." + name)
             output.write(" = ")
@@ -115,7 +117,7 @@ def decl2py(output, decl: s.Declaration, indent):
                     decl2py(output, decl, indent)
             else:
                 output.write(f"{space}pass\n")
-        case s.Instance(_, name, mod, args):
+        case s.InstanceDecl(_, name, mod, args):
             name = name.name
             mod = mod.name
             output.write(space + "self." + name)
@@ -133,61 +135,21 @@ def decl2py(output, decl: s.Declaration, indent):
             raise ValueError(f"Unsupported declaration {decl}")
 
 
-def op2py(output, op: e.Operator):
-    match op:
-        case e.Or(_):
-            output.write("or")
-        case e.And(_):
-            output.write("and")
-        case e.Not(_):
-            output.write("not")
-        case e.Equal(_):
-            output.write("==")
-        case e.NotEqual(_):
-            output.write("!=")
-        case e.LessThan(_):
-            output.write("<")
-        case e.GreaterThan(_):
-            output.write(">")
-        case e.GreaterThanOrEqual(_):
-            output.write(">=")
-        case e.LessThanOrEqual(_):
-            output.write("<=")
-        case e.Add(_):
-            output.write("+")
-        case e.Subtract(_):
-            output.write("-")
-        case e.Multiply(_):
-            output.write("*")
-        case e.Divide(_):
-            output.write("/")
-        case e.Modulo(_):
-            output.write("%")
-        case e.Forall(_):
-            output.write("Forall")
-        case e.Exists(_):
-            output.write("Exists")
-        case _:
-            raise ValueError(f"Unsupported operator {op}")
-
-
 def type2py(output, type: t.Type):
     match type:
-        case t.Boolean(_):
+        case t.BooleanType(_):
             output.write("bool")
-        case t.Integer(_):
+        case t.IntegerType(_):
             output.write("int")
-        case t.Float(_):
-            output.write("float")
-        case t.BitVector(_, size):
+        case t.BitVectorType(_, size):
             output.write(f"BitVector({size})")
-        case t.Array(_, inbdex_t, elem_t):
+        case t.ArrayType(_, inbdex_t, elem_t):
             output.write("Array(")
             type2py(output, inbdex_t)
             output.write(", ")
             type2py(output, elem_t)
             output.write(")")
-        case t.Enumeration(_, values):
+        case t.EnumeratedType(_, values):
             output.write("Enum(")
             for i, v in enumerate(values):
                 if i > 0:
@@ -196,7 +158,7 @@ def type2py(output, type: t.Type):
                 output.write(v.name)
                 output.write('"')
             output.write(")")
-        case t.Synonym(_, name):
+        case t.SynonymType(_, name):
             name = name.name
             output.write("self." + name)
         case Hole(_):
@@ -207,18 +169,97 @@ def type2py(output, type: t.Type):
 
 def expr2py(output, expr: e.Expression):
     match expr:
-        case e.Variant(_, name):
-            output.write('"' + name + '"')
-        case e.Select(_, target, field):
+        case e.BooleanValue(_, value) | e.IntegerValue(_, value):
+            output.write(repr(value))
+        case e.BitVectorValue(_, value, width):
+            output.write(f"BitVectorVal({value}, {width})")
+        case e.EnumValue(_, value):
+            output.write('"')
+            output.write(value)
+            output.write('"')
+        case e.RecordSelect(_, target, field):
             expr2py(output, target)
             output.write(".")
             output.write(field.name)
-        case e.Index(_, target, index):
+        case e.ArraySelect(_, target, index):
             expr2py(output, target)
             output.write("[")
             expr2py(output, index)
             output.write("]")
-        case e.Application(_, f, args) if isinstance(f, e.Identifier):
+        case e.Ite(_, cond, then, else_):
+            expr2py(output, then)
+            output.write(" if ")
+            expr2py(output, cond)
+            output.write(" else ")
+            expr2py(output, else_)
+        case e.Add(_, lhs, rhs):
+            expr2py(output, lhs)
+            output.write(" + ")
+            expr2py(output, rhs)
+        case e.Subtract(_, lhs, rhs):
+            expr2py(output, lhs)
+            output.write(" - ")
+            expr2py(output, rhs)
+        case e.Multiply(_, lhs, rhs):
+            expr2py(output, lhs)
+            output.write(" * ")
+            expr2py(output, rhs)
+        case e.Divide(_, lhs, rhs):
+            expr2py(output, lhs)
+            output.write(" / ")
+            expr2py(output, rhs)
+        case e.And(_, lhs, rhs):
+            expr2py(output, lhs)
+            output.write(" and ")
+            expr2py(output, rhs)
+        case e.Or(_, lhs, rhs):
+            expr2py(output, lhs)
+            output.write(" or ")
+            expr2py(output, rhs)
+        case e.Not(_, target):
+            output.write("not ")
+            expr2py(output, target)
+        case e.Equal(_, lhs, rhs):
+            expr2py(output, lhs)
+            output.write(" == ")
+            expr2py(output, rhs)
+        case e.NotEqual(_, lhs, rhs):
+            expr2py(output, lhs)
+            output.write(" != ")
+            expr2py(output, rhs)
+        case e.LessThan(_, lhs, rhs):
+            expr2py(output, lhs)
+            output.write(" < ")
+            expr2py(output, rhs)
+        case e.LessThanOrEqual(_, lhs, rhs):
+            expr2py(output, lhs)
+            output.write(" <= ")
+            expr2py(output, rhs)
+        case e.GreaterThan(_, lhs, rhs):
+            expr2py(output, lhs)
+            output.write(" > ")
+            expr2py(output, rhs)
+        case e.GreaterThanOrEqual(_, lhs, rhs):
+            expr2py(output, lhs)
+            output.write(" >= ")
+            expr2py(output, rhs)
+        case e.Exists(_, x, t, body):
+            output.write("Exists(")
+            output.write(x.name)
+            output.write(", ")
+            type2py(output, t)
+            output.write(", ")
+            expr2py(output, body)
+            output.write(")")
+        case e.Forall(_, x, t, body):
+            output.write("Forall(")
+            output.write(x.name)
+            output.write(", ")
+            type2py(output, t)
+            output.write(", ")
+            expr2py(output, body)
+            output.write(")")
+        case e.FunctionApplication(_, f, args) if isinstance(f, e.Identifier):
             output.write("self." + f.name)
             if len(args) > 0:
                 output.write("(")
@@ -227,45 +268,6 @@ def expr2py(output, expr: e.Expression):
                         output.write(", ")
                     expr2py(output, a)
                 output.write(")")
-        case e.Application(_, op, args) if isinstance(op, e.Operator):
-            match op:
-                case e.Quantifier(_, bindings):
-                    if isinstance(op, e.Forall):
-                        output.write("Forall([")
-                    else:
-                        output.write("Exists([")
-                    for i, (n, ty) in enumerate(bindings):
-                        if i > 0:
-                            output.write(", ")
-                        output.write("(self.")
-                        output.write(n.name)
-                        output.write(", ")
-                        type2py(output, ty)
-                        output.write(")")
-                    output.write("], ")
-                    expr2py(output, args[0])
-                    output.write(")")
-                case e.Not(_):
-                    op2py(output, op)
-                    output.write(" ")
-                    expr2py(output, args[0])
-                case e.Ite(_):
-                    expr2py(output, args[1])
-                    output.write(" if ")
-                    expr2py(output, args[0])
-                    output.write(" else ")
-                    expr2py(output, args[2])
-                case _:
-                    for i, a in enumerate(args):
-                        if i > 0:
-                            output.write(" ")
-                            op2py(output, op)
-                            output.write(" ")
-                        expr2py(output, a)
-        case e.Boolean(_, value) | e.Integer(_, value):
-            output.write(repr(value))
-        case e.BitVector(_, value, width):
-            output.write(f"BitVectorVal({value}, {width})")
         case Hole(_):
             output.write("??")
         case _:
@@ -276,7 +278,7 @@ def stmt2py(output, stmt: s.Statement, indent):
     space = "  " * indent
     match stmt:
         case s.Assignment(
-            _, target, e.Store(_, array, index, value)
+            _, target, e.ArrayStore(_, array, index, value)
         ) if array == target:
             output.write(space)
             expr2py(output, target)
