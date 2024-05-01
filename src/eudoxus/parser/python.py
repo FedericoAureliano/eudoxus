@@ -155,7 +155,7 @@ class Parser:
                     self.enum_count += 1
             return t.EnumeratedType(p, args_list)
         else:
-            return t.SynonymType(p, id)
+            return t.SynonymType(p, id.name)
 
     def parse_app_type(self, node: TSNode) -> t.Type:
         """

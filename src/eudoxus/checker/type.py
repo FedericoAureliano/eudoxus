@@ -178,7 +178,12 @@ class TypeChecker(Checker):
                 return 5
             case "bad_identifier":
                 return 10
-        return 2
+        raise NotImplementedError(f"Unsupported reason {reason}")
+
+    def str_to_symbol(self, symbol):
+        if symbol not in self.symbol_map:
+            self.symbol_map[symbol] = self.fresh_constant(self.universe.symbol, symbol)
+        return self.symbol_map[symbol]
 
     def encode(self, cls, pos, children) -> Node:
         match cls:
@@ -186,18 +191,15 @@ class TypeChecker(Checker):
                 # Hard: type(spec) == bool
                 spec = children[9]
                 self.add_hard_constraint(
-                    self.type_of(spec) == self.universe.type.BooleanType
+                    self.term_to_type(spec) == self.universe.type.BooleanType
                 )
                 return self.universe.mod.Module(*children)
             case n.Identifier:
                 # Input: x
                 # Soft: x == x'
                 # Output: x'
-                x = children[0]
-                if x not in self.name_map:
-                    self.name_map[x] = self.fresh_constant(self.universe.symbol, x)
-                xp = self.fresh_constant(self.universe.symbol, x)
-                x = self.name_map[x]
+                x = self.str_to_symbol(children[0])
+                xp = self.fresh_constant(self.universe.symbol, children[0])
                 self.add_soft_constraint(x == xp, pos, "bad_identifier")
                 return xp
             case t.IntegerType:
@@ -218,16 +220,46 @@ class TypeChecker(Checker):
                 return btp
             case t.BitVectorType:
                 # Input: BitVector(w)
-                # Soft: w == w'
-                # Soft bvtp = BitVector(w')
+                # Soft bvtp = BitVector(w)
                 # Output: bvtp
                 w = children[0]
                 bvt = self.universe.type.BitVectorType(w)
                 bvtp = self.fresh_constant(self.universe.type, "BitVectorTypeHole")
-                wp = self.fresh_constant(z3.IntSort(), str(w))
                 self.add_soft_constraint(bvt == bvtp, pos, "bad_type")
-                self.add_soft_constraint(w == wp, pos, "bad_type")
                 return bvtp
+            case t.ArrayType:
+                # Input: index, value
+                # Soft atp = Array(index, value)
+                # Output: atp
+                index = children[0]
+                value = children[1]
+                at = self.universe.type.ArrayType(index, value)
+                atp = self.fresh_constant(self.universe.type, "ArrayTypeHole")
+                self.add_soft_constraint(at == atp, pos, "bad_type")
+                return atp
+            case t.EnumeratedType:
+                # Input: Enum(c_1, ..., c_n)
+                # Soft ep = Enum(c_1, ..., c_n)
+                # Hard: type(app_c_i) = ep
+                # Output: ep
+                ground_values = children[0]
+                ep = self.fresh_constant(self.universe.type, "EnumeratedTypeHole")
+                for c in ground_values:
+                    app_c_i = self.universe.expr.FunctionApplication(
+                        c, self.universe.expr_list.empty
+                    )
+                    self.add_hard_constraint(self.term_to_type(app_c_i) == ep)
+                return ep
+            case t.SynonymType:
+                # Input: n
+                # Soft: symbol_to_type(n) == t'
+                # Output: t'
+                sym = self.str_to_symbol(children[0])
+                tp = self.fresh_constant(self.universe.type, "SynonymTypeHole")
+                self.add_soft_constraint(
+                    self.symbol_to_type(sym) == tp, pos, "bad_type"
+                )
+                return tp
             case s.Block:
                 arg = foldl(
                     lambda x, y: self.universe.stmt_list.cons(y, x),
@@ -241,7 +273,7 @@ class TypeChecker(Checker):
                 # Output: x = y;
                 x = children[0]
                 y = children[1]
-                self.add_hard_constraint(self.type_of(x) == self.type_of(y))
+                self.add_hard_constraint(self.term_to_type(x) == self.term_to_type(y))
                 return self.universe.stmt.Assignment(x, y)
             case s.LocalDecl | s.OutputDecl | s.InputDecl | s.SharedDecl:
                 # Input: var x: t;
@@ -252,8 +284,17 @@ class TypeChecker(Checker):
                     xsym, self.universe.expr_list.empty
                 )
                 tz3 = children[1]
-                self.add_hard_constraint(self.type_of(xapp) == tz3)
+                self.add_hard_constraint(self.term_to_type(xapp) == tz3)
                 return self.universe.stmt.LocalDecl(xsym, tz3)
+            case s.TypeDecl:
+                # Input: type x = y;
+                # Hard: synonym(x) = y;
+                # Output: type x = y;
+                x = children[0]
+                y = children[1]
+                x_syn = self.symbol_to_type(x)
+                self.add_hard_constraint(x_syn == y)
+                return self.universe.stmt.TypeDecl(x, y)
             case s.InstanceDecl:
                 # Input: instance target: mod(pairs);
                 target = children[0]
@@ -281,7 +322,7 @@ class TypeChecker(Checker):
                 tc3 = children[1]
                 ez3 = children[2]
                 self.add_hard_constraint(
-                    self.type_of(cz3) == self.universe.type.BooleanType
+                    self.term_to_type(cz3) == self.universe.type.BooleanType
                 )
                 return self.universe.stmt.If(cz3, tc3, ez3)
             case s.Assert:
@@ -290,7 +331,7 @@ class TypeChecker(Checker):
                 # Output: assert c
                 cz3 = children[0]
                 self.add_hard_constraint(
-                    self.type_of(cz3) == self.universe.type.BooleanType
+                    self.term_to_type(cz3) == self.universe.type.BooleanType
                 )
                 return self.universe.stmt.Assert(cz3)
             case s.Assume:
@@ -299,9 +340,14 @@ class TypeChecker(Checker):
                 # Output: assume c
                 cz3 = children[0]
                 self.add_hard_constraint(
-                    self.type_of(cz3) == self.universe.type.BooleanType
+                    self.term_to_type(cz3) == self.universe.type.BooleanType
                 )
                 return self.universe.stmt.Assume(cz3)
+            case s.Havoc:
+                # Input: havoc x
+                # Output: havoc x
+                x = children[0]
+                return self.universe.stmt.Havoc(x)
             case e.IntegerValue:
                 # Input: z
                 # Hard: type(IntValue(z)) == int
@@ -311,7 +357,7 @@ class TypeChecker(Checker):
                 zz3 = self.universe.expr.IntegerValue(z)
                 zp = self.fresh_constant(self.universe.expr, str(z))
                 self.add_hard_constraint(
-                    self.type_of(zz3) == self.universe.type.IntegerType
+                    self.term_to_type(zz3) == self.universe.type.IntegerType
                 )
                 self.add_soft_constraint(zz3 == zp, pos, "bad_constant")
                 return zp
@@ -324,7 +370,7 @@ class TypeChecker(Checker):
                 bz3 = self.universe.expr.BooleanValue(b)
                 bp = self.fresh_constant(self.universe.expr, str(b))
                 self.add_hard_constraint(
-                    self.type_of(bz3) == self.universe.type.BooleanType
+                    self.term_to_type(bz3) == self.universe.type.BooleanType
                 )
                 self.add_soft_constraint(bz3 == bp, pos, "bad_constant")
                 return bp
@@ -342,7 +388,7 @@ class TypeChecker(Checker):
                 wp = self.fresh_constant(z3.IntSort(), str(w))
                 bvp = self.fresh_constant(self.universe.expr, str(bv))
                 self.add_hard_constraint(
-                    self.type_of(bv) == self.universe.type.BitVectorType(w)
+                    self.term_to_type(bv) == self.universe.type.BitVectorType(w)
                 )
                 self.add_soft_constraint(bv == bvp, pos, "bad_constant")
                 self.add_soft_constraint(v == vp, pos, "bad_constant")
@@ -356,9 +402,37 @@ class TypeChecker(Checker):
                 x = children[0]
                 y = children[1]
                 x_plus_y = self.universe.expr.Add(x, y)
-                self.add_hard_constraint(self.type_of(x) == self.type_of(y))
-                self.add_hard_constraint(self.type_of(x_plus_y) == self.type_of(x))
+                self.add_hard_constraint(self.term_to_type(x) == self.term_to_type(y))
+                self.add_hard_constraint(
+                    self.term_to_type(x_plus_y) == self.term_to_type(x)
+                )
                 return x_plus_y
+            case e.Equal:
+                # Input: x == y
+                # Hard: type(x) == type(y)
+                # Hard: type(x == y) == bool
+                # Output: x == y
+                x = children[0]
+                y = children[1]
+                x_eq_y = self.universe.expr.Equal(x, y)
+                self.add_hard_constraint(self.term_to_type(x) == self.term_to_type(y))
+                self.add_hard_constraint(
+                    self.term_to_type(x_eq_y) == self.universe.type.BooleanType
+                )
+                return x_eq_y
+            case e.NotEqual:
+                # Input: x != y
+                # Hard: type(x) == type(y)
+                # Hard: type(x != y) == bool
+                # Output: x != y
+                x = children[0]
+                y = children[1]
+                x_neq_y = self.universe.expr.NotEqual(x, y)
+                self.add_hard_constraint(self.term_to_type(x) == self.term_to_type(y))
+                self.add_hard_constraint(
+                    self.term_to_type(x_neq_y) == self.universe.type.BooleanType
+                )
+                return x_neq_y
             case e.GreaterThan:
                 # Input: x > y
                 # Hard: type(x) == type(y)
@@ -367,9 +441,9 @@ class TypeChecker(Checker):
                 x = children[0]
                 y = children[1]
                 x_gt_y = self.universe.expr.GreaterThan(x, y)
-                self.add_hard_constraint(self.type_of(x) == self.type_of(y))
+                self.add_hard_constraint(self.term_to_type(x) == self.term_to_type(y))
                 self.add_hard_constraint(
-                    self.type_of(x_gt_y) == self.universe.type.BooleanType
+                    self.term_to_type(x_gt_y) == self.universe.type.BooleanType
                 )
                 return x_gt_y
             case e.GreaterThanOrEqual:
@@ -380,9 +454,9 @@ class TypeChecker(Checker):
                 x = children[0]
                 y = children[1]
                 x_ge_y = self.universe.expr.GreaterThanOrEqual(x, y)
-                self.add_hard_constraint(self.type_of(x) == self.type_of(y))
+                self.add_hard_constraint(self.term_to_type(x) == self.term_to_type(y))
                 self.add_hard_constraint(
-                    self.type_of(x_ge_y) == self.universe.type.BooleanType
+                    self.term_to_type(x_ge_y) == self.universe.type.BooleanType
                 )
                 return x_ge_y
             case e.LessThan:
@@ -393,9 +467,9 @@ class TypeChecker(Checker):
                 x = children[0]
                 y = children[1]
                 x_lt_y = self.universe.expr.LessThan(x, y)
-                self.add_hard_constraint(self.type_of(x) == self.type_of(y))
+                self.add_hard_constraint(self.term_to_type(x) == self.term_to_type(y))
                 self.add_hard_constraint(
-                    self.type_of(x_lt_y) == self.universe.type.BooleanType
+                    self.term_to_type(x_lt_y) == self.universe.type.BooleanType
                 )
                 return x_lt_y
             case e.LessThanOrEqual:
@@ -406,9 +480,9 @@ class TypeChecker(Checker):
                 x = children[0]
                 y = children[1]
                 x_le_y = self.universe.expr.LessThanOrEqual(x, y)
-                self.add_hard_constraint(self.type_of(x) == self.type_of(y))
+                self.add_hard_constraint(self.term_to_type(x) == self.term_to_type(y))
                 self.add_hard_constraint(
-                    self.type_of(x_le_y) == self.universe.type.BooleanType
+                    self.term_to_type(x_le_y) == self.universe.type.BooleanType
                 )
                 return x_le_y
             case e.And:
@@ -420,13 +494,13 @@ class TypeChecker(Checker):
                 y = children[1]
                 x_and_y = self.universe.expr.And(x, y)
                 self.add_hard_constraint(
-                    self.type_of(x) == self.universe.type.BooleanType
+                    self.term_to_type(x) == self.universe.type.BooleanType
                 )
                 self.add_hard_constraint(
-                    self.type_of(y) == self.universe.type.BooleanType
+                    self.term_to_type(y) == self.universe.type.BooleanType
                 )
                 self.add_hard_constraint(
-                    self.type_of(x_and_y) == self.universe.type.BooleanType
+                    self.term_to_type(x_and_y) == self.universe.type.BooleanType
                 )
                 return x_and_y
             case e.Not:
@@ -437,10 +511,10 @@ class TypeChecker(Checker):
                 x = children[0]
                 not_x = self.universe.expr.Not(x)
                 self.add_hard_constraint(
-                    self.type_of(x) == self.universe.type.BooleanType
+                    self.term_to_type(x) == self.universe.type.BooleanType
                 )
                 self.add_hard_constraint(
-                    self.type_of(not_x) == self.universe.type.BooleanType
+                    self.term_to_type(not_x) == self.universe.type.BooleanType
                 )
                 return not_x
             case e.Ite:
@@ -454,10 +528,14 @@ class TypeChecker(Checker):
                 else_ = children[2]
                 ite = self.universe.expr.Ite(cond, then_, else_)
                 self.add_hard_constraint(
-                    self.type_of(cond) == self.universe.type.BooleanType
+                    self.term_to_type(cond) == self.universe.type.BooleanType
                 )
-                self.add_hard_constraint(self.type_of(then_) == self.type_of(else_))
-                self.add_hard_constraint(self.type_of(ite) == self.type_of(then_))
+                self.add_hard_constraint(
+                    self.term_to_type(then_) == self.term_to_type(else_)
+                )
+                self.add_hard_constraint(
+                    self.term_to_type(ite) == self.term_to_type(then_)
+                )
                 return ite
             case e.FunctionApplication:
                 arg = foldl(
@@ -466,6 +544,68 @@ class TypeChecker(Checker):
                     children[1],
                 )
                 return self.universe.expr.FunctionApplication(children[0], arg)
+            case e.EnumValue:
+                # Input: c
+                # Output: EnumValue(c)
+                c = self.str_to_symbol(children[0])
+                return self.universe.expr.EnumValue(c)
+            case e.Forall | e.Exists:
+                # Input: forall x: t. c
+                # Hard: type(c) == bool
+                # Hard: type(forall x: t'. c) == bool
+                # Hard: type(x) = t'
+                # Soft: t = t'
+                # Output: forall x: t'. c
+                x = children[0]
+                xapp = self.universe.expr.FunctionApplication(
+                    x, self.universe.expr_list.empty
+                )
+                tt = children[1]
+                c = children[2]
+                ttp = self.fresh_constant(self.universe.type, "QuantifierHole")
+                self.add_hard_constraint(
+                    self.term_to_type(c) == self.universe.type.BooleanType
+                )
+                self.add_hard_constraint(self.term_to_type(xapp) == ttp)
+                self.add_hard_constraint(
+                    self.term_to_type(self.universe.expr.Forall(x, ttp, c))
+                    == self.universe.type.BooleanType
+                )
+                self.add_soft_constraint(tt == ttp, pos, "bad_type")
+                return self.universe.expr.Forall(x, ttp, c)
+            case e.ArrayStore:
+                # Input: a[x] = y
+                # Hard: type(a) == Array(type(x), type(y))
+                # Hard: type(a[x] = y) == Array(t1, t2)
+                # Output: a[x] = y
+                a = children[0]
+                x = children[1]
+                y = children[2]
+                a_x_eq_y = self.universe.expr.ArrayStore(a, x, y)
+                a_type = self.term_to_type(a)
+                x_type = self.term_to_type(x)
+                y_type = self.term_to_type(y)
+                self.add_hard_constraint(
+                    a_type == self.universe.type.ArrayType(x_type, y_type)
+                )
+                self.add_hard_constraint(self.term_to_type(a_x_eq_y) == a_type)
+                return a_x_eq_y
+            case e.ArraySelect:
+                # Input: a[x]
+                # Hard: type(a) == Array(type(x), type(a).element)
+                # Hard: type(a[x]) == type(a).element
+                # Output: a[x]
+                a = children[0]
+                x = children[1]
+                a_x = self.universe.expr.ArraySelect(a, x)
+                a_type = self.term_to_type(a)
+                x_type = self.term_to_type(x)
+                a_element_type = self.universe.type.element(a_type)
+                self.add_hard_constraint(
+                    a_type == self.universe.type.ArrayType(x_type, a_element_type)
+                )
+                self.add_hard_constraint(self.term_to_type(a_x) == a_element_type)
+                return a_x
             case p.Block:
                 arg = foldl(
                     lambda x, y: self.universe.cmd_list.cons(y, x),
@@ -507,7 +647,7 @@ class TypeChecker(Checker):
                     w = self.model.eval(self.universe.type.width(z3expr))
                     return t.BitVectorType(position, w)
             case self.universe.expr:
-                new_type = self.type_of(z3expr)
+                new_type = self.term_to_type(z3expr)
                 match node:
                     case e.IntegerValue(_, v) if is_bool(new_type):
                         return e.BooleanValue(position, False if v == 0 else True)
@@ -535,10 +675,15 @@ class TypeChecker(Checker):
 
     def check(self, modules: List[m.Module]) -> Dict[Position, Node]:
         self.universe = Universe()
-        self.type_of = self.declare_function(
-            "TypeOf", self.universe.expr, self.universe.type
+        self.term_to_type = self.declare_function(
+            "term_to_type", self.universe.expr, self.universe.type
         )
-        self.name_map = {}
+        self.symbol_to_type = self.declare_function(
+            "symbol_to_type", self.universe.symbol, self.universe.type
+        )
+
+        self.symbol_map = {}
+
         self.pos_to_z3expr = {}
         self.pos_to_node = {}
 

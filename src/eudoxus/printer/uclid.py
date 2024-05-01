@@ -168,7 +168,6 @@ def type2ucl(output, type: t.Type):
                 output.write(v.name)
             output.write(" }")
         case t.SynonymType(_, name):
-            name = name.name
             output.write(name)
         case Hole(_):
             output.write("??")

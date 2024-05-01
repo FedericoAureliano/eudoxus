@@ -38,7 +38,7 @@ class ArrayType(Type):
 
 @dataclass(frozen=True)
 class SynonymType(Type):
-    name: Identifier
+    name: str
 
 
 @dataclass(frozen=True)

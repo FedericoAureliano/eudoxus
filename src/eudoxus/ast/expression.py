@@ -17,7 +17,7 @@ class Value(Expression):
 
 @dataclass(frozen=True)
 class EnumValue(Value):
-    value: str
+    value: Identifier
 
 
 @dataclass(frozen=True)
@@ -133,19 +133,21 @@ class Implies(Expression):
 
 @dataclass(frozen=True)
 class Quantifier(Expression):
+    pass
+
+
+@dataclass(frozen=True)
+class Forall(Quantifier):
     bound: Identifier
     sort: Type
     body: Expression
 
 
 @dataclass(frozen=True)
-class Forall(Quantifier):
-    pass
-
-
-@dataclass(frozen=True)
 class Exists(Quantifier):
-    pass
+    bound: Identifier
+    sort: Type
+    body: Expression
 
 
 @dataclass(frozen=True)

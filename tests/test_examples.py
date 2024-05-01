@@ -53,9 +53,7 @@ def check_example(input, output, language):
 
     actual = StringIO()
 
-    inference = True if "inference" in input else False
-
-    eudoxus(input_path, language, actual, inference)
+    eudoxus(input_path, language, actual, True)
 
     actual = actual.getvalue()
 

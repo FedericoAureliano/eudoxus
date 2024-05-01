@@ -159,7 +159,6 @@ def type2py(output, type: t.Type):
                 output.write('"')
             output.write(")")
         case t.SynonymType(_, name):
-            name = name.name
             output.write("self." + name)
         case Hole(_):
             output.write("??")
