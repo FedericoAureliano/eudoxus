@@ -217,6 +217,12 @@ def expr2py(output, expr: e.Expression):
         case e.Not(_, target):
             output.write("not ")
             expr2py(output, target)
+        case e.Implies(_, lhs, rhs):
+            output.write("Implies(")
+            expr2py(output, lhs)
+            output.write(", ")
+            expr2py(output, rhs)
+            output.write(")")
         case e.Equal(_, lhs, rhs):
             expr2py(output, lhs)
             output.write(" == ")

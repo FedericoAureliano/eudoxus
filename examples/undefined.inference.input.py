@@ -6,4 +6,4 @@ class Undefined:
         self.x = self.T
 
     def next(self):
-        self.x = self.y
+        self.x = Implies(self.y <= 0 or False, True)

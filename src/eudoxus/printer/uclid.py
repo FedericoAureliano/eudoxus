@@ -232,6 +232,10 @@ def expr2ucl(output, expr: e.Expression):
         case e.Not(_, target):
             output.write("!")
             expr2ucl(output, target)
+        case e.Implies(_, lhs, rhs):
+            expr2ucl(output, lhs)
+            output.write(" ==> ")
+            expr2ucl(output, rhs)
         case e.Equal(_, lhs, rhs):
             expr2ucl(output, lhs)
             output.write(" == ")

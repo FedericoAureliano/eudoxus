@@ -1,6 +1,6 @@
 class Undefined(Module):
     def types(self):
-        self.O = int
+        self.O = bool
         self.T = self.O
     
     def locals(self):
@@ -10,4 +10,4 @@ class Undefined(Module):
         self.x = self.T
 
     def next(self):
-        self.x = self.y
+        self.x = Implies(self.y <= 0 or False, True)

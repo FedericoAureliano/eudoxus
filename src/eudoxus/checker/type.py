@@ -505,6 +505,42 @@ class TypeChecker(Checker):
                     self.term_to_type(x_and_y) == self.universe.type.BooleanType
                 )
                 return x_and_y
+            case e.Or:
+                # Input: x or y
+                # Hard: type(x) == type(y) == bool
+                # Hard: type(x or y) == bool
+                # Output: x or y
+                x = children[0]
+                y = children[1]
+                x_or_y = self.universe.expr.Or(x, y)
+                self.add_hard_constraint(
+                    self.term_to_type(x) == self.universe.type.BooleanType
+                )
+                self.add_hard_constraint(
+                    self.term_to_type(y) == self.universe.type.BooleanType
+                )
+                self.add_hard_constraint(
+                    self.term_to_type(x_or_y) == self.universe.type.BooleanType
+                )
+                return x_or_y
+            case e.Implies:
+                # Input: x implies y
+                # Hard: type(x) == type(y) == bool
+                # Hard: type(x implies y) == bool
+                # Output: x implies y
+                x = children[0]
+                y = children[1]
+                x_implies_y = self.universe.expr.Implies(x, y)
+                self.add_hard_constraint(
+                    self.term_to_type(x) == self.universe.type.BooleanType
+                )
+                self.add_hard_constraint(
+                    self.term_to_type(y) == self.universe.type.BooleanType
+                )
+                self.add_hard_constraint(
+                    self.term_to_type(x_implies_y) == self.universe.type.BooleanType
+                )
+                return x_implies_y
             case e.Not:
                 # Input: not x
                 # Hard: type(x) == bool
