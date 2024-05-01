@@ -94,3 +94,11 @@ class InstanceDecl(Declaration):
     target: Identifier
     module: Identifier
     arguments: List[Tuple[Identifier, e.Expression]]
+
+
+@dataclass(frozen=True)
+class HoleStmt(Statement):
+    # just in case we try to treat a hole as an identifier
+    @property
+    def name(self) -> str:
+        return "??"

@@ -38,7 +38,7 @@ class ArrayType(Type):
 
 @dataclass(frozen=True)
 class SynonymType(Type):
-    name: str
+    name: Identifier
 
 
 @dataclass(frozen=True)
@@ -49,3 +49,11 @@ class EnumeratedType(Type):
 @dataclass(frozen=True)
 class RecordType(Type):
     fields: List[Tuple[Identifier, Type]]
+
+
+@dataclass(frozen=True)
+class HoleType(Type):
+    # just in case we try to treat a hole as an identifier
+    @property
+    def name(self) -> str:
+        return "??"

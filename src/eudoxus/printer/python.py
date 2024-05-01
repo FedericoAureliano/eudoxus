@@ -3,7 +3,6 @@ import eudoxus.ast.proof as p
 import eudoxus.ast.statement as s
 import eudoxus.ast.type as t
 from eudoxus.ast.module import Module
-from eudoxus.ast.node import Hole
 
 
 def module2py(output, module: Module, indent):
@@ -159,8 +158,8 @@ def type2py(output, type: t.Type):
                 output.write('"')
             output.write(")")
         case t.SynonymType(_, name):
-            output.write("self." + name)
-        case Hole(_):
+            output.write("self." + name.name)
+        case t.HoleType(_):
             output.write("??")
         case _:
             raise ValueError(f"Unsupported type {type}")
@@ -267,7 +266,7 @@ def expr2py(output, expr: e.Expression):
                         output.write(", ")
                     expr2py(output, a)
                 output.write(")")
-        case Hole(_):
+        case e.HoleExpr(_):
             output.write("??")
         case _:
             raise ValueError(f"Unsupported expression {expr}")

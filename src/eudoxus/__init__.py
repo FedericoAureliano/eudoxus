@@ -4,6 +4,7 @@ from pathlib import Path
 
 import typer
 
+from eudoxus.checker.declared import DeclaredChecker
 from eudoxus.checker.type import TypeChecker
 from eudoxus.parser.python import Parser
 from eudoxus.printer.python import module2py
@@ -45,23 +46,28 @@ def main_(
 
 
 def main(src, language, output, check):
+    def write():
+        if language == Language.python:
+            for m in modules:
+                module2py(output, m, 0)
+
+        if language == Language.uclid:
+            for m in modules:
+                module2ucl(output, m, 0)
+
     with open(src, "rb") as f:
         src = f.read()
 
     modules = Parser(src).parse()
 
     if check:
-        rewrites = TypeChecker().check(modules)
+        checkers = [DeclaredChecker, TypeChecker]
     else:
-        rewrites = {}
+        checkers = []
 
-    rewriter = Rewriter(rewrites)
-    modules = [rewriter.rewrite(m) for m in modules]
+    for checker in checkers:
+        rewrites = checker().check(modules)
+        rewriter = Rewriter(rewrites)
+        modules = [rewriter.rewrite(m) for m in modules]
 
-    if language == Language.python:
-        for m in modules:
-            module2py(output, m, 0)
-
-    if language == Language.uclid:
-        for m in modules:
-            module2ucl(output, m, 0)
+    write()

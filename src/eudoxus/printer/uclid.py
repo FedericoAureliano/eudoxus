@@ -3,7 +3,6 @@ import eudoxus.ast.proof as p
 import eudoxus.ast.statement as s
 import eudoxus.ast.type as t
 from eudoxus.ast.module import Module
-from eudoxus.ast.node import Hole
 
 
 def module2ucl(output, module: Module, indent):
@@ -141,7 +140,7 @@ def decl2ucl(output, decl: s.Declaration, indent):
                 expr2ucl(output, v)
                 output.write(")")
             output.write(");\n")
-        case Hole(_):
+        case s.HoleStmt(_):
             output.write(space + "??;\n")
         case _:
             raise ValueError(f"Unsupported declaration {decl}")
@@ -168,8 +167,8 @@ def type2ucl(output, type: t.Type):
                 output.write(v.name)
             output.write(" }")
         case t.SynonymType(_, name):
-            output.write(name)
-        case Hole(_):
+            output.write(name.name)
+        case t.HoleType(_):
             output.write("??")
         case _:
             raise ValueError(f"Unsupported type {type}")
@@ -283,7 +282,7 @@ def expr2ucl(output, expr: e.Expression):
                         output.write(", ")
                     expr2ucl(output, a)
                 output.write(")")
-        case Hole(_):
+        case e.HoleExpr(_):
             output.write("??")
         case _:
             raise ValueError(f"Unsupported expression {expr}")
@@ -329,7 +328,7 @@ def stmt2ucl(output, stmt: s.Statement, indent, prime_assignments):
             output.write(space + "assert ")
             expr2ucl(output, cond)
             output.write(";\n")
-        case Hole(_):
+        case s.HoleStmt(_):
             output.write(space + "??;\n")
         case _:
             raise ValueError(f"Unsupported statement {stmt}")

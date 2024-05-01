@@ -172,6 +172,8 @@ class Universe:
 class TypeChecker(Checker):
     def reason_to_weight(self, reason: str) -> int:
         match reason:
+            case "hole":
+                return 0
             case "bad_constant":
                 return 1
             case "bad_type":
@@ -254,7 +256,7 @@ class TypeChecker(Checker):
                 # Input: n
                 # Soft: symbol_to_type(n) == t'
                 # Output: t'
-                sym = self.str_to_symbol(children[0])
+                sym = children[0]
                 tp = self.fresh_constant(self.universe.type, "SynonymTypeHole")
                 self.add_soft_constraint(
                     self.symbol_to_type(sym) == tp, pos, "bad_type"
@@ -618,6 +620,14 @@ class TypeChecker(Checker):
                 # Output: induction(k)
                 k = children[0]
                 return self.universe.cmd.Induction(k)
+            case t.HoleType:
+                # Input: ??
+                # Soft: ?? == ??'
+                # Output: ??'
+                hole = self.universe.type.HoleType
+                holep = self.fresh_constant(self.universe.type, "HoleType")
+                self.add_soft_constraint(hole == holep, pos, "hole")
+                return holep
             case _:
                 raise NotImplementedError(f"Unsupported class {cls}")
 
@@ -703,7 +713,7 @@ class TypeChecker(Checker):
 
         positions, self.model = self.solve()
 
-        self.to_repair = {position: n.Hole(position) for position in positions}
+        self.to_repair = {position: n.HoleId(position) for position in positions}
 
         for module in modules:
             module.visit(self.repair)
