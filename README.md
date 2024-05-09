@@ -25,6 +25,13 @@ pip3 install .
 
 ## Development
 
+### Virtual Environment
+```sh
+python3.11 -m venv .venv
+source .venv/bin/activate
+# deactivate (for exiting virtual environment)
+```
+
 ### Requirements (MacOS)
 ```sh
 pip3 install pre-commit
