@@ -75,6 +75,7 @@ def pipeline(task, language, output, inference, iterations):
     llm_response = timeit("llm", chat, prompt)
     llm_log("Response:", llm_response)
     python = extract_code(llm_response)
+    original = python
     generator_log("Extracted:", python)
     repaired = StringIO()
     timeit("repair", repair, python, Language.python, repaired, inference)
@@ -95,7 +96,10 @@ def pipeline(task, language, output, inference, iterations):
         repaired = repaired.getvalue()
         generator_log("Repaired:", repaired)
 
-    stats = f"iters: {i}\nllm: {clocks['llm']:.2f}s\nrepair: {clocks['repair']:.2f}s"
+    stats = f"iters: {i}\n"
+    stats += f"change: {len(repaired.splitlines()) - len(original.splitlines())}\n"
+    stats += f"llm: {clocks['llm']:.2f}s\n"
+    stats += f"repair: {clocks['repair']:.2f}s"
     generator_log("Stats:", stats)
 
     repair(repaired, language, output, inference)
