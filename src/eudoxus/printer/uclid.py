@@ -5,9 +5,43 @@ import eudoxus.ast.statement as s
 import eudoxus.ast.type as t
 from eudoxus.ast.module import Module
 
+keywords = set(
+    [
+        "module",
+        "var",
+        "input",
+        "output",
+        "sharedvar",
+        "type",
+        "instance",
+        "init",
+        "next",
+        "invariant",
+        "control",
+        "boolean",
+        "integer",
+        "bv",
+        "enum",
+        "if",
+        "then",
+        "else",
+        "true",
+        "false",
+        "exists",
+        "forall",
+        "assume",
+        "assert",
+        "havoc",
+        "induction",
+        "bmc",
+        "check",
+        "print_results",
+    ]
+)
+
 
 def module2ucl(output, module: Module, indent):
-    name = module.name.name
+    name = id2str(module.name)
     output.write(f"module {name} {{\n")
     indent += 1
 
@@ -96,31 +130,31 @@ def decl2ucl(output, decl: s.Declaration, indent):
     space = "  " * indent
     match decl:
         case s.LocalDecl(_, name, type):
-            name = name.name
+            name = id2str(name)
             output.write(space + "var " + name)
             output.write(": ")
             type2ucl(output, type)
             output.write(";\n")
         case s.InputDecl(_, name, type):
-            name = name.name
+            name = id2str(name)
             output.write(space + "input " + name)
             output.write(": ")
             type2ucl(output, type)
             output.write(";\n")
         case s.OutputDecl(_, name, type):
-            name = name.name
+            name = id2str(name)
             output.write(space + "output " + name)
             output.write(": ")
             type2ucl(output, type)
             output.write(";\n")
         case s.SharedDecl(_, name, type):
-            name = name.name
+            name = id2str(name)
             output.write(space + "sharedvar " + name)
             output.write(": ")
             type2ucl(output, type)
             output.write(";\n")
         case s.TypeDecl(_, name, type):
-            name = name.name
+            name = id2str(name)
             output.write(space + "type " + name)
             output.write(" = ")
             type2ucl(output, type)
@@ -129,14 +163,14 @@ def decl2ucl(output, decl: s.Declaration, indent):
             for decl in decls:
                 decl2ucl(output, decl, indent)
         case s.InstanceDecl(_, name, module, args):
-            name = name.name
-            mod = module.name
+            name = id2str(name)
+            mod = id2str(module)
             output.write(space + "instance " + name + ": " + mod)
             output.write("(")
             for i, (k, v) in enumerate(args):
                 if i > 0:
                     output.write(", ")
-                output.write(k.name)
+                output.write(id2str(k))
                 output.write(":(")
                 expr2ucl(output, v)
                 output.write(")")
@@ -165,10 +199,10 @@ def type2ucl(output, type: t.Type):
             for i, v in enumerate(values):
                 if i > 0:
                     output.write(", ")
-                output.write(v.name)
+                output.write(id2str(v))
             output.write(" }")
         case t.SynonymType(_, name):
-            output.write(name.name)
+            output.write(id2str(name))
         case t.HoleType(_):
             output.write("??")
         case _:
@@ -186,7 +220,7 @@ def expr2ucl(output, expr: e.Expression):
         case e.RecordSelect(_, target, field):
             expr2ucl(output, target)
             output.write(".")
-            output.write(field.name)
+            output.write(id2str(field))
         case e.ArraySelect(_, target, index):
             expr2ucl(output, target)
             output.write("[")
@@ -267,7 +301,7 @@ def expr2ucl(output, expr: e.Expression):
             expr2ucl(output, rhs)
         case e.Exists(_, x, t, body):
             output.write("(exists (")
-            output.write(x.name)
+            output.write(id2str(x))
             output.write(":")
             type2ucl(output, t)
             output.write(") :: ")
@@ -275,14 +309,14 @@ def expr2ucl(output, expr: e.Expression):
             output.write(")")
         case e.Forall(_, x, t, body):
             output.write("(forall (")
-            output.write(x.name)
+            output.write(id2str(x))
             output.write(":")
             type2ucl(output, t)
             output.write(") :: ")
             expr2ucl(output, body)
             output.write(")")
         case e.FunctionApplication(_, name, args) if isinstance(name, e.Identifier):
-            name = name.name
+            name = id2str(name)
             output.write(name)
             if len(args) > 0:
                 output.write("(")
@@ -295,6 +329,13 @@ def expr2ucl(output, expr: e.Expression):
             output.write("??")
         case _:
             raise ValueError(f"Unsupported expression {expr}")
+
+
+def id2str(id):
+    name = id.name
+    if name in keywords:
+        return name + "_"
+    return name
 
 
 def stmt2ucl(output, stmt: s.Statement, indent, prime_assignments):
@@ -327,7 +368,7 @@ def stmt2ucl(output, stmt: s.Statement, indent, prime_assignments):
             else:
                 pass
         case s.Havoc(_, target):
-            name = target.name
+            name = id2str(target)
             output.write(space + "havoc " + name + ";\n")
         case s.Assume(_, cond):
             output.write(space + "assume ")

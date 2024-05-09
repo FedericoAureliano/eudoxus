@@ -28,10 +28,10 @@ eudoxus = typer.Typer(pretty_exceptions_enable=False, add_completion=False)
 @eudoxus.command()
 def main_(
     task: Path,
-    language: Language = Language.python,
+    language: Language = Language.uclid,
     output: Path = None,
     inference: bool = True,
-    max_llm_calls: int = 2,
+    iterations: int = 2,
 ) -> None:
     if output is None:
         output = sys.stdout
@@ -45,15 +45,20 @@ def main_(
             return
         output = open(output, "w")
 
-    pipeline(task, language, output, inference, max_llm_calls)
+    pipeline(task, language, output, inference, iterations)
 
     if output is not sys.stdout:
         output.close()
 
 
-def pipeline(task, language, output, inference, max_llm_calls):
+def pipeline(task, language, output, inference, iterations):
     with open(task, "r") as f:
         task = f.read()
+
+    if iterations < 1:
+        # assume task is a path to a file with code to repair
+        repair(task, language, output, inference)
+        return
 
     prompt = get_sketch_prompt(task)
     generator_log("Prompt:", prompt)
@@ -66,7 +71,7 @@ def pipeline(task, language, output, inference, max_llm_calls):
     repaired = repaired.getvalue()
     generator_log("Repaired:", repaired)
 
-    for _ in range(1, max_llm_calls):
+    for _ in range(1, iterations):
         if "??" not in repaired:
             break
         prompt = get_complete_prompt(repaired)

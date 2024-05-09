@@ -10,18 +10,21 @@ pip3 install .
 
 ## Usage
 ```
- Usage: eudoxus [OPTIONS] SRC
+ Usage: eudoxus [OPTIONS] TASK
 
-╭─ Arguments ─────────────────────────────────────────────────────────────────╮
-│ *    src      PATH  [default: None] [required]                              │
-╰─────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ───────────────────────────────────────────────────────────────────╮
-│ --language                  [python|uclid]  [default: Language.python]      │
-│ --output                    PATH            [default: None]                 │
-│ --check       --no-check                    [default: check]                │
-│ --help                                      Show this message and exit.     │
-╰─────────────────────────────────────────────────────────────────────────────╯
+╭─ Arguments ───────────────────────────────────────────────────────────────────╮
+│ *    task      PATH  [default: None] [required]                               │
+╰───────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ─────────────────────────────────────────────────────────────────────╮
+│ --language                        [python|uclid]  [default: uclid]            │
+│ --output                          PATH            [default: None]             │
+│ --inference     --no-inference                    [default: inference]        │
+│ --iterations                      INTEGER         [default: 2]                │
+│ --help                                            Show this message and exit. │
+╰───────────────────────────────────────────────────────────────────────────────╯
 ```
+
+Set `iterations` to any value less than 1 to just do repair.
 
 ## Development
 

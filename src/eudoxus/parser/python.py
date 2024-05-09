@@ -768,7 +768,7 @@ class Parser:
         name = self.text(node.child_by_field_name("name"))
         body = node.child_by_field_name("body").child(0)
         match name:
-            case "specification":
+            case "specification" | "spec" | "specify" | "property" | "properties":
                 expressions = self.search(self.parse_expr, body)
                 expressions = [self.parse_expr(expr) for expr in expressions]
                 if len(expressions) == 0:
@@ -920,6 +920,9 @@ class Parser:
             b
             for b in self.search(self.parse_spec_block, body)
             if has_name(b, "specification")
+            or has_name(b, "spec")
+            or has_name(b, "property")
+            or has_name(b, "properties")
         ]
         if len(spec_blocks) == 0:
             spec = e.BooleanValue(self.fresh_pos(), True)
