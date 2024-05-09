@@ -95,10 +95,12 @@ class Universe:
             for name, cls in leafs.items():
                 fields = []
                 for field_name, field_type in cls.__annotations__.items():
-                    if field_type == int:
-                        field_type = z3.IntSort()
-                    elif field_type == bool:
+                    if field_type == bool:
                         field_type = z3.BoolSort()
+                    elif field_type == int:
+                        field_type = z3.IntSort()
+                    elif field_type == float:
+                        field_type = z3.RealSort()
                     elif field_type == Identifier or field_type == str:
                         field_type = self.symbol
                     elif field_type == e.Expression:
@@ -212,6 +214,14 @@ class TypeChecker(Checker):
                 ip = self.fresh_constant(self.universe.type, "IntegerTypeHole")
                 self.add_soft_constraint(i == ip, pos, "bad_type")
                 return ip
+            case t.RealType:
+                # Input: real
+                # Soft: real == real'
+                # Output: real'
+                r = self.universe.type.RealType
+                rp = self.fresh_constant(self.universe.type, "RealTypeHole")
+                self.add_soft_constraint(r == rp, pos, "bad_type")
+                return rp
             case t.BooleanType:
                 # Input: bool
                 # Soft: bool == bool'
@@ -363,6 +373,19 @@ class TypeChecker(Checker):
                 )
                 self.add_soft_constraint(zz3 == zp, pos, "bad_constant")
                 return zp
+            case e.RealValue:
+                # Input: r
+                # Hard: type(RealValue(r)) == real
+                # Soft: r == r'
+                # Output: r'
+                r = children[0]
+                rz3 = self.universe.expr.RealValue(r)
+                rp = self.fresh_constant(self.universe.expr, str(r))
+                self.add_hard_constraint(
+                    self.term_to_type(rz3) == self.universe.type.RealType
+                )
+                self.add_soft_constraint(rz3 == rp, pos, "bad_constant")
+                return rp
             case e.BooleanValue:
                 # Input: b
                 # Hard: type(BoolVal(b)) == bool
@@ -422,6 +445,16 @@ class TypeChecker(Checker):
                     self.term_to_type(x_minus_y) == self.term_to_type(x)
                 )
                 return x_minus_y
+            case e.Negate:
+                # Input: -x
+                # Hard: type(-x) == type(x)
+                # Output: -x
+                x = children[0]
+                neg_x = self.universe.expr.Negate(x)
+                self.add_hard_constraint(
+                    self.term_to_type(neg_x) == self.term_to_type(x)
+                )
+                return neg_x
             case e.Multiply:
                 # Input: x * y
                 # Hard: type(x) == type(y)
@@ -720,14 +753,19 @@ class TypeChecker(Checker):
                 raise NotImplementedError(f"Unsupported class {cls}")
 
     def z3_to_ast(self, z3expr, node, position) -> Node:
+        def is_bool(x):
+            return self.model.eval(
+                self.universe.type.is_BooleanType(x), model_completion=True
+            )
+
         def is_int(x):
             return self.model.eval(
                 self.universe.type.is_IntegerType(x), model_completion=True
             )
 
-        def is_bool(x):
+        def is_real(x):
             return self.model.eval(
-                self.universe.type.is_BooleanType(x), model_completion=True
+                self.universe.type.is_RealType(x), model_completion=True
             )
 
         def is_bv(x):
@@ -737,10 +775,12 @@ class TypeChecker(Checker):
 
         match z3expr.sort():
             case self.universe.type:
+                if is_bool(z3expr):
+                    return t.BooleanType(position)
                 if is_int(z3expr):
                     return t.IntegerType(position)
-                elif is_bool(z3expr):
-                    return t.BooleanType(position)
+                if is_real(z3expr):
+                    return t.RealType(position)
                 elif is_bv(z3expr):
                     w = self.model.eval(self.universe.type.width(z3expr))
                     return t.BitVectorType(position, w)
@@ -751,6 +791,8 @@ class TypeChecker(Checker):
                         return e.BooleanValue(position, False if v == 0 else True)
                     case e.IntegerValue(_, _) if is_int(new_type):
                         return node
+                    case e.IntegerValue(_, v) if is_real(new_type):
+                        return e.RealValue(position, str(v) + ".0")
                     case e.IntegerValue(_, v) if is_bv(new_type):
                         w = self.model.eval(self.universe.type.width(new_type))
                         return e.BitVectorValue(position, v, w)

@@ -31,6 +31,11 @@ class IntegerValue(Value):
 
 
 @dataclass(frozen=True)
+class RealValue(Value):
+    value: float
+
+
+@dataclass(frozen=True)
 class BitVectorValue(Value):
     value: int
     width: int
@@ -45,6 +50,11 @@ class ArrayValue(Value):
 class Add(Expression):
     arg1: Expression
     arg2: Expression
+
+
+@dataclass(frozen=True)
+class Negate(Expression):
+    arg: Expression
 
 
 @dataclass(frozen=True)

@@ -141,6 +141,8 @@ def type2py(output, type: t.Type):
             output.write("bool")
         case t.IntegerType(_):
             output.write("int")
+        case t.RealType(_):
+            output.write("Real()")
         case t.BitVectorType(_, size):
             output.write(f"BitVector({size})")
         case t.ArrayType(_, inbdex_t, elem_t):
@@ -170,6 +172,8 @@ def expr2py(output, expr: e.Expression):
     match expr:
         case e.BooleanValue(_, value) | e.IntegerValue(_, value):
             output.write(repr(value))
+        case e.RealValue(_, value):
+            output.write(str(value))
         case e.BitVectorValue(_, value, width):
             output.write(f"BitVectorVal({value}, {width})")
         case e.EnumValue(_, value):
@@ -199,6 +203,9 @@ def expr2py(output, expr: e.Expression):
             expr2py(output, lhs)
             output.write(" - ")
             expr2py(output, rhs)
+        case e.Negate(_, arg):
+            output.write(" -")
+            expr2py(output, arg)
         case e.Multiply(_, lhs, rhs):
             expr2py(output, lhs)
             output.write(" * ")

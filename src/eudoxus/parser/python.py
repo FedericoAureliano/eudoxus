@@ -112,6 +112,8 @@ class Parser:
             return t.BooleanType(p)
         elif "int" in name.lower():
             return t.IntegerType(p)
+        elif "real" in name.lower():
+            return t.RealType(p)
         elif "bv" in name.lower() or "bitvector" in name.lower():
             size = self.search(self.parse_integer, args)[0]
             size = self.parse_integer(size).value
@@ -234,6 +236,8 @@ class Parser:
                 return e.Add(pos, *args)
             case "sub" | "subtract" | "minus":
                 return e.Subtract(pos, *args)
+            case "neg" | "negative" | "negate":
+                return e.Negate(pos, *args)
             case "mul" | "multiply" | "times":
                 return e.Multiply(pos, *args)
             case "div" | "divide" | "quotient":
@@ -406,6 +410,18 @@ class Parser:
             case _:
                 raise ValueError(f"Unsupported object: {node.sexp()}")
 
+    def parse_unary_expression(self, node: TSNode) -> e.Expression:
+        """
+        (unary_operator)
+        """
+        p = pos(node)
+        arg = self.parse_expr(node.child_by_field_name("argument"))
+        match self.text(node.child_by_field_name("operator")):
+            case "-":
+                return e.Negate(p, arg)
+            case _:
+                raise ValueError(f"Unsupported object: {node.sexp()}")
+
     def parse_binary_expression(self, node: TSNode) -> e.Expression:
         """
         (binary_operator
@@ -432,6 +448,10 @@ class Parser:
     def parse_integer(self, node: TSNode) -> e.Value:
         """(integer)"""
         return e.IntegerValue(pos(node), int(self.text(node)))
+
+    def parse_float(self, node: TSNode) -> e.Value:
+        """(float)"""
+        return e.RealValue(pos(node), float(self.text(node)))
 
     def parse_boolean(self, node: TSNode) -> e.Value:
         """
@@ -460,11 +480,13 @@ class Parser:
             {self.parse_subscript_expr.__doc__}
             {self.parse_app_expr.__doc__}
             {self.parse_app_of_app_expr.__doc__}
+            {self.parse_unary_expression.__doc__}
             {self.parse_binary_expression.__doc__}
             {self.parse_comparison_expression.__doc__}
             {self.parse_boolean_expression.__doc__}
-            {self.parse_integer.__doc__}
             {self.parse_boolean.__doc__}
+            {self.parse_integer.__doc__}
+            {self.parse_float.__doc__}
         ]
         """
         match node.type:
@@ -482,6 +504,8 @@ class Parser:
                 return self.parse_app_of_app_expr(node)
             case "call":
                 return self.parse_app_expr(node)
+            case "unary_operator":
+                return self.parse_unary_expression(node)
             case "binary_operator":
                 return self.parse_binary_expression(node)
             case "comparison_operator":
@@ -494,6 +518,8 @@ class Parser:
                 return self.parse_boolean(node)
             case "string":
                 return self.parse_variant(node)
+            case "float":
+                return self.parse_float(node)
             case _:
                 raise ValueError(
                     f"Unsupported object: {node.sexp()} of type {node.type}"
@@ -571,14 +597,11 @@ class Parser:
                 rhs = e.ArrayStore(pos(node), array, index, rhs)
         return s.Assignment(pos(node), lhs, rhs)
 
-    def parse_if_statement(self, node: TSNode) -> s.If:
+    def parse_elif(self, node: TSNode) -> Tuple[e.Expression, s.Block]:
         """
-        (if_statement
-            condition: (expression)
-            consequence: (block)
-            alternative:
-                (else_clause
-                    body: (block))?)
+        (elif_clause
+            condition: (_)
+            consequence: (_))
         """
         condition = self.parse_expr(node.child_by_field_name("condition"))
         consequence = self.search(
@@ -587,17 +610,44 @@ class Parser:
         consequence = s.Block(
             pos(node), [self.parse_statement(stmt) for stmt in consequence]
         )
-        alternative = node.child_by_field_name("alternative")
-        if alternative is None:
-            return s.If(pos(node), condition, consequence, s.Block(pos(node), []))
+        return (condition, consequence)
+
+    def parse_else(self, node: TSNode) -> s.Block:
+        """
+        (else_clause
+            body: (_))
+        """
+        body = self.search(self.parse_statement, node.child_by_field_name("body"))
+        body = s.Block(pos(node), [self.parse_statement(stmt) for stmt in body])
+        return body
+
+    def parse_if_statement(self, node: TSNode) -> s.If:
+        """
+        (if_statement)
+        """
+        condition = self.parse_expr(node.child_by_field_name("condition"))
+        consequence = self.search(
+            self.parse_statement, node.child_by_field_name("consequence")
+        )
+        consequence = s.Block(
+            pos(node), [self.parse_statement(stmt) for stmt in consequence]
+        )
+        elifs = self.search(self.parse_elif, node)
+        elifs = [self.parse_elif(elif_) for elif_ in elifs][::-1]
+        else_ = self.search(self.parse_else, node)
+        if len(else_) != 1:
+            else_ = s.Block(pos(node), [])
         else:
-            # get the else clause (first two children are "else" and ":")
-            alternative = alternative.child(2)
-            alternative = self.search(self.parse_statement, alternative)
-            alternative = s.Block(
-                pos(node), [self.parse_statement(stmt) for stmt in alternative]
-            )
-            return s.If(pos(node), condition, consequence, alternative)
+            else_ = self.parse_else(else_[0])
+
+        inner = foldl(
+            lambda acc, x: s.Block(
+                x[0].position, [s.If(x[0].position, x[0], x[1], acc)]
+            ),
+            else_,
+            elifs,
+        )
+        return s.If(pos(node), condition, consequence, inner)
 
     def parse_havoc_statement(self, node: TSNode) -> s.Havoc:
         """

@@ -187,6 +187,8 @@ def type2ucl(output, type: t.Type):
             output.write("boolean")
         case t.IntegerType(_):
             output.write("integer")
+        case t.RealType(_):
+            output.write("real")
         case t.BitVectorType(_, size):
             output.write(f"bv{size}")
         case t.ArrayType(_, inbdex_t, elem_t):
@@ -211,7 +213,9 @@ def type2ucl(output, type: t.Type):
 
 def expr2ucl(output, expr: e.Expression):
     match expr:
-        case e.BooleanValue(_, value) | e.IntegerValue(_, value):
+        case e.BooleanValue(_, value) | e.IntegerValue(_, value) | e.RealValue(
+            _, value
+        ):
             output.write(str(value).lower())
         case e.BitVectorValue(_, value, width):
             output.write(f"{value}bv{width}")
@@ -248,6 +252,9 @@ def expr2ucl(output, expr: e.Expression):
             expr2ucl(output, lhs)
             output.write(" - ")
             expr2ucl(output, rhs)
+        case e.Negate(_, arg):
+            output.write(" -")
+            expr2ucl(output, arg)
         case e.Multiply(_, lhs, rhs):
             expr2ucl(output, lhs)
             output.write(" * ")

@@ -20,6 +20,11 @@ class IntegerType(Type):
 
 
 @dataclass(frozen=True)
+class RealType(Type):
+    pass
+
+
+@dataclass(frozen=True)
 class BitVectorType(Type):
     width: int
 
