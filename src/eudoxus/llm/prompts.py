@@ -19,31 +19,18 @@ def get_sketch_prompt(task) -> str:
         task = task[:-1]
 
     prompt = "Write Python code that extends the `Module` class below"
-    prompt += " to complete the following task:"
-    prompt += " " + task + ". Reply with your Python code inside one unique code block."
-    module_class = "```python3\n" + get_api_description() + "\n```\n"
-    prompt += f"\n\n{module_class}\n```python3\n#TODO\n"
+    prompt += " to complete the following task.\n\n"
+    prompt += "> " + task.replace("\n", " ").replace("\r", " ").replace("  ", " ")
+    prompt = prompt.rstrip()
+    if prompt.endswith("."):
+        prompt = prompt[:-1]
+    prompt += ".\n\nReply with your Python code inside one unique code block."
+    module_class = "```python\n" + get_api_description() + "\n```\n"
+    prompt += f"\n\n{module_class}\n"
+    prompt += "I can definitely do that! Here is the Python code:\n"
+    prompt += "```python\n"
 
     return prompt
-
-
-def extract_code(output) -> str:
-    """Extracts the code from the LLM response."""
-
-    # replace any occurrences of "``````" with "```"
-    output = output.replace("``````", "```")
-
-    end_index = output.rfind("```")
-    before_start = output.rfind("```", 0, end_index)
-    # find the newline after the index
-    start_index = output.find("\n", before_start + 1)
-
-    # extract the code
-    code = output[start_index:end_index]
-    # remove trailing new lines
-    code = code.rstrip()
-
-    return code
 
 
 def get_complete_prompt(code_with_holes, original=None):
