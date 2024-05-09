@@ -496,6 +496,7 @@ class Parser:
             {self.parse_boolean.__doc__}
             {self.parse_integer.__doc__}
             {self.parse_float.__doc__}
+            (parenthesized_expression)
         ]
         """
         match node.type:
@@ -531,6 +532,8 @@ class Parser:
                 return self.parse_variant(node)
             case "float":
                 return self.parse_float(node)
+            case "parenthesized_expression":
+                return self.parse_expr(node.child(1))
             case _:
                 raise ValueError(
                     f"Unsupported object: {node.sexp()} of type {node.type}"

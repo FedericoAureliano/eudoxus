@@ -1,4 +1,5 @@
 import sys
+import time
 from enum import Enum
 from io import StringIO
 from pathlib import Path
@@ -52,6 +53,15 @@ def main_(
 
 
 def pipeline(task, language, output, inference, iterations):
+    clocks = {"llm": 0, "repair": 0}
+
+    def timeit(clock, f, *args, **kwargs):
+        time1 = time.time()
+        ret = f(*args, **kwargs)
+        time2 = time.time()
+        clocks[clock] += time2 - time1
+        return ret
+
     with open(task, "r") as f:
         task = f.read()
 
@@ -62,28 +72,31 @@ def pipeline(task, language, output, inference, iterations):
 
     prompt = get_sketch_prompt(task)
     generator_log("Prompt:", prompt)
-    llm_response = chat(prompt)
+    llm_response = timeit("llm", chat, prompt)
     llm_log("Response:", llm_response)
     python = extract_code(llm_response)
     generator_log("Extracted:", python)
     repaired = StringIO()
-    repair(python, Language.python, repaired, inference)
+    timeit("repair", repair, python, Language.python, repaired, inference)
     repaired = repaired.getvalue()
     generator_log("Repaired:", repaired)
 
-    for _ in range(1, iterations):
+    for i in range(1, iterations):
         if "??" not in repaired:
             break
         prompt = get_complete_prompt(repaired)
         generator_log("Prompt:", prompt)
-        llm_response = chat(prompt)
+        llm_response = timeit("llm", chat, prompt)
         llm_log("Response:", llm_response)
         python = extract_code(llm_response)
         generator_log("Extracted:", python)
         repaired = StringIO()
-        repair(python, Language.python, repaired, inference)
+        timeit("repair", repair, python, Language.python, repaired, inference)
         repaired = repaired.getvalue()
         generator_log("Repaired:", repaired)
+
+    stats = f"iters: {i}\nllm: {clocks['llm']:.2f}s\nrepair: {clocks['repair']:.2f}s"
+    generator_log("Stats:", stats)
 
     repair(repaired, language, output, inference)
 
