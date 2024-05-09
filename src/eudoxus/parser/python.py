@@ -422,6 +422,14 @@ class Parser:
             case _:
                 raise ValueError(f"Unsupported object: {node.sexp()}")
 
+    def parse_not_expression(self, node: TSNode) -> e.Expression:
+        """
+        (not_operator)
+        """
+        p = pos(node)
+        arg = self.parse_expr(node.child_by_field_name("argument"))
+        return e.Not(p, arg)
+
     def parse_binary_expression(self, node: TSNode) -> e.Expression:
         """
         (binary_operator
@@ -480,6 +488,7 @@ class Parser:
             {self.parse_subscript_expr.__doc__}
             {self.parse_app_expr.__doc__}
             {self.parse_app_of_app_expr.__doc__}
+            {self.parse_not_expression.__doc__}
             {self.parse_unary_expression.__doc__}
             {self.parse_binary_expression.__doc__}
             {self.parse_comparison_expression.__doc__}
@@ -506,6 +515,8 @@ class Parser:
                 return self.parse_app_expr(node)
             case "unary_operator":
                 return self.parse_unary_expression(node)
+            case "not_operator":
+                return self.parse_not_expression(node)
             case "binary_operator":
                 return self.parse_binary_expression(node)
             case "comparison_operator":

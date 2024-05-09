@@ -773,6 +773,7 @@ class TypeChecker(Checker):
                 self.universe.type.is_BitVectorType(x), model_completion=True
             )
 
+        # REPAIR RULES LIVE HERE
         match z3expr.sort():
             case self.universe.type:
                 if is_bool(z3expr):
@@ -787,6 +788,10 @@ class TypeChecker(Checker):
             case self.universe.expr:
                 new_type = self.term_to_type(z3expr)
                 match node:
+                    case e.BooleanValue(_, v) if is_int(new_type):
+                        return e.IntegerValue(position, 1 if v else 0)
+                    case e.BooleanValue(_, _) if is_bool(new_type):
+                        return node
                     case e.IntegerValue(_, v) if is_bool(new_type):
                         return e.BooleanValue(position, False if v == 0 else True)
                     case e.IntegerValue(_, _) if is_int(new_type):
@@ -796,10 +801,8 @@ class TypeChecker(Checker):
                     case e.IntegerValue(_, v) if is_bv(new_type):
                         w = self.model.eval(self.universe.type.width(new_type))
                         return e.BitVectorValue(position, v, w)
-                    case e.BooleanValue(_, v) if is_int(new_type):
-                        return e.IntegerValue(position, 1 if v else 0)
-                    case e.BooleanValue(_, _) if is_bool(new_type):
-                        return node
+                    case e.RealValue(_, v) if is_int(new_type):
+                        return e.IntegerValue(position, int(v))
 
         return None
 
