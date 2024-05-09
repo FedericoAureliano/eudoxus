@@ -66,6 +66,12 @@ class Divide(Expression):
 
 
 @dataclass(frozen=True)
+class Modulo(Expression):
+    arg1: Expression
+    arg2: Expression
+
+
+@dataclass(frozen=True)
 class Equal(Expression):
     arg1: Expression
     arg2: Expression

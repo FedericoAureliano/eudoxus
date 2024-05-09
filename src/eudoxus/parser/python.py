@@ -424,6 +424,8 @@ class Parser:
                 return e.Multiply(p, left, right)
             case "/":
                 return e.Divide(p, left, right)
+            case "%":
+                return e.Modulo(p, left, right)
             case _:
                 raise ValueError(f"Unsupported object: {node.sexp()}")
 

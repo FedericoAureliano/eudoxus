@@ -222,6 +222,10 @@ def expr2ucl(output, expr: e.Expression):
             expr2ucl(output, lhs)
             output.write(" / ")
             expr2ucl(output, rhs)
+        case e.Modulo(_, lhs, rhs):
+            expr2ucl(output, lhs)
+            output.write(" % ")
+            expr2ucl(output, rhs)
         case e.And(_, lhs, rhs):
             expr2ucl(output, lhs)
             output.write(" && ")

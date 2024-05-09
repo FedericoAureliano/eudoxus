@@ -207,6 +207,10 @@ def expr2py(output, expr: e.Expression):
             expr2py(output, lhs)
             output.write(" / ")
             expr2py(output, rhs)
+        case e.Modulo(_, lhs, rhs):
+            expr2py(output, lhs)
+            output.write(" % ")
+            expr2py(output, rhs)
         case e.And(_, lhs, rhs):
             expr2py(output, lhs)
             output.write(" and ")

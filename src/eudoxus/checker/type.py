@@ -409,6 +409,58 @@ class TypeChecker(Checker):
                     self.term_to_type(x_plus_y) == self.term_to_type(x)
                 )
                 return x_plus_y
+            case e.Subtract:
+                # Input: x - y
+                # Hard: type(x) == type(y)
+                # Hard: type(x - y) == type(x)
+                # Output: x - y
+                x = children[0]
+                y = children[1]
+                x_minus_y = self.universe.expr.Subtract(x, y)
+                self.add_hard_constraint(self.term_to_type(x) == self.term_to_type(y))
+                self.add_hard_constraint(
+                    self.term_to_type(x_minus_y) == self.term_to_type(x)
+                )
+                return x_minus_y
+            case e.Multiply:
+                # Input: x * y
+                # Hard: type(x) == type(y)
+                # Hard: type(x * y) == type(x)
+                # Output: x * y
+                x = children[0]
+                y = children[1]
+                x_times_y = self.universe.expr.Multiply(x, y)
+                self.add_hard_constraint(self.term_to_type(x) == self.term_to_type(y))
+                self.add_hard_constraint(
+                    self.term_to_type(x_times_y) == self.term_to_type(x)
+                )
+                return x_times_y
+            case e.Divide:
+                # Input: x / y
+                # Hard: type(x) == type(y)
+                # Hard: type(x / y) == type(x)
+                # Output: x / y
+                x = children[0]
+                y = children[1]
+                x_div_y = self.universe.expr.Divide(x, y)
+                self.add_hard_constraint(self.term_to_type(x) == self.term_to_type(y))
+                self.add_hard_constraint(
+                    self.term_to_type(x_div_y) == self.term_to_type(x)
+                )
+                return x_div_y
+            case e.Modulo:
+                # Input: x % y
+                # Hard: type(x) == type(y)
+                # Hard: type(x % y) == type(x)
+                # Output: x % y
+                x = children[0]
+                y = children[1]
+                x_mod_y = self.universe.expr.Modulo(x, y)
+                self.add_hard_constraint(self.term_to_type(x) == self.term_to_type(y))
+                self.add_hard_constraint(
+                    self.term_to_type(x_mod_y) == self.term_to_type(x)
+                )
+                return x_mod_y
             case e.Equal:
                 # Input: x == y
                 # Hard: type(x) == type(y)
