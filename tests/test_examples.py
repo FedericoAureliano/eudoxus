@@ -3,7 +3,7 @@ import re
 from difflib import Differ
 from io import StringIO
 
-from eudoxus import main as eudoxus
+from eudoxus import repair as eudoxus
 
 EXAMPLES = "examples"
 

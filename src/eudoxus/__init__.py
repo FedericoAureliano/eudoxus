@@ -39,13 +39,13 @@ def main_(
             return
         output = open(output, "w")
 
-    main(src, language, output, check)
+    repair(src, language, output, check)
 
     if output is not sys.stdout:
         output.close()
 
 
-def main(src, language, output, check):
+def repair(src, language, output, check):
     def write():
         if language == Language.python:
             for m in modules:

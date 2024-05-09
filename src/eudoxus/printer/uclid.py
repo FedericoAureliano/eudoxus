@@ -1,4 +1,5 @@
 import eudoxus.ast.expression as e
+import eudoxus.ast.node as n
 import eudoxus.ast.proof as p
 import eudoxus.ast.statement as s
 import eudoxus.ast.type as t
@@ -286,7 +287,7 @@ def expr2ucl(output, expr: e.Expression):
                         output.write(", ")
                     expr2ucl(output, a)
                 output.write(")")
-        case e.HoleExpr(_):
+        case e.HoleExpr(_) | n.HoleId(_):
             output.write("??")
         case _:
             raise ValueError(f"Unsupported expression {expr}")
