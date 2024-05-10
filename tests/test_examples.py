@@ -53,7 +53,7 @@ def check_example(input, output, language):
 
     actual = StringIO()
 
-    eudoxus(input_path, language, actual, True)
+    eudoxus(input_path, language, actual, True, True)
 
     actual = actual.getvalue()
 

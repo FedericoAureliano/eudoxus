@@ -22,3 +22,8 @@ class Induction(Command):
 @dataclass(frozen=True)
 class BoundedModelChecking(Command):
     k: int
+
+
+@dataclass(frozen=True)
+class HoleCmd(Command):
+    pass

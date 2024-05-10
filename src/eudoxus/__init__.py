@@ -5,6 +5,7 @@ from io import StringIO
 from pathlib import Path
 
 import typer
+from typing_extensions import Annotated
 
 from eudoxus.checker.declared import DeclaredChecker
 from eudoxus.checker.type import TypeChecker
@@ -33,6 +34,7 @@ def main_(
     output: Path = None,
     inference: bool = True,
     iterations: int = 2,
+    debug: Annotated[bool, typer.Option(hidden=True)] = False,
 ) -> None:
     if output is None:
         output = sys.stdout
@@ -46,13 +48,13 @@ def main_(
             return
         output = open(output, "w")
 
-    pipeline(task, language, output, inference, iterations)
+    pipeline(task, language, output, inference, iterations, debug)
 
     if output is not sys.stdout:
         output.close()
 
 
-def pipeline(task, language, output, inference, iterations):
+def pipeline(task, language, output, inference, iterations, debug):
     clocks = {"llm": 0, "repair": 0}
 
     def timeit(clock, f, *args, **kwargs):
@@ -78,7 +80,7 @@ def pipeline(task, language, output, inference, iterations):
     original = python
     generator_log("Extracted:", python)
     repaired = StringIO()
-    timeit("repair", repair, python, Language.python, repaired, inference)
+    timeit("repair", repair, python, Language.python, repaired, inference, debug)
     repaired = repaired.getvalue()
     generator_log("Repaired:", repaired)
 
@@ -92,7 +94,7 @@ def pipeline(task, language, output, inference, iterations):
         python = extract_code(llm_response)
         generator_log("Extracted:", python)
         repaired = StringIO()
-        timeit("repair", repair, python, Language.python, repaired, inference)
+        timeit("repair", repair, python, Language.python, repaired, inference, debug)
         repaired = repaired.getvalue()
         generator_log("Repaired:", repaired)
 
@@ -102,10 +104,10 @@ def pipeline(task, language, output, inference, iterations):
     stats += f"repair: {clocks['repair']:.2f}s"
     generator_log("Stats:", stats)
 
-    repair(repaired, language, output, inference)
+    repair(repaired, language, output, inference, debug)
 
 
-def repair(src, language, output, inference):
+def repair(src, language, output, inference, debug):
     def write():
         if language == Language.python:
             for m in modules:

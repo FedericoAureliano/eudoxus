@@ -62,7 +62,6 @@ class Identifier(Node):
 
 @dataclass(frozen=True)
 class HoleId(Node):
-    # just in case we try to treat a hole as an identifier
     @property
     def name(self) -> str:
         return "??"

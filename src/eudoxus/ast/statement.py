@@ -98,7 +98,4 @@ class InstanceDecl(Declaration):
 
 @dataclass(frozen=True)
 class HoleStmt(Statement):
-    # just in case we try to treat a hole as an identifier
-    @property
-    def name(self) -> str:
-        return "??"
+    pass

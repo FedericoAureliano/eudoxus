@@ -10,7 +10,7 @@ import eudoxus.ast.proof as p
 import eudoxus.ast.statement as s
 import eudoxus.ast.type as t
 from eudoxus.ast.module import Module
-from eudoxus.ast.node import Identifier, Position
+from eudoxus.ast.node import HoleId, Identifier, Position
 from eudoxus.utils import foldl
 
 RESERVED_STATEMENTS = ["assume", "assert", "havoc"]
@@ -29,7 +29,9 @@ def pos(node: TSNode) -> Position:
 
 
 class Parser:
-    def __init__(self, src):
+    def __init__(self, src, debug=False):
+        self.debug = debug
+
         parser = TSParser()
         parser.set_language(PY_LANGUAGE)
 
@@ -87,8 +89,10 @@ class Parser:
                 return Identifier(
                     pos(node), self.text(node.child_by_field_name("attribute"))
                 )
-            case _:
+            case _ if self.debug:
                 raise ValueError(f"Unsupported object: {node.sexp()}")
+            case _:
+                return HoleId(pos(node))
 
     def parse_identifier(self, node: TSNode) -> Identifier:
         """
@@ -102,8 +106,10 @@ class Parser:
                 return self.parse_flat_identifier(node)
             case "attribute":
                 return self.parse_self_identifier(node)
-            case _:
+            case _ if self.debug:
                 raise ValueError(f"Unsupported object: {node.sexp()}")
+            case _:
+                return HoleId(pos(node))
 
     def type_helper(self, id: Identifier, args: TSNode) -> t.Type:
         p = id.position
@@ -130,8 +136,10 @@ class Parser:
             elif len(args_list) == 2:
                 index_t = self.parse_type_expr(args_list[0])
                 elem_t = self.parse_type_expr(args_list[1])
-            else:
+            elif self.debug:
                 raise ValueError(f"Unsupported object: {self.text(args)}")
+            else:
+                return t.HoleType(p)
             return t.ArrayType(p, index_t, elem_t)
         elif "enum" in name.lower():
             if (
@@ -182,8 +190,10 @@ class Parser:
                 return self.type_helper(self.parse_identifier(node), [])
             case "call":
                 return self.parse_app_type(node)
-            case _:
+            case _ if self.debug:
                 raise ValueError(f"Unsupported object: {node.sexp()}")
+            case _:
+                return t.HoleType(pos(node))
 
     def parse_type_declaration(self, node: TSNode) -> s.TypeDecl:
         """
@@ -220,8 +230,10 @@ class Parser:
                 match args:
                     case [e.IntegerValue(_, value), e.IntegerValue(_, size)]:
                         return e.BitVectorValue(pos, value, size)
-                    case _:
+                    case _ if self.debug:
                         raise ValueError(f"Unsupported args: {args}")
+                    case _:
+                        return e.HoleExpr(pos)
             case "and" | "conjunct" | "conjunction":
                 return e.And(pos, *args)
             case "or" | "disjunct" | "disjunction":
@@ -258,8 +270,10 @@ class Parser:
                 return e.RecordSelect(pos, *args)
             case "ite" | "ifthenelse" | "ifelse" | "if" | "if_":
                 return e.Ite(pos, *args)
-            case _:
+            case _ if self.debug:
                 raise ValueError(f"Unsupported function: {f}")
+            case _:
+                return e.HoleExpr(pos)
 
     def parse_app_expr(self, node: TSNode) -> e.Expression:
         """
@@ -360,8 +374,10 @@ class Parser:
                 return e.Or(p, left, right)
             case "not":
                 return e.Not(p, left)
-            case _:
+            case _ if self.debug:
                 raise ValueError(f"Unsupported object: {node.sexp()}")
+            case _:
+                return e.HoleExpr(p)
 
     def parse_comparison_expression(self, node: TSNode) -> e.Expression:
         """
@@ -407,8 +423,10 @@ class Parser:
                     if i > 1:
                         base = e.And(p, base, e.GreaterThanOrEqual(p, args[i - 1], arg))
                 return base
-            case _:
+            case _ if self.debug:
                 raise ValueError(f"Unsupported object: {node.sexp()}")
+            case _:
+                return e.HoleExpr(p)
 
     def parse_unary_expression(self, node: TSNode) -> e.Expression:
         """
@@ -419,8 +437,10 @@ class Parser:
         match self.text(node.child_by_field_name("operator")):
             case "-":
                 return e.Negate(p, arg)
-            case _:
+            case _ if self.debug:
                 raise ValueError(f"Unsupported object: {node.sexp()}")
+            case _:
+                return e.HoleExpr(p)
 
     def parse_not_expression(self, node: TSNode) -> e.Expression:
         """
@@ -450,8 +470,10 @@ class Parser:
                 return e.Divide(p, left, right)
             case "%":
                 return e.Modulo(p, left, right)
-            case _:
+            case _ if self.debug:
                 raise ValueError(f"Unsupported object: {node.sexp()}")
+            case _:
+                return e.HoleExpr(p)
 
     def parse_integer(self, node: TSNode) -> e.Value:
         """(integer)"""
@@ -534,10 +556,12 @@ class Parser:
                 return self.parse_float(node)
             case "parenthesized_expression":
                 return self.parse_expr(node.child(1))
-            case _:
+            case _ if self.debug:
                 raise ValueError(
                     f"Unsupported object: {node.sexp()} of type {node.type}"
                 )
+            case _:
+                return e.HoleExpr(pos(node))
 
     def parse_var_declaration(self, node: TSNode, kind: str) -> s.VariableDecl:
         """
@@ -556,8 +580,10 @@ class Parser:
                 return s.OutputDecl(pos(node), id, rhs)
             case "sharedvars":
                 return s.SharedDecl(pos(node), id, rhs)
-            case _:
+            case _ if self.debug:
                 raise ValueError(f"Unsupported object: {kind}")
+            case _:
+                return s.LocalDecl(pos(node), id, rhs)
 
     def parse_keyword_type_argument(self, node: TSNode) -> Tuple[Identifier, t.Type]:
         """
@@ -678,8 +704,10 @@ class Parser:
         match function.name:
             case "havoc" if len(args) == 1:
                 return s.Havoc(pos(node), args[0])
-            case _:
+            case _ if self.debug:
                 raise ValueError(f"Unsupported object: {node.sexp()}")
+            case _:
+                return s.HoleStmt(pos(node))
 
     def parse_assume_statement(self, node: TSNode) -> s.Assume:
         """
@@ -696,8 +724,10 @@ class Parser:
         match function.name:
             case "assume" if len(args) == 1:
                 return s.Assume(pos(node), args[0])
-            case _:
+            case _ if self.debug:
                 raise ValueError(f"Unsupported object: {node.sexp()}")
+            case _:
+                return s.HoleStmt(pos(node))
 
     def parse_assert_statement(self, node: TSNode) -> s.Assert:
         """
@@ -747,8 +777,10 @@ class Parser:
                         return self.parse_havoc_statement(node)
             case "expression_statement":
                 return self.parse_assignment(node)
-            case _:
+            case _ if self.debug:
                 raise ValueError(f"Unsupported object: {node.sexp()}")
+            case _:
+                return s.HoleStmt(pos(node))
 
     def parse_type_block(self, node: TSNode) -> s.Block:
         """
@@ -766,8 +798,10 @@ class Parser:
                     pos(node), [self.parse_type_declaration(decl) for decl in decls]
                 )
                 return decls
-            case _:
+            case _ if self.debug:
                 raise ValueError(f"Unsupported object: {name}")
+            case _:
+                return s.HoleStmt(pos(node))
 
     def parse_var_block(self, node: TSNode, kind: str) -> s.Block:
         """
@@ -784,8 +818,10 @@ class Parser:
                 pos(node), [self.parse_var_declaration(decl, kind) for decl in decls]
             )
             return decls
-        else:
+        elif self.debug:
             raise ValueError(f"Unsupported object: {name}")
+        else:
+            return s.HoleStmt(pos(node))
 
     def parse_instances_block(self, node: TSNode) -> s.Block:
         """
@@ -802,8 +838,10 @@ class Parser:
                 pos(node), [self.parse_instances_declaration(decl) for decl in decls]
             )
             return decls
-        else:
+        elif self.debug:
             raise ValueError(f"Unsupported object: {name}")
+        else:
+            return s.HoleStmt(pos(node))
 
     def parse_stmt_block(self, node: TSNode) -> s.Block:
         """
@@ -819,8 +857,10 @@ class Parser:
                 stmts = self.search(self.parse_statement, body)
                 stmts = [self.parse_statement(stmt) for stmt in stmts]
                 return s.Block(pos(node), stmts)
-            case _:
+            case _ if self.debug:
                 raise ValueError(f"Unsupported object: {name}")
+            case _:
+                return s.HoleStmt(pos(node))
 
     def parse_spec_block(self, node: TSNode) -> e.Expression:
         """
@@ -841,8 +881,10 @@ class Parser:
                     return expressions[0]
                 elif len(expressions) > 1:
                     return e.And(pos(node), *expressions)
-            case _:
+            case _ if self.debug:
                 raise ValueError(f"Unsupported object: {name}")
+            case _:
+                return e.HoleExpr(pos(node))
 
     def parse_control_statement(self, node: TSNode) -> p.Command:
         """
@@ -861,8 +903,10 @@ class Parser:
             case "bmc" | "unroll" if len(arguments) <= 1:
                 k = 0 if len(arguments) == 0 else arguments[0].value
                 return p.BoundedModelChecking(pos(node), k)
-            case _:
+            case _ if self.debug:
                 raise ValueError(f"Unsupported object: {node.sexp()}")
+            case _:
+                return p.HoleCmd(pos(node))
 
     def parse_control_block(self, node: TSNode) -> p.Block:
         """
@@ -877,8 +921,10 @@ class Parser:
             stmts = self.search(self.parse_control_statement, body, strict=False)
             stmts = [self.parse_control_statement(stmt) for stmt in stmts]
             return p.Block(pos(node), stmts)
-        else:
+        elif self.debug:
             raise ValueError(f"Unsupported object: {name}")
+        else:
+            return p.HoleCmd(pos(node))
 
     def parse_module(self, node: TSNode) -> Module:
         """
