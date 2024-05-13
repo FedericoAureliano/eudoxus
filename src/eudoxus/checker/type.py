@@ -170,12 +170,8 @@ class TypeChecker(Checker):
                 return 0
             case "bad_constant":
                 return 1
-            case "bad_field":
-                return 1
-            case "bad_record":
-                return 2
             case "bad_select":
-                return 3
+                return 2
             case "bad_type":
                 return 5
         raise NotImplementedError(f"Unsupported reason {reason}")
@@ -762,8 +758,8 @@ class TypeChecker(Checker):
                 f = children[1]
                 fp = self.fresh_constant(self.universe.symbol, "FieldHole")
                 x = self.fresh_constant(self.universe.expr, "RecordSelectHole")
-                self.add_soft_constraint(r == rp, pos, "bad_record")
-                self.add_soft_constraint(f == fp, pos, "bad_field")
+                self.add_soft_constraint(r == rp, pos, "bad_select")
+                self.add_soft_constraint(f == fp, pos, "bad_select")
                 self.add_soft_constraint(
                     x == self.universe.expr.RecordSelect(rp, fp), pos, "bad_select"
                 )
