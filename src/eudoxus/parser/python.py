@@ -250,41 +250,44 @@ class Parser:
                         raise ValueError(f"Unsupported args: {args}")
                     case _:
                         return e.HoleExpr(pos)
-            case "and" | "conjunct" | "conjunction":
-                return e.And(pos, *args)
-            case "or" | "disjunct" | "disjunction":
-                return e.Or(pos, *args)
-            case "implies" | "impl":
-                return e.Implies(pos, *args)
-            case "iff" | "equiv" | "eq" | "equal":
-                return e.Equal(pos, *args)
-            case "not" | "neg":
+            case "not" | "neg" if len(args) == 1:
                 return e.Not(pos, *args)
-            case "add" | "plus" | "sum" | "addition":
-                return e.Add(pos, *args)
-            case "sub" | "subtract" | "minus":
-                return e.Subtract(pos, *args)
-            case "neg" | "negative" | "negate":
+            case "neg" | "negative" | "negate" if len(args) == 1:
                 return e.Negate(pos, *args)
-            case "mul" | "multiply" | "times":
+            case _ if not self.debug and len(args) == 1:
+                # unary but none of the above, just return the arg
+                return args[0]
+            case "and" | "conjunct" | "conjunction" if len(args) == 2:
+                return e.And(pos, *args)
+            case "or" | "disjunct" | "disjunction" if len(args) == 2:
+                return e.Or(pos, *args)
+            case "implies" | "impl" if len(args) == 2:
+                return e.Implies(pos, *args)
+            case "iff" | "equiv" | "eq" | "equal" if len(args) == 2:
+                return e.Equal(pos, *args)
+            case "add" | "plus" | "sum" | "addition" if len(args) == 2:
+                return e.Add(pos, *args)
+            case "sub" | "subtract" | "minus" if len(args) == 2:
+                return e.Subtract(pos, *args)
+            case "mul" | "multiply" | "times" if len(args) == 2:
                 return e.Multiply(pos, *args)
-            case "div" | "divide" | "quotient":
+            case "div" | "divide" | "quotient" if len(args) == 2:
                 return e.Divide(pos, *args)
-            case "mod" | "modulo" | "remainder" | "modulus":
+            case "mod" | "modulo" | "remainder" | "modulus" if len(args) == 2:
                 return e.Modulo(pos, *args)
-            case "neq" | "notequal":
+            case "neq" | "notequal" if len(args) == 2:
                 return e.NotEqual(pos, *args)
-            case "lt" | "lessthan":
+            case "lt" | "lessthan" if len(args) == 2:
                 return e.LessThan(pos, *args)
-            case "le" | "lte" | "lessthanorequal":
+            case "le" | "lte" | "lessthanorequal" if len(args) == 2:
                 return e.LessThanOrEqual(pos, *args)
-            case "gt" | "greaterthan":
+            case "gt" | "greaterthan" if len(args) == 2:
                 return e.GreaterThan(pos, *args)
-            case "ge" | "gte" | "greaterthanorequal":
+            case "ge" | "gte" | "greaterthanorequal" if len(args) == 2:
                 return e.GreaterThanOrEqual(pos, *args)
-            case "select" | "sel":
+            case "select" | "sel" if len(args) == 2:
                 return e.RecordSelect(pos, *args)
-            case "ite" | "ifthenelse" | "ifelse" | "if" | "if_":
+            case "ite" | "ifthenelse" | "ifelse" | "if" | "if_" if len(args) == 3:
                 return e.Ite(pos, *args)
             case _ if self.debug:
                 raise ValueError(f"Unsupported function: {f}")
@@ -654,6 +657,33 @@ class Parser:
                 rhs = e.ArrayStore(pos(node), array, index, rhs)
         return s.Assignment(pos(node), lhs, rhs)
 
+    def parse_augmented_assignment(self, node: TSNode) -> s.Assignment:
+        """
+        (expression_statement
+            (augmented_assignment
+                left: {self.parse_expr.__doc__}
+                right: {self.parse_expr.__doc__}))
+        """
+        node = node.child(0)
+        rhs = self.parse_expr(node.child_by_field_name("right"))
+        lhs = self.parse_expr(node.child_by_field_name("left"))
+        match node.child(1).type:
+            case "+=":
+                rhs = e.Add(pos(node), lhs, rhs)
+            case "-=":
+                rhs = e.Subtract(pos(node), lhs, rhs)
+            case "*=":
+                rhs = e.Multiply(pos(node), lhs, rhs)
+            case "/=":
+                rhs = e.Divide(pos(node), lhs, rhs)
+            case "%=":
+                rhs = e.Modulo(pos(node), lhs, rhs)
+            case _ if self.debug:
+                raise ValueError(f"Unsupported object: {node.sexp()}")
+            case _:
+                return s.HoleStmt(pos(node))
+        return s.Assignment(pos(node), lhs, rhs)
+
     def parse_elif(self, node: TSNode) -> Tuple[e.Expression, s.Block]:
         """
         (elif_clause
@@ -758,6 +788,7 @@ class Parser:
         """
         [
             {self.parse_assignment.__doc__}
+            {self.parse_augmented_assignment.__doc__}
             {self.parse_if_statement.__doc__}
             {self.parse_assert_statement.__doc__}
             {self.parse_assume_statement.__doc__}
@@ -792,6 +823,8 @@ class Parser:
                         return self.parse_assert_statement(node)
                     case "havoc":
                         return self.parse_havoc_statement(node)
+            case "expression_statement" if node.child(0).type == "augmented_assignment":
+                return self.parse_augmented_assignment(node)
             case "expression_statement":
                 return self.parse_assignment(node)
             case _ if self.debug:
