@@ -164,6 +164,10 @@ class Parser:
                     args_list.append(Identifier(p, "anon_enum_" + str(self.enum_count)))
                     self.enum_count += 1
             return t.EnumeratedType(p, args_list)
+        elif "record" in name.lower():
+            fields = self.search(self.parse_string_type_pair, args, strict=False)
+            fields = [self.parse_string_type_pair(field) for field in fields]
+            return t.RecordType(p, fields)
         else:
             return t.SynonymType(p, id)
 
@@ -219,6 +223,18 @@ class Parser:
         )
         """
         id = self.parse_identifier(node.child(1))
+        ty = self.parse_type_expr(node.child(3))
+        return (id, ty)
+
+    def parse_string_type_pair(self, node: TSNode) -> Tuple[Identifier, t.Type]:
+        """
+        (tuple
+            (string)
+            ({self.parse_type_expr.__doc__})
+        )
+        """
+        id = self.parse_string(node.child(1))
+        id = Identifier(pos(node.child(1)), id)
         ty = self.parse_type_expr(node.child(3))
         return (id, ty)
 

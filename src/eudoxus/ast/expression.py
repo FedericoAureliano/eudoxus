@@ -17,7 +17,7 @@ class Value(Expression):
 
 @dataclass(frozen=True)
 class EnumValue(Value):
-    value: Identifier
+    value: str
 
 
 @dataclass(frozen=True)

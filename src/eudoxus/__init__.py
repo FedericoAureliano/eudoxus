@@ -8,6 +8,7 @@ import typer
 from typing_extensions import Annotated
 
 from eudoxus.checker.declared import DeclaredChecker
+from eudoxus.checker.select import SelectChecker
 from eudoxus.checker.type import TypeChecker
 from eudoxus.llm.gpt import chat
 from eudoxus.llm.prompts import get_complete_prompt, get_sketch_prompt
@@ -69,7 +70,7 @@ def pipeline(task, language, output, inference, iterations, debug):
 
     if iterations < 1:
         # assume task is a path to a file with code to repair
-        repair(task, language, output, inference)
+        repair(task, language, output, inference, debug)
         return
 
     prompt = get_sketch_prompt(task)
@@ -127,7 +128,7 @@ def repair(src, language, output, inference, debug):
     modules = Parser(src).parse()
 
     if inference:
-        checkers = [DeclaredChecker, TypeChecker]
+        checkers = [SelectChecker, DeclaredChecker, TypeChecker]
     else:
         checkers = []
 

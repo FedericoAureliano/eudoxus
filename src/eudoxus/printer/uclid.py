@@ -203,9 +203,18 @@ def type2ucl(output, type: t.Type):
                     output.write(", ")
                 output.write(id2str(v))
             output.write(" }")
+        case t.RecordType(_, fields):
+            output.write("record { ")
+            for i, (name, type) in enumerate(fields):
+                if i > 0:
+                    output.write(", ")
+                output.write(id2str(name))
+                output.write(": ")
+                type2ucl(output, type)
+            output.write(" }")
         case t.SynonymType(_, name):
             output.write(id2str(name))
-        case t.HoleType(_):
+        case t.HoleType(_) | n.HoleId(_):
             output.write("??")
         case _:
             raise ValueError(f"Unsupported type {type}")

@@ -1,4 +1,4 @@
-from typing import Dict, List, Tuple
+from typing import Dict, List, Set, Tuple
 
 import z3
 
@@ -70,11 +70,7 @@ class Universe:
         self.id_type_pair = z3.Datatype("id_type_pair")
         self.id_type_pair.declare("pair", ("id", self.symbol), ("type", self.type))
 
-        self.id_type_pair_list = z3.Datatype("id_type_pair_list")
-        self.id_type_pair_list.declare("empty")
-        self.id_type_pair_list.declare(
-            "cons", ("head", self.id_type_pair), ("tail", self.id_type_pair_list)
-        )
+        self.symbol_set = z3.ArraySort(self.symbol, z3.BoolSort())
 
         self.id_expr_pair = z3.Datatype("id_expr_pair")
         self.id_expr_pair.declare("pair", ("id", self.symbol), ("expr", self.expr))
@@ -121,8 +117,8 @@ class Universe:
                         field_type = self.cmd_list
                     elif field_type == List[n.Identifier]:
                         field_type = self.symbol_list
-                    elif field_type == List[Tuple[n.Identifier, t.Type]]:
-                        field_type = self.id_type_pair_list
+                    elif field_type == Set[Tuple[n.Identifier, t.Type]]:
+                        field_type = self.symbol_set
                     elif field_type == List[Tuple[n.Identifier, e.Expression]]:
                         field_type = self.id_expr_pair_list
                     else:
@@ -149,8 +145,6 @@ class Universe:
             self.stmt_list,
             self.cmd_list,
             self.symbol_list,
-            self.id_type_pair,
-            self.id_type_pair_list,
             self.id_expr_pair,
             self.id_expr_pair_list,
         ) = z3.CreateDatatypes(
@@ -164,8 +158,6 @@ class Universe:
             self.stmt_list,
             self.cmd_list,
             self.symbol_list,
-            self.id_type_pair,
-            self.id_type_pair_list,
             self.id_expr_pair,
             self.id_expr_pair_list,
         )
@@ -178,10 +170,14 @@ class TypeChecker(Checker):
                 return 0
             case "bad_constant":
                 return 1
+            case "bad_field":
+                return 1
+            case "bad_record":
+                return 2
+            case "bad_select":
+                return 3
             case "bad_type":
                 return 5
-            case "bad_identifier":
-                return 10
         raise NotImplementedError(f"Unsupported reason {reason}")
 
     def str_to_symbol(self, symbol):
@@ -200,12 +196,9 @@ class TypeChecker(Checker):
                 return self.universe.mod.Module(*children)
             case n.Identifier:
                 # Input: x
-                # Soft: x == x'
-                # Output: x'
+                # Output: x
                 x = self.str_to_symbol(children[0])
-                xp = self.fresh_constant(self.universe.symbol, children[0])
-                self.add_soft_constraint(x == xp, pos, "bad_identifier")
-                return xp
+                return x
             case t.IntegerType:
                 # Input: int
                 # Soft: int == int'
@@ -255,13 +248,39 @@ class TypeChecker(Checker):
                 # Hard: type(app_c_i) = ep
                 # Output: ep
                 ground_values = children[0]
-                ep = self.fresh_constant(self.universe.type, "EnumeratedTypeHole")
+
+                arg = foldl(
+                    lambda x, y: self.universe.symbol_list.cons(y, x),
+                    self.universe.symbol_list.empty,
+                    ground_values,
+                )
+                enu = self.universe.type.EnumeratedType(arg)
+
                 for c in ground_values:
                     app_c_i = self.universe.expr.FunctionApplication(
                         c, self.universe.expr_list.empty
                     )
-                    self.add_hard_constraint(self.term_to_type(app_c_i) == ep)
+                    self.add_hard_constraint(self.term_to_type(app_c_i) == enu)
+
+                ep = self.fresh_constant(self.universe.type, "EnumeratedTypeHole")
+                self.add_soft_constraint(ep == enu, pos, "bad_type")
                 return ep
+            case t.RecordType:
+                # Input: Record(f_1: t_1, ..., f_n: t_n)
+                # Soft rp = Record(f_1: t_1, ..., f_n: t_n)
+                # Hard: type(f_i) = t_i
+                # Output: rp
+                fields = children[0]
+                field_names = []
+                field_set = z3.K(self.universe.symbol, False)
+                for f in fields:
+                    field_names.append(f[0])
+                    self.add_hard_constraint(self.field_to_type(f[0]) == f[1])
+                    field_set = z3.Store(field_set, f[0], True)
+                rec = self.universe.type.RecordType(field_set)
+                rp = self.fresh_constant(self.universe.type, "RecordTypeHole")
+                self.add_soft_constraint(rp == rec, pos, "bad_type")
+                return rp
             case t.SynonymType:
                 # Input: n
                 # Soft: symbol_to_type(n) == t'
@@ -729,6 +748,33 @@ class TypeChecker(Checker):
                 )
                 self.add_hard_constraint(self.term_to_type(a_x) == a_element_type)
                 return a_x
+            case e.RecordSelect:
+                # Input: r.f
+                # Soft: rp = r
+                # Soft: fp = f
+                # Soft: rp.fp == x
+                # Hard: type(rp) is RecordType
+                # Hard: type(rp).fields(fp) == True
+                # Hard: type(x) == type(fp)
+                # Output: x
+                r = children[0]
+                rp = self.fresh_constant(self.universe.expr, "RecordHole")
+                f = children[1]
+                fp = self.fresh_constant(self.universe.symbol, "FieldHole")
+                x = self.fresh_constant(self.universe.expr, "RecordSelectHole")
+                self.add_soft_constraint(r == rp, pos, "bad_record")
+                self.add_soft_constraint(f == fp, pos, "bad_field")
+                self.add_soft_constraint(
+                    x == self.universe.expr.RecordSelect(rp, fp), pos, "bad_select"
+                )
+                self.add_hard_constraint(
+                    self.universe.type.is_RecordType(self.term_to_type(rp))
+                )
+                self.add_hard_constraint(
+                    self.universe.type.fields(self.term_to_type(rp))[fp]
+                )
+                self.add_hard_constraint(self.term_to_type(x) == self.field_to_type(fp))
+                return x
             case p.Block:
                 arg = foldl(
                     lambda x, y: self.universe.cmd_list.cons(y, x),
@@ -818,11 +864,20 @@ class TypeChecker(Checker):
 
     def check(self, modules: List[m.Module]) -> Dict[Position, Node]:
         self.universe = Universe()
+
+        # to get the type of terms
         self.term_to_type = self.declare_function(
             "term_to_type", self.universe.expr, self.universe.type
         )
+
+        # for type synonyms only
         self.symbol_to_type = self.declare_function(
             "symbol_to_type", self.universe.symbol, self.universe.type
+        )
+
+        # for record fields only
+        self.field_to_type = self.declare_function(
+            "field_to_type", self.universe.symbol, self.universe.type
         )
 
         self.symbol_map = {}
@@ -843,6 +898,9 @@ class TypeChecker(Checker):
         for module in modules:
             module.visit(visit_and_save)
             module.visit(encode_and_save)
+
+        # make sure that all the symbols are unique
+        self.add_hard_constraint(z3.Distinct([sym for sym in self.symbol_map.values()]))
 
         positions, self.model = self.solve()
 

@@ -160,9 +160,20 @@ def type2py(output, type: t.Type):
                 output.write(v.name)
                 output.write('"')
             output.write(")")
+        case t.RecordType(_, fields):
+            output.write("Record(")
+            for i, (k, v) in enumerate(fields):
+                if i > 0:
+                    output.write(", ")
+                output.write("('")
+                output.write(k.name)
+                output.write("', ")
+                type2py(output, v)
+                output.write(")")
+            output.write(")")
         case t.SynonymType(_, name):
             output.write("self." + name.name)
-        case t.HoleType(_):
+        case t.HoleType(_) | n.HoleId(_):
             output.write("??")
         case _:
             raise ValueError(f"Unsupported type {type}")

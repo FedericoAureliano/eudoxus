@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Tuple
+from typing import List, Set, Tuple
 
 from eudoxus.ast.node import Identifier, Node
 
@@ -53,7 +53,7 @@ class EnumeratedType(Type):
 
 @dataclass(frozen=True)
 class RecordType(Type):
-    fields: List[Tuple[Identifier, Type]]
+    fields: Set[Tuple[Identifier, Type]]
 
 
 @dataclass(frozen=True)
