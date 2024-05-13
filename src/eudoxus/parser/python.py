@@ -531,7 +531,8 @@ class Parser:
             {self.parse_binary_expression.__doc__}
             {self.parse_comparison_expression.__doc__}
             {self.parse_boolean_expression.__doc__}
-            {self.parse_boolean.__doc__}
+            (true)
+            (false)
             {self.parse_integer.__doc__}
             {self.parse_float.__doc__}
             (parenthesized_expression)

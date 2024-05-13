@@ -63,7 +63,8 @@ class Checker:
             weight = self.reason_to_weight(r)
             self.opt_solver.add_soft(c, weight=weight)
 
-        self.opt_solver.check()  # should always be sat
+        result = self.opt_solver.check()  # should always be sat
+        assert result == z3.sat
         model = self.opt_solver.model()
         self.opt_solver.pop()
 

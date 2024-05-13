@@ -11,6 +11,8 @@ def module2py(output, module: Module, indent):
     output.write(f"class {name}(Module):\n")
     indent += 1
 
+    before = output.tell()
+
     types2py(output, module.types, indent)
     state2py(output, module.locals, indent, "locals")
     state2py(output, module.inputs, indent, "inputs")
@@ -21,6 +23,11 @@ def module2py(output, module: Module, indent):
     next2py(output, module.next, indent)
     specs2py(output, module.specification, indent)
     control2py(output, module.control, indent)
+
+    # if we didn't write anything other than the class definition, write a pass
+    after = output.tell()
+    if before == after:
+        output.write("  pass\n")
 
 
 def types2py(output, types: s.Block, indent):

@@ -7,4 +7,4 @@ class Record(Module):
 
     def init(self):
         assert self.p.x == 0.0
-        assert ?? == 0
+        assert self.p.?? == 0.0

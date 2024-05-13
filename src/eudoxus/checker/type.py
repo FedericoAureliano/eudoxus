@@ -170,10 +170,10 @@ class TypeChecker(Checker):
                 return 0
             case "bad_constant":
                 return 1
-            case "bad_select":
-                return 2
             case "bad_type":
                 return 5
+            case "bad_expr":
+                return 10
         raise NotImplementedError(f"Unsupported reason {reason}")
 
     def str_to_symbol(self, symbol):
@@ -184,11 +184,16 @@ class TypeChecker(Checker):
     def encode(self, cls, pos, children) -> Node:
         match cls:
             case m.Module:
-                # Hard: type(spec) == bool
+                # Hard: type(spec') == bool
+                # Soft: spec == spec'
                 spec = children[9]
+                specp = self.fresh_constant(self.universe.expr, "SpecHole")
+                children[9] = specp
                 self.add_hard_constraint(
-                    self.term_to_type(spec) == self.universe.type.BooleanType
+                    self.term_to_type(specp) == self.universe.type.BooleanType
                 )
+                spec_pos = self.z3_to_pos(spec)
+                self.add_soft_constraint(spec == specp, spec_pos, "bad_expr")
                 return self.universe.mod.Module(*children)
             case n.Identifier:
                 # Input: x
@@ -343,14 +348,18 @@ class TypeChecker(Checker):
                 return self.universe.stmt.InstanceDecl(target, mod, arg)
             case s.If:
                 # Input: if c then t else e
-                # Hard: type(c) == bool
-                # Output: if c then t else e
+                # Hard: type(c') == bool
+                # Soft: c == c'
+                # Output: if c' then t else e
                 cz3 = children[0]
+                cp = self.fresh_constant(self.universe.expr, "CondHole")
                 tc3 = children[1]
                 ez3 = children[2]
                 self.add_hard_constraint(
-                    self.term_to_type(cz3) == self.universe.type.BooleanType
+                    self.term_to_type(cp) == self.universe.type.BooleanType
                 )
+                cond_pos = self.z3_to_pos(cz3)
+                self.add_soft_constraint(cz3 == cp, cond_pos, "bad_expr")
                 return self.universe.stmt.If(cz3, tc3, ez3)
             case s.Assert:
                 # Input: assert c
@@ -438,6 +447,7 @@ class TypeChecker(Checker):
                 # Input: x + y
                 # Hard: type(x) == type(y)
                 # Hard: type(x + y) == type(x)
+                # Hard: type(x) == int | real | BitVector(w)
                 # Output: x + y
                 x = children[0]
                 y = children[1]
@@ -446,11 +456,20 @@ class TypeChecker(Checker):
                 self.add_hard_constraint(
                     self.term_to_type(x_plus_y) == self.term_to_type(x)
                 )
+                type_x = self.term_to_type(x)
+                self.add_hard_constraint(
+                    z3.Or(
+                        type_x == self.universe.type.IntegerType,
+                        type_x == self.universe.type.RealType,
+                        self.universe.type.is_BitVectorType(type_x),
+                    )
+                )
                 return x_plus_y
             case e.Subtract:
                 # Input: x - y
                 # Hard: type(x) == type(y)
                 # Hard: type(x - y) == type(x)
+                # Hard: type(x) == int | real | BitVector(w)
                 # Output: x - y
                 x = children[0]
                 y = children[1]
@@ -459,21 +478,39 @@ class TypeChecker(Checker):
                 self.add_hard_constraint(
                     self.term_to_type(x_minus_y) == self.term_to_type(x)
                 )
+                type_x = self.term_to_type(x)
+                self.add_hard_constraint(
+                    z3.Or(
+                        type_x == self.universe.type.IntegerType,
+                        type_x == self.universe.type.RealType,
+                        self.universe.type.is_BitVectorType(type_x),
+                    )
+                )
                 return x_minus_y
             case e.Negate:
                 # Input: -x
                 # Hard: type(-x) == type(x)
+                # Hard: type(x) == int | real | BitVector(w)
                 # Output: -x
                 x = children[0]
                 neg_x = self.universe.expr.Negate(x)
                 self.add_hard_constraint(
                     self.term_to_type(neg_x) == self.term_to_type(x)
                 )
+                type_x = self.term_to_type(x)
+                self.add_hard_constraint(
+                    z3.Or(
+                        type_x == self.universe.type.IntegerType,
+                        type_x == self.universe.type.RealType,
+                        self.universe.type.is_BitVectorType(type_x),
+                    )
+                )
                 return neg_x
             case e.Multiply:
                 # Input: x * y
                 # Hard: type(x) == type(y)
                 # Hard: type(x * y) == type(x)
+                # Hard: type(x) == int | real | BitVector(w)
                 # Output: x * y
                 x = children[0]
                 y = children[1]
@@ -482,11 +519,20 @@ class TypeChecker(Checker):
                 self.add_hard_constraint(
                     self.term_to_type(x_times_y) == self.term_to_type(x)
                 )
+                type_x = self.term_to_type(x)
+                self.add_hard_constraint(
+                    z3.Or(
+                        type_x == self.universe.type.IntegerType,
+                        type_x == self.universe.type.RealType,
+                        self.universe.type.is_BitVectorType(type_x),
+                    )
+                )
                 return x_times_y
             case e.Divide:
                 # Input: x / y
                 # Hard: type(x) == type(y)
                 # Hard: type(x / y) == type(x)
+                # Hard: type(x) == int | real | BitVector(w)
                 # Output: x / y
                 x = children[0]
                 y = children[1]
@@ -495,11 +541,20 @@ class TypeChecker(Checker):
                 self.add_hard_constraint(
                     self.term_to_type(x_div_y) == self.term_to_type(x)
                 )
+                type_x = self.term_to_type(x)
+                self.add_hard_constraint(
+                    z3.Or(
+                        type_x == self.universe.type.IntegerType,
+                        type_x == self.universe.type.RealType,
+                        self.universe.type.is_BitVectorType(type_x),
+                    )
+                )
                 return x_div_y
             case e.Modulo:
                 # Input: x % y
                 # Hard: type(x) == type(y)
                 # Hard: type(x % y) == type(x)
+                # Hard: type(x) == int | real | BitVector(w)
                 # Output: x % y
                 x = children[0]
                 y = children[1]
@@ -507,6 +562,14 @@ class TypeChecker(Checker):
                 self.add_hard_constraint(self.term_to_type(x) == self.term_to_type(y))
                 self.add_hard_constraint(
                     self.term_to_type(x_mod_y) == self.term_to_type(x)
+                )
+                type_x = self.term_to_type(x)
+                self.add_hard_constraint(
+                    z3.Or(
+                        type_x == self.universe.type.IntegerType,
+                        type_x == self.universe.type.RealType,
+                        self.universe.type.is_BitVectorType(type_x),
+                    )
                 )
                 return x_mod_y
             case e.Equal:
@@ -539,6 +602,7 @@ class TypeChecker(Checker):
                 # Input: x > y
                 # Hard: type(x) == type(y)
                 # Hard: type(x > y) == bool
+                # Hard: type(x) == int | real | BitVector(w)
                 # Output: x > y
                 x = children[0]
                 y = children[1]
@@ -547,11 +611,20 @@ class TypeChecker(Checker):
                 self.add_hard_constraint(
                     self.term_to_type(x_gt_y) == self.universe.type.BooleanType
                 )
+                type_x = self.term_to_type(x)
+                self.add_hard_constraint(
+                    z3.Or(
+                        type_x == self.universe.type.IntegerType,
+                        type_x == self.universe.type.RealType,
+                        self.universe.type.is_BitVectorType(type_x),
+                    )
+                )
                 return x_gt_y
             case e.GreaterThanOrEqual:
                 # Input: x >= y
                 # Hard: type(x) == type(y)
                 # Hard: type(x >= y) == bool
+                # Hard: type(x) == int | real | BitVector(w)
                 # Output: x >= y
                 x = children[0]
                 y = children[1]
@@ -560,11 +633,20 @@ class TypeChecker(Checker):
                 self.add_hard_constraint(
                     self.term_to_type(x_ge_y) == self.universe.type.BooleanType
                 )
+                type_x = self.term_to_type(x)
+                self.add_hard_constraint(
+                    z3.Or(
+                        type_x == self.universe.type.IntegerType,
+                        type_x == self.universe.type.RealType,
+                        self.universe.type.is_BitVectorType(type_x),
+                    )
+                )
                 return x_ge_y
             case e.LessThan:
                 # Input: x < y
                 # Hard: type(x) == type(y)
                 # Hard: type(x < y) == bool
+                # Hard: type(x) == int | real | BitVector(w)
                 # Output: x < y
                 x = children[0]
                 y = children[1]
@@ -573,11 +655,20 @@ class TypeChecker(Checker):
                 self.add_hard_constraint(
                     self.term_to_type(x_lt_y) == self.universe.type.BooleanType
                 )
+                type_x = self.term_to_type(x)
+                self.add_hard_constraint(
+                    z3.Or(
+                        type_x == self.universe.type.IntegerType,
+                        type_x == self.universe.type.RealType,
+                        self.universe.type.is_BitVectorType(type_x),
+                    )
+                )
                 return x_lt_y
             case e.LessThanOrEqual:
                 # Input: x <= y
                 # Hard: type(x) == type(y)
                 # Hard: type(x <= y) == bool
+                # Hard: type(x) == int | real | BitVector(w)
                 # Output: x <= y
                 x = children[0]
                 y = children[1]
@@ -585,6 +676,14 @@ class TypeChecker(Checker):
                 self.add_hard_constraint(self.term_to_type(x) == self.term_to_type(y))
                 self.add_hard_constraint(
                     self.term_to_type(x_le_y) == self.universe.type.BooleanType
+                )
+                type_x = self.term_to_type(x)
+                self.add_hard_constraint(
+                    z3.Or(
+                        type_x == self.universe.type.IntegerType,
+                        type_x == self.universe.type.RealType,
+                        self.universe.type.is_BitVectorType(type_x),
+                    )
                 )
                 return x_le_y
             case e.And:
@@ -684,9 +783,17 @@ class TypeChecker(Checker):
                 return self.universe.expr.FunctionApplication(children[0], arg)
             case e.EnumValue:
                 # Input: c
-                # Output: EnumValue(c)
+                # Hard: type(c') is EnumType
+                # Soft: c == c'
+                # Output: c
                 c = self.str_to_symbol(children[0])
-                return self.universe.expr.EnumValue(c)
+                c = self.universe.expr.EnumValue(c)
+                cp = self.fresh_constant(self.universe.expr, "EnumValueHole")
+                self.add_hard_constraint(
+                    self.universe.type.is_EnumeratedType(self.term_to_type(cp))
+                )
+                self.add_soft_constraint(c == cp, pos, "bad_constant")
+                return c
             case e.Forall | e.Exists:
                 # Input: forall x: t. c
                 # Hard: type(c) == bool
@@ -758,10 +865,10 @@ class TypeChecker(Checker):
                 f = children[1]
                 fp = self.fresh_constant(self.universe.symbol, "FieldHole")
                 x = self.fresh_constant(self.universe.expr, "RecordSelectHole")
-                self.add_soft_constraint(r == rp, pos, "bad_select")
-                self.add_soft_constraint(f == fp, pos, "bad_select")
+                self.add_soft_constraint(r == rp, self.z3_to_pos(r), "bad_expr")
+                self.add_soft_constraint(f == fp, self.z3_to_pos(f), "bad_constant")
                 self.add_soft_constraint(
-                    x == self.universe.expr.RecordSelect(rp, fp), pos, "bad_select"
+                    x == self.universe.expr.RecordSelect(rp, fp), pos, "bad_expr"
                 )
                 self.add_hard_constraint(
                     self.universe.type.is_RecordType(self.term_to_type(rp))
@@ -793,6 +900,12 @@ class TypeChecker(Checker):
                 return holep
             case _:
                 raise NotImplementedError(f"Unsupported class {cls}")
+
+    def z3_to_pos(self, z3expr):
+        for pos, expr in self.pos_to_z3expr.items():
+            if z3expr.eq(expr):
+                return pos
+        return None
 
     def z3_to_ast(self, z3expr, node, position) -> Node:
         def is_bool(x):
