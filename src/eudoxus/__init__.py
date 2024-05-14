@@ -85,7 +85,8 @@ def pipeline(task, language, output, inference, iterations, debug):
     repaired = repaired.getvalue()
     generator_log("Repaired:", repaired)
 
-    for i in range(1, iterations):
+    iters = 1
+    for _ in range(1, iterations):
         if "??" not in repaired:
             break
         prompt = get_complete_prompt(repaired)
@@ -98,8 +99,9 @@ def pipeline(task, language, output, inference, iterations, debug):
         timeit("repair", repair, python, Language.python, repaired, inference, debug)
         repaired = repaired.getvalue()
         generator_log("Repaired:", repaired)
+        iters += 1
 
-    stats = f"iters: {i}\n"
+    stats = f"iters: {iters}\n"
     stats += f"change: {len(repaired.splitlines()) - len(original.splitlines())}\n"
     stats += f"llm: {clocks['llm']:.2f}s\n"
     stats += f"repair: {clocks['repair']:.2f}s"

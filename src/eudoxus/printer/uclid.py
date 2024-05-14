@@ -201,7 +201,7 @@ def type2ucl(output, type: t.Type):
             for i, v in enumerate(values):
                 if i > 0:
                     output.write(", ")
-                output.write(id2str(v))
+                output.write(clean_enum(id2str(v)))
             output.write(" }")
         case t.RecordType(_, fields):
             output.write("record { ")
@@ -220,6 +220,17 @@ def type2ucl(output, type: t.Type):
             raise ValueError(f"Unsupported type {type}")
 
 
+def clean_enum(value):
+    def is_valid_enum_char(c):
+        return c.isalnum() or c == "_" or c == "?"
+
+    # remove spaces
+    cleaned = value.replace(" ", "")
+    # remove all non-alphanumeric characters
+    cleaned = "".join(filter(is_valid_enum_char, cleaned))
+    return cleaned
+
+
 def expr2ucl(output, expr: e.Expression):
     match expr:
         case e.BooleanValue(_, value) | e.IntegerValue(_, value) | e.RealValue(
@@ -229,7 +240,7 @@ def expr2ucl(output, expr: e.Expression):
         case e.BitVectorValue(_, value, width):
             output.write(f"{value}bv{width}")
         case e.EnumValue(_, value):
-            output.write(value)
+            output.write(clean_enum(value))
         case e.RecordSelect(_, target, field):
             expr2ucl(output, target)
             output.write(".")

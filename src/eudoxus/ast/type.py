@@ -48,7 +48,7 @@ class SynonymType(Type):
 
 @dataclass(frozen=True)
 class EnumeratedType(Type):
-    values: List[Identifier]
+    values: Set[Identifier]
 
 
 @dataclass(frozen=True)

@@ -61,12 +61,6 @@ class Universe:
         self.cmd_list.declare("empty")
         self.cmd_list.declare("cons", ("head", self.cmd), ("tail", self.cmd_list))
 
-        self.symbol_list = z3.Datatype(f"{Identifier.__name__}_list")
-        self.symbol_list.declare("empty")
-        self.symbol_list.declare(
-            "cons", ("head", self.symbol), ("tail", self.symbol_list)
-        )
-
         self.id_type_pair = z3.Datatype("id_type_pair")
         self.id_type_pair.declare("pair", ("id", self.symbol), ("type", self.type))
 
@@ -115,8 +109,8 @@ class Universe:
                         field_type = self.stmt_list
                     elif field_type == List[p.Command]:
                         field_type = self.cmd_list
-                    elif field_type == List[n.Identifier]:
-                        field_type = self.symbol_list
+                    elif field_type == Set[n.Identifier]:
+                        field_type = self.symbol_set
                     elif field_type == Set[Tuple[n.Identifier, t.Type]]:
                         field_type = self.symbol_set
                     elif field_type == List[Tuple[n.Identifier, e.Expression]]:
@@ -144,7 +138,6 @@ class Universe:
             self.type_list,
             self.stmt_list,
             self.cmd_list,
-            self.symbol_list,
             self.id_expr_pair,
             self.id_expr_pair_list,
         ) = z3.CreateDatatypes(
@@ -157,7 +150,6 @@ class Universe:
             self.type_list,
             self.stmt_list,
             self.cmd_list,
-            self.symbol_list,
             self.id_expr_pair,
             self.id_expr_pair_list,
         )
@@ -250,17 +242,14 @@ class TypeChecker(Checker):
                 # Output: ep
                 ground_values = children[0]
 
-                arg = foldl(
-                    lambda x, y: self.universe.symbol_list.cons(y, x),
-                    self.universe.symbol_list.empty,
-                    ground_values,
-                )
-                enu = self.universe.type.EnumeratedType(arg)
+                variant_set = z3.K(self.universe.symbol, False)
+                for c in ground_values:
+                    variant_set = z3.Store(variant_set, c, True)
+
+                enu = self.universe.type.EnumeratedType(variant_set)
 
                 for c in ground_values:
-                    app_c_i = self.universe.expr.FunctionApplication(
-                        c, self.universe.expr_list.empty
-                    )
+                    app_c_i = self.universe.expr.EnumValue(c)
                     self.add_hard_constraint(self.term_to_type(app_c_i) == enu)
 
                 ep = self.fresh_constant(self.universe.type, "EnumeratedTypeHole")
@@ -789,17 +778,21 @@ class TypeChecker(Checker):
                 return self.universe.expr.FunctionApplication(children[0], arg)
             case e.EnumValue:
                 # Input: c
-                # Hard: type(c') is EnumType
+                # Hard: type(c) is EnumType
+                # Hard: type(c)[c] == True
                 # Soft: c == c'
-                # Output: c
-                c = self.str_to_symbol(children[0])
-                c = self.universe.expr.EnumValue(c)
+                # Output: c'
+                csym = self.str_to_symbol(children[0])
+                cvar = self.universe.expr.EnumValue(csym)
+                ctype = self.term_to_type(cvar)
+
+                self.add_hard_constraint(self.universe.type.is_EnumeratedType(ctype))
+                variants = self.universe.type.values(ctype)
+                self.add_hard_constraint(variants[csym])
+
                 cp = self.fresh_constant(self.universe.expr, "EnumValueHole")
-                self.add_hard_constraint(
-                    self.universe.type.is_EnumeratedType(self.term_to_type(cp))
-                )
-                self.add_soft_constraint(c == cp, pos, "bad_constant")
-                return c
+                self.add_soft_constraint(cvar == cp, pos, "bad_constant")
+                return cp
             case e.Forall | e.Exists:
                 # Input: forall x: t. c
                 # Hard: type(c) == bool
@@ -942,6 +935,11 @@ class TypeChecker(Checker):
                 self.universe.type.is_BitVectorType(x), model_completion=True
             )
 
+        def is_enum(x):
+            return self.model.eval(
+                self.universe.type.is_EnumeratedType(x), model_completion=True
+            )
+
         # REPAIR RULES LIVE HERE
         match z3expr.sort():
             case self.universe.type:
@@ -954,6 +952,8 @@ class TypeChecker(Checker):
                 elif is_bv(z3expr):
                     w = self.model.eval(self.universe.type.width(z3expr))
                     return t.BitVectorType(position, w)
+                elif is_enum(z3expr):
+                    return t.EnumeratedType(position, set([n.HoleId(position)]))
             case self.universe.expr:
                 new_type = self.term_to_type(z3expr)
                 match node:
