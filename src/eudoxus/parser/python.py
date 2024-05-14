@@ -241,12 +241,29 @@ class Parser:
         return (id, ty)
 
     def expr_helper(
-        self, pos: Position, f: str, args: List[e.Expression]
+        self,
+        pos: Position,
+        f: str,
+        args: List[e.Expression],
+        kwargs: List[Tuple[Identifier, e.Expression]],
     ) -> e.Expression:
         match f.lower():
             case bv if "bv" in bv or "bitvec" in bv:
-                match args:
-                    case [e.IntegerValue(_, value), e.IntegerValue(_, size)]:
+                match args, kwargs:
+                    case [e.IntegerValue(_, value), e.IntegerValue(_, size)], []:
+                        return e.BitVectorValue(pos, value, size)
+                    case [e.IntegerValue(_, size)], [
+                        (Identifier(_, "value"), e.IntegerValue(_, value))
+                    ]:
+                        return e.BitVectorValue(pos, value, size)
+                    case [e.IntegerValue(_, value)], [
+                        (Identifier(_, "width"), e.IntegerValue(_, size))
+                    ]:
+                        return e.BitVectorValue(pos, value, size)
+                    case [], [
+                        (Identifier(_, "width"), e.IntegerValue(_, size)),
+                        (Identifier(_, "value"), e.IntegerValue(_, value)),
+                    ]:
                         return e.BitVectorValue(pos, value, size)
                     case _ if self.debug:
                         raise ValueError(f"Unsupported args: {args}")
@@ -335,7 +352,11 @@ class Parser:
                 self.parse_expr, node.child_by_field_name("arguments")
             )
             arguments = [self.parse_expr(arg) for arg in arguments]
-            return arguments
+            kwargs = self.search(
+                self.parse_keyword_argument, node.child_by_field_name("arguments")
+            )
+            kwargs = [self.parse_keyword_argument(kw) for kw in kwargs]
+            return arguments, kwargs
 
         fnode = node.child_by_field_name("function")
         function = self.parse_identifier(fnode)
@@ -362,8 +383,8 @@ class Parser:
                         bindings[1:],
                     )
             case _:
-                arguments = parse_args()
-                return self.expr_helper(pos(node), function.name, arguments)
+                arguments, kwargs = parse_args()
+                return self.expr_helper(pos(node), function.name, arguments, kwargs)
 
     def parse_app_of_app_expr(self, node: TSNode) -> e.Expression:
         """
@@ -383,7 +404,7 @@ class Parser:
         inner_args = self.search(self.parse_expr, inner_args)
         inner_args = [self.parse_expr(arg) for arg in inner_args]
         arguments = outer_args + inner_args
-        return self.expr_helper(pos(node), function.name, arguments)
+        return self.expr_helper(pos(node), function.name, arguments, [])
 
     def parse_subscript_expr(self, node: TSNode) -> e.ArraySelect:
         """
@@ -405,6 +426,16 @@ class Parser:
         record = self.parse_expr(node.child_by_field_name("object"))
         selector = self.parse_identifier(node.child_by_field_name("attribute"))
         return e.RecordSelect(p, record, selector)
+
+    def parse_conditional_expression(self, node: TSNode) -> e.Expression:
+        """
+        (conditional_expression)
+        """
+        p = pos(node)
+        consequence = self.parse_expr(node.child(0))
+        condition = self.parse_expr(node.child(2))
+        alternative = self.parse_expr(node.child(4))
+        return e.Ite(p, condition, consequence, alternative)
 
     def parse_boolean_expression(self, node: TSNode) -> e.Expression:
         """
@@ -431,50 +462,42 @@ class Parser:
         """
         (comparison_operator)
         """
+
+        def helper(op, left, right):
+            match op:
+                case "==":
+                    return e.Equal(p, left, right)
+                case "!=":
+                    return e.NotEqual(p, left, right)
+                case "<":
+                    return e.LessThan(p, left, right)
+                case ">":
+                    return e.GreaterThan(p, left, right)
+                case "<=":
+                    return e.LessThanOrEqual(p, left, right)
+                case ">=":
+                    return e.GreaterThanOrEqual(p, left, right)
+                case _ if self.debug:
+                    raise ValueError(f"Unsupported object: {node.sexp()}")
+                case _:
+                    return e.HoleExpr(p)
+
         p = pos(node)
         args = self.search(self.parse_expr, node)
         args = [self.parse_expr(arg) for arg in args]
-        match self.text(node.child(1)):
-            case "==":
-                base = e.Equal(p, *args[:2])
-                for i, arg in enumerate(args):
-                    if i > 1:
-                        base = e.And(p, base, e.Equal(p, args[i - 1], arg))
-                return base
-            case "!=":
-                base = e.NotEqual(p, *args[:2])
-                for i, arg in enumerate(args):
-                    if i > 1:
-                        base = e.And(p, base, e.NotEqual(p, args[i - 1], arg))
-                return base
-            case "<":
-                base = e.LessThan(p, *args[:2])
-                for i, arg in enumerate(args):
-                    if i > 1:
-                        base = e.And(p, base, e.LessThan(p, args[i - 1], arg))
-                return base
-            case ">":
-                base = e.GreaterThan(p, *args[:2])
-                for i, arg in enumerate(args):
-                    if i > 1:
-                        base = e.And(p, base, e.GreaterThan(p, args[i - 1], arg))
-                return base
-            case "<=":
-                base = e.LessThanOrEqual(p, *args[:2])
-                for i, arg in enumerate(args):
-                    if i > 1:
-                        base = e.And(p, base, e.LessThanOrEqual(p, args[i - 1], arg))
-                return base
-            case ">=":
-                base = e.GreaterThanOrEqual(p, *args[:2])
-                for i, arg in enumerate(args):
-                    if i > 1:
-                        base = e.And(p, base, e.GreaterThanOrEqual(p, args[i - 1], arg))
-                return base
-            case _ if self.debug:
-                raise ValueError(f"Unsupported object: {node.sexp()}")
-            case _:
-                return e.HoleExpr(p)
+
+        ops = [self.text(node.child(i)) for i in range(1, node.child_count, 2)]
+
+        for i, arg in enumerate(args):
+            if i == 0:
+                continue
+            elif i == 1:
+                base = helper(ops[i - 1], args[i - 1], arg)
+            else:
+                term = helper(ops[i - 1], args[i - 1], arg)
+                base = e.And(p, base, term)
+
+        return base
 
     def parse_unary_expression(self, node: TSNode) -> e.Expression:
         """
@@ -563,6 +586,7 @@ class Parser:
             {self.parse_binary_expression.__doc__}
             {self.parse_comparison_expression.__doc__}
             {self.parse_boolean_expression.__doc__}
+            {self.parse_conditional_expression.__doc__}
             (true)
             (false)
             {self.parse_integer.__doc__}
@@ -595,6 +619,8 @@ class Parser:
                 return self.parse_comparison_expression(node)
             case "boolean_operator":
                 return self.parse_boolean_expression(node)
+            case "conditional_expression":
+                return self.parse_conditional_expression(node)
             case "integer":
                 return self.parse_integer(node)
             case "true" | "false":

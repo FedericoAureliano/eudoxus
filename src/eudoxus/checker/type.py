@@ -904,6 +904,14 @@ class TypeChecker(Checker):
                 holep = self.fresh_constant(self.universe.type, "HoleType")
                 self.add_soft_constraint(hole == holep, pos, "hole")
                 return holep
+            case e.HoleExpr:
+                # Input: ??
+                # Soft: ?? == ??'
+                # Output: ??'
+                hole = self.universe.expr.HoleExpr
+                holep = self.fresh_constant(self.universe.expr, "HoleExpr")
+                self.add_soft_constraint(hole == holep, pos, "hole")
+                return holep
             case _:
                 raise NotImplementedError(f"Unsupported class {cls}")
 
