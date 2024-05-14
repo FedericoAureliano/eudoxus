@@ -19,6 +19,7 @@ class DfyParser(Parser):
     def __init__(self, src: str):
         super().__init__(src)
         self.ext_functions = []
+        self.variables = []
 
     def parse_simple_type(self, node: TSNode) -> Type:
         """
@@ -57,11 +58,13 @@ class DfyParser(Parser):
         """
 
         name = self.parse_identifier(node.children[0])
+        self.variables.append(name.name)
         type = self.parse_type(node.child_by_field_name("type"))
         return Param(pos(node), type, name)
 
     def parse_untyped_parameter(self, node: TSNode) -> Param:
         """(identifier)"""
+        self.variables.append(self.text(node))
         return Param(
             pos(node), Hole(Position(node.end_byte)), self.parse_identifier(node)
         )
@@ -149,29 +152,58 @@ class DfyParser(Parser):
             (assignment
                 left: {self.parse_identifier.__doc__}
                 right: {self.parse_expr.__doc__}))
+        (expression_statement
+                (augmented_assignment
+                    left: {self.parse_identifier.__doc__}
+                    right: {self.parse_expr.__doc__}))
         """
+
         node = node.child(0)
         lhs = self.parse_identifier(node.child_by_field_name("left"))
+        decl = lhs.name not in self.variables and lhs.name != "result"
+        if decl:
+            self.variables.append(lhs.name)
+
+        def get_assign(pos, lhs, rhs, decl=False):
+            if decl:
+                return dfy_s.DeclAssignment(
+                    pos, lhs, rhs, Hole(Position(node.end_byte))
+                )
+            else:
+                return s.Assignment(pos, lhs, rhs)
+
         p_rhs = pos(node.child_by_field_name("right"))
         rhs = self.parse_expr(node.child_by_field_name("right"))
         lhs_as_app = e.Application(p_rhs, lhs, [])
         if self.has_name(node.children[1], "="):
-            return s.Assignment(pos(node), lhs, rhs)
+            return get_assign(pos(node), lhs, rhs, decl=decl)
         elif self.has_name(node.children[1], "+="):
-            return s.Assignment(
-                pos(node), lhs, e.Application(p_rhs, e.Add(p_rhs), [lhs_as_app, rhs])
+            return get_assign(
+                pos(node),
+                lhs,
+                e.Application(p_rhs, e.Add(p_rhs), [lhs_as_app, rhs]),
+                decl=decl,
             )
         elif self.has_name(node.children[1], "-="):
-            return s.Assignment(
-                pos(node), lhs, e.Application(p_rhs, e.Add(p_rhs), [lhs_as_app, rhs])
+            return get_assign(
+                pos(node),
+                lhs,
+                e.Application(p_rhs, e.Add(p_rhs), [lhs_as_app, rhs]),
+                decl=decl,
             )
         elif self.has_name(node.children[1], "*="):
-            return s.Assignment(
-                pos(node), lhs, e.Application(p_rhs, e.Add(p_rhs), [lhs_as_app, rhs])
+            return get_assign(
+                pos(node),
+                lhs,
+                e.Application(p_rhs, e.Add(p_rhs), [lhs_as_app, rhs]),
+                decl=decl,
             )
         elif self.has_name(node.children[1], "/="):
-            return s.Assignment(
-                pos(node), lhs, e.Application(p_rhs, e.Add(p_rhs), [lhs_as_app, rhs])
+            return get_assign(
+                pos(node),
+                lhs,
+                e.Application(p_rhs, e.Add(p_rhs), [lhs_as_app, rhs]),
+                decl=decl,
             )
         else:
             raise ValueError(f"Unsupported object: {node.sexp()}")
@@ -461,6 +493,26 @@ class DfyParser(Parser):
             if not isinstance(s, dfy_s.Ensures) and not isinstance(s, dfy_s.Requires)
         ]
 
+        # support case where result isn't the output name
+        return_stmts = [s for s in stmts if isinstance(s, dfy_s.Return)]
+        if len(return_stmts) == 1:
+            ret_name = return_stmts[0].expr.callee
+        else:
+            ret_name = Identifier(None, "result")
+        self.variables.append(ret_name.name)
+
+        def convert_to_assign(assign, ret_name):
+            if assign.target.name != ret_name.name:
+                return assign
+            return s.Assignment(assign.position, assign.target, assign.value)
+
+        stmts = [
+            stmt
+            if not isinstance(stmt, dfy_s.DeclAssignment)
+            else convert_to_assign(stmt, ret_name)
+            for stmt in stmts
+        ]
+
         parsed_body = s.Block(pos(body), [s for s in stmts if s is not None])
         return_type = self.parse_type(function_def.child_by_field_name("return_type"))
 
@@ -474,6 +526,7 @@ class DfyParser(Parser):
                         name,
                         parsed_params,
                         return_type,
+                        None,
                         single_stmt.expr,
                         requires,
                         ensures,
@@ -488,6 +541,7 @@ class DfyParser(Parser):
                 name,
                 parsed_params,
                 return_type,
+                ret_name,
                 parsed_body,
                 requires,
                 ensures,

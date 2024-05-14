@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from typing import List
 
 from eudoxus.ast import expression as e
+from eudoxus.ast import type as t
+from eudoxus.ast.node import Identifier
 from eudoxus.ast.statement import Block, Statement
 
 
@@ -41,3 +43,10 @@ class While(Statement):
     invariant: List[Invariant]
     decreases: List[Decreases]
     body: Block
+
+
+@dataclass(frozen=True)
+class DeclAssignment(Statement):
+    target: Identifier
+    value: e.Expression
+    ty: t.Type

@@ -62,7 +62,11 @@ def module2dfy(output, module: Module, indent):
     if method_or_function == "method":
         output.write(f"{method_or_function} {name}")
         params2dfy(output, module.params)
-        output.write(" returns (result")
+        output.write(" returns (")
+        if module.ret_name is not None:
+            output.write(module.ret_name.name)
+        else:
+            output.write("result")
         return_type2dfy(output, module.return_type)
 
         output.write(")\n")
@@ -116,6 +120,16 @@ def stmt2dfy(output, stmt: s.Statement, indent):
         case s.Assignment(_, target, value) if isinstance(target, e.Identifier):
             target = target.name
             output.write(space + target)
+            output.write(" := ")
+            expr2dfy(output, value)
+            output.write(";\n")
+        case dfy_s.DeclAssignment(_, target, value, ty) if isinstance(
+            target, e.Identifier
+        ):
+            target = target.name
+
+            output.write(space + f"var {target} : ")
+            type2dfy(output, ty)
             output.write(" := ")
             expr2dfy(output, value)
             output.write(";\n")

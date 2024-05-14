@@ -59,9 +59,7 @@ class DfyTypeChecker(Checker):
 
     def check(self, modules: List[Module]) -> Dict[Position, Node]:
         for module in modules:
-            self.decl2z3(
-                s.Variable(None, e.Identifier(None, "result"), module.return_type)
-            )
+            self.decl2z3(s.Variable(None, module.ret_name, module.return_type))
             self.params2z3(module.params)
             for stmt in module.requires:
                 self.stmt2z3(stmt)
@@ -79,7 +77,9 @@ class DfyTypeChecker(Checker):
                         value = self.expr2z3(stmt.expr)
                         pos = stmt.position
                         self.add_soft_constraint(
-                            self.type(value) == self.type(self.variables["result"]), pos
+                            self.type(value)
+                            == self.type(self.variables[module.ret_name.name]),
+                            pos,
                         )
                     else:
                         self.stmt2z3(stmt)
@@ -189,6 +189,15 @@ class DfyTypeChecker(Checker):
                 # Constraints:
                 #  - type(z3x) == type(z3y)  (hard)
                 z3x = self.variables[x]
+                z3y = self.expr2z3(y)
+                self.add_soft_constraint(self.type(z3x) == self.type(z3y), y.position)
+            case dfy_s.DeclAssignment(_, x, y, ty_hole):
+                # Input: <x> = <y>
+                # Constraints:
+                #  - type(z3x) == type(z3y)  (hard)
+
+                self.decl2z3(s.Variable(None, x, ty_hole))
+                z3x = self.variables[x.name]
                 z3y = self.expr2z3(y)
                 self.add_soft_constraint(self.type(z3x) == self.type(z3y), y.position)
             case s.If(_, x, y, z):

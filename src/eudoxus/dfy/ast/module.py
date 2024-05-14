@@ -15,6 +15,7 @@ class DfyModule(Node):
     name: Identifier
     params: List[p.Params]
     return_type: t.Type
+    ret_name: Identifier | None
     body: s.Block | e.Expression
     requires: List[Requires]
     ensures: List[Ensures]

@@ -32,6 +32,7 @@ SumModule = DfyModule(
         ],
     ),
     return_type=IntegerType(position=Position(unique=81)),
+    ret_name=None,
     body=Ite(
         position=Position(unique=97),
         condition=Application(

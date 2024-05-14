@@ -28,6 +28,7 @@ class DfyRewriter:
                 name,
                 params,
                 return_type,
+                ret_name,
                 body,
                 requires,
                 ensures,
@@ -44,6 +45,7 @@ class DfyRewriter:
                     name,
                     new_params,
                     new_return_type,
+                    ret_name,
                     new_body,
                     new_requires,
                     new_ensures,
@@ -113,6 +115,11 @@ class DfyRewriter:
                 new_target = self.rewrite(target)
                 new_value = self.rewrite(value)
                 return s.Assignment(position, new_target, new_value)
+            case dfy_s.DeclAssignment(position, target, value, ty):
+                new_target = self.rewrite(target)
+                new_value = self.rewrite(value)
+                new_ty = self.rewrite(ty)
+                return dfy_s.DeclAssignment(position, new_target, new_value, new_ty)
             case t.Record(position, fields):
                 new_fields = [(self.rewrite(f[0]), self.rewrite(f[1])) for f in fields]
                 return t.Record(position, new_fields)
