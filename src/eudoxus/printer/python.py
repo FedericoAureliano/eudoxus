@@ -338,8 +338,6 @@ def stmt2py(output, stmt: s.Statement, indent):
             if orelse.statements != []:
                 output.write(f"{space}else:\n")
                 stmt2py(output, orelse, indent + 1)
-        case s.Skip(_):
-            output.write(f"{space}pass\n")
         case s.Block(_, stmts):
             if stmts:
                 for stmt in stmts:
@@ -357,6 +355,8 @@ def stmt2py(output, stmt: s.Statement, indent):
             output.write(f"{space}assert ")
             expr2py(output, cond)
             output.write("\n")
+        case s.Next(_, inst):
+            output.write(f"{space}self.{inst.name}.next()\n")
         case _:
             raise ValueError(f"Unsupported statement {stmt}")
 

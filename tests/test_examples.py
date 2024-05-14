@@ -51,10 +51,12 @@ def check_example(input, output, language):
     with open(output_path, "r") as f:
         expected = f.read()
 
+    # run without solver but with debug to try to catch exception
+    eudoxus(input_path, language, StringIO(), False, True)
+
+    # run with solver and without debug to check end-to-end result
     actual = StringIO()
-
-    eudoxus(input_path, language, actual, True, True)
-
+    eudoxus(input_path, language, actual, True, False)
     actual = actual.getvalue()
 
     if clean(actual) != clean(expected):

@@ -125,7 +125,7 @@ def repair(src, language, output, inference, debug):
     else:
         src = src.encode()
 
-    modules = Parser(src).parse()
+    modules = Parser(src, debug).parse()
 
     if inference:
         checkers = [SelectChecker, DeclaredChecker, TypeChecker]

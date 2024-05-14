@@ -59,6 +59,8 @@ class Parser:
             node: the node to search in
             strict: if True, only return nodes that are direct children of the node
         """
+        if node is None:
+            return []
         to_search = func.__doc__
         while "{" in to_search:
             to_search = f'f"""{to_search}"""'
@@ -124,7 +126,7 @@ class Parser:
             size = self.search(self.parse_integer, args)[0]
             size = self.parse_integer(size).value
             return t.BitVectorType(p, size)
-        elif "arr" in name.lower():
+        elif "array" in name.lower():
             args_list = self.search(self.parse_type_expr, args)
             if len(args_list) == 0:
                 args_list = self.search(self.parse_keyword_type_argument, args)
@@ -191,7 +193,7 @@ class Parser:
         """
         match node.type:
             case "identifier" | "attribute":
-                return self.type_helper(self.parse_identifier(node), [])
+                return self.type_helper(self.parse_identifier(node), None)
             case "call":
                 return self.parse_app_type(node)
             case _ if self.debug:
@@ -254,43 +256,70 @@ class Parser:
                 return e.Not(pos, *args)
             case "neg" | "negative" | "negate" if len(args) == 1:
                 return e.Negate(pos, *args)
-            case _ if not self.debug and len(args) == 1:
-                # unary but none of the above, just return the arg
-                return args[0]
-            case "and" | "conjunct" | "conjunction" if len(args) == 2:
+            case "and" | "conjunct" | "conjunction" if 1 <= len(args) <= 2:
+                if len(args) == 1:
+                    return args[0]
                 return e.And(pos, *args)
-            case "or" | "disjunct" | "disjunction" if len(args) == 2:
+            case "or" | "disjunct" | "disjunction" if 1 <= len(args) <= 2:
+                if len(args) == 1:
+                    return args[0]
                 return e.Or(pos, *args)
-            case "implies" | "impl" if len(args) == 2:
+            case "implies" | "impl" | "if_" if 1 <= len(args) <= 2:
+                if len(args) == 1:
+                    return args[0]
                 return e.Implies(pos, *args)
-            case "iff" | "equiv" | "eq" | "equal" if len(args) == 2:
+            case "iff" | "equiv" | "eq" | "equal" if 1 <= len(args) <= 2:
+                if len(args) == 1:
+                    return args[0]
                 return e.Equal(pos, *args)
-            case "add" | "plus" | "sum" | "addition" if len(args) == 2:
+            case "add" | "plus" | "sum" | "addition" if 1 <= len(args) <= 2:
+                if len(args) == 1:
+                    return args[0]
                 return e.Add(pos, *args)
-            case "sub" | "subtract" | "minus" if len(args) == 2:
+            case "sub" | "subtract" | "minus" if 1 <= len(args) <= 2:
+                if len(args) == 1:
+                    return args[0]
                 return e.Subtract(pos, *args)
-            case "mul" | "multiply" | "times" if len(args) == 2:
+            case "mul" | "multiply" | "times" | "mult" if 1 <= len(args) <= 2:
+                if len(args) == 1:
+                    return args[0]
                 return e.Multiply(pos, *args)
-            case "div" | "divide" | "quotient" if len(args) == 2:
+            case "div" | "divide" | "quotient" if 1 <= len(args) <= 2:
+                if len(args) == 1:
+                    return args[0]
                 return e.Divide(pos, *args)
-            case "mod" | "modulo" | "remainder" | "modulus" if len(args) == 2:
+            case "mod" | "modulo" | "remainder" | "modulus" if 1 <= len(args) <= 2:
+                if len(args) == 1:
+                    return args[0]
                 return e.Modulo(pos, *args)
-            case "neq" | "notequal" if len(args) == 2:
+            case "neq" | "notequal" if 1 <= len(args) <= 2:
+                if len(args) == 1:
+                    return args[0]
                 return e.NotEqual(pos, *args)
-            case "lt" | "lessthan" if len(args) == 2:
+            case "lt" | "lessthan" if 1 <= len(args) <= 2:
+                if len(args) == 1:
+                    return args[0]
                 return e.LessThan(pos, *args)
-            case "le" | "lte" | "lessthanorequal" if len(args) == 2:
+            case "le" | "lte" | "lessthanorequal" if 1 <= len(args) <= 2:
+                if len(args) == 1:
+                    return args[0]
                 return e.LessThanOrEqual(pos, *args)
-            case "gt" | "greaterthan" if len(args) == 2:
+            case "gt" | "greaterthan" if 1 <= len(args) <= 2:
+                if len(args) == 1:
+                    return args[0]
                 return e.GreaterThan(pos, *args)
-            case "ge" | "gte" | "greaterthanorequal" if len(args) == 2:
+            case "ge" | "gte" | "greaterthanorequal" if 1 <= len(args) <= 2:
+                if len(args) == 1:
+                    return args[0]
                 return e.GreaterThanOrEqual(pos, *args)
-            case "select" | "sel" if len(args) == 2:
+            case "select" | "sel" if 1 <= len(args) <= 2:
+                if len(args) == 1:
+                    return args[0]
                 return e.RecordSelect(pos, *args)
             case "ite" | "ifthenelse" | "ifelse" | "if" | "if_" if len(args) == 3:
                 return e.Ite(pos, *args)
             case _ if self.debug:
-                raise ValueError(f"Unsupported function: {f}")
+                raise ValueError(f"Unsupported function: {f}({args})")
             case _:
                 return e.HoleExpr(pos)
 
@@ -736,11 +765,30 @@ class Parser:
         )
         return s.If(pos(node), condition, consequence, inner)
 
+    def parse_step_statement(self, node: TSNode) -> s.Next:
+        """
+        (expression_statement
+            (call
+                function: (attribute)
+                arguments: (argument_list)))
+        """
+        attribute = node.child(0).child_by_field_name("function")
+        id = self.parse_identifier(attribute.child_by_field_name("object"))
+        next_call = self.parse_identifier(attribute.child_by_field_name("attribute"))
+        next_call = next_call.name.lower()
+        match next_call:
+            case "next":
+                return s.Next(pos(node), id)
+            case _ if self.debug:
+                raise ValueError(f"Unsupported object: {node.sexp()}")
+            case _:
+                return s.HoleStmt(pos(node))
+
     def parse_havoc_statement(self, node: TSNode) -> s.Havoc:
         """
         (expression_statement
             (call
-                function: (identifier)
+                function: {self.parse_identifier.__doc__}
                 arguments: (argument_list)))
         """
         call = node.child(0)
@@ -760,7 +808,7 @@ class Parser:
         """
         (expression_statement
             (call
-                function: (identifier)
+                function: {self.parse_identifier.__doc__}
                 arguments: (argument_list)))
         """
         call = node.child(0)
@@ -793,6 +841,7 @@ class Parser:
             {self.parse_assert_statement.__doc__}
             {self.parse_assume_statement.__doc__}
             {self.parse_havoc_statement.__doc__}
+            {self.parse_step_statement.__doc__}
         ]
         """
 
@@ -825,6 +874,8 @@ class Parser:
                         return self.parse_havoc_statement(node)
             case "expression_statement" if node.child(0).type == "augmented_assignment":
                 return self.parse_augmented_assignment(node)
+            case "expression_statement" if node.child(0).type == "call":
+                return self.parse_step_statement(node)
             case "expression_statement":
                 return self.parse_assignment(node)
             case _ if self.debug:

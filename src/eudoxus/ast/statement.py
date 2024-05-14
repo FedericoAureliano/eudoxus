@@ -40,13 +40,13 @@ class Assert(Statement):
 
 
 @dataclass(frozen=True)
-class Skip(Statement):
-    pass
+class Havoc(Statement):
+    target: Identifier
 
 
 @dataclass(frozen=True)
-class Havoc(Statement):
-    target: Identifier
+class Next(Statement):
+    instance: Identifier
 
 
 @dataclass(frozen=True)

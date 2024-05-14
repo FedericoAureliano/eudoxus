@@ -384,6 +384,12 @@ class TypeChecker(Checker):
                 # Output: havoc x
                 x = children[0]
                 return self.universe.stmt.Havoc(x)
+            case s.Next:
+                # Input: next i
+                # TODO: constraints on instances
+                # Output: next i
+                i = children[0]
+                return self.universe.stmt.Next(i)
             case e.IntegerValue:
                 # Input: z
                 # Hard: type(IntValue(z)) == int

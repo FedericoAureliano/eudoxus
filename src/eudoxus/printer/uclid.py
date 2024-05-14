@@ -375,8 +375,6 @@ def stmt2ucl(output, stmt: s.Statement, indent, prime_assignments):
                 output.write(space + "} else {\n")
                 stmt2ucl(output, orelse, indent + 1, prime_assignments)
             output.write(space + "}\n")
-        case s.Skip(_):
-            pass
         case s.Block(_, stmts):
             if stmts:
                 for stmt in stmts:
@@ -394,6 +392,8 @@ def stmt2ucl(output, stmt: s.Statement, indent, prime_assignments):
             output.write(space + "assert ")
             expr2ucl(output, cond)
             output.write(";\n")
+        case s.Next(_, inst):
+            output.write(space + f"next({inst.name});\n")
         case s.HoleStmt(_):
             output.write(space + "??;\n")
         case _:
