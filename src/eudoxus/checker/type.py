@@ -173,7 +173,7 @@ class TypeChecker(Checker):
             self.symbol_map[symbol] = self.fresh_constant(self.universe.symbol, symbol)
         return self.symbol_map[symbol]
 
-    def encode(self, cls, pos, children) -> Node:
+    def encode(self, cls, pos, children, prefix) -> Node:
         match cls:
             case m.Module:
                 # Hard: type(spec') == bool
@@ -190,7 +190,7 @@ class TypeChecker(Checker):
             case n.Identifier:
                 # Input: x
                 # Output: x
-                x = self.str_to_symbol(children[0])
+                x = self.str_to_symbol(prefix + children[0])
                 return x
             case t.IntegerType:
                 # Input: int
@@ -782,7 +782,7 @@ class TypeChecker(Checker):
                 # Hard: type(c)[c] == True
                 # Soft: c == c'
                 # Output: c'
-                csym = self.str_to_symbol(children[0])
+                csym = self.str_to_symbol(prefix + children[0])
                 cvar = self.universe.expr.EnumValue(csym)
                 ctype = self.term_to_type(cvar)
 
@@ -1024,17 +1024,18 @@ class TypeChecker(Checker):
         self.pos_to_z3expr = {}
         self.pos_to_node = {}
 
-        def visit_and_save(cls, pos, children):
-            node = cls(pos, *children)
-            self.pos_to_node[pos] = node
-            return node
-
-        def encode_and_save(cls, pos, children):
-            node = self.encode(cls, pos, children)
-            self.pos_to_z3expr[pos] = node
-            return node
-
         for module in modules:
+
+            def visit_and_save(cls, pos, children):
+                node = cls(pos, *children)
+                self.pos_to_node[pos] = node
+                return node
+
+            def encode_and_save(cls, pos, children):
+                node = self.encode(cls, pos, children, module.name.name + "_")
+                self.pos_to_z3expr[pos] = node
+                return node
+
             module.visit(visit_and_save)
             module.visit(encode_and_save)
 

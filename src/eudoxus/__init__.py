@@ -8,6 +8,7 @@ import typer
 from typing_extensions import Annotated
 
 from eudoxus.checker.declared import DeclaredChecker
+from eudoxus.checker.instance import InstanceChecker
 from eudoxus.checker.select import SelectChecker
 from eudoxus.checker.type import TypeChecker
 from eudoxus.llm.gpt import chat
@@ -132,12 +133,17 @@ def repair(src, language, output, inference, debug):
     modules = Parser(src, debug).parse()
 
     if inference:
-        checkers = [SelectChecker, DeclaredChecker, TypeChecker]
+        checkers = [SelectChecker, InstanceChecker, DeclaredChecker, TypeChecker]
     else:
         checkers = []
 
     for checker in checkers:
-        rewrites = checker().check(modules)
+        if checker == InstanceChecker:
+            rewrites, new_mods = checker().check(modules)
+            modules = new_mods + modules
+        else:
+            rewrites = checker().check(modules)
+
         rewriter = Rewriter(rewrites)
         modules = [rewriter.rewrite(m) for m in modules]
 
