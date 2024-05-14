@@ -11,8 +11,10 @@ WHITESPACE = re.compile(r"\s+")
 
 
 def clean(sentence):
-    return re.sub(WHITESPACE, "", sentence)
-
+    cleaned = re.sub(WHITESPACE, "", sentence)
+    # remove all parentheses
+    cleaned = cleaned.replace("(", "").replace(")", "")
+    return cleaned
 
 # https://stackoverflow.com/a/76946888
 # Return string with the escape sequences at specific indexes to highlight

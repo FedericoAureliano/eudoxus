@@ -163,9 +163,12 @@ def type2py(output, type: t.Type):
             for i, v in enumerate(values):
                 if i > 0:
                     output.write(", ")
-                output.write('"')
-                output.write(v.name)
-                output.write('"')
+                if isinstance(v, n.HoleId):
+                    output.write("??")
+                else:
+                    output.write('"')
+                    output.write(v.name)
+                    output.write('"')
             output.write(")")
         case t.RecordType(_, fields):
             output.write("Record(")
@@ -207,43 +210,67 @@ def expr2py(output, expr: e.Expression):
             output.write("[")
             expr2py(output, index)
             output.write("]")
+        case e.ArrayStore(_, target, index, value):
+            output.write("ArrayStore(")
+            expr2py(output, target)
+            output.write(", ")
+            expr2py(output, index)
+            output.write(", ")
+            expr2py(output, value)
+            output.write(")")
         case e.Ite(_, cond, then, else_):
+            output.write("(")
             expr2py(output, then)
             output.write(" if ")
             expr2py(output, cond)
             output.write(" else ")
             expr2py(output, else_)
+            output.write(")")
         case e.Add(_, lhs, rhs):
+            output.write("(")
             expr2py(output, lhs)
             output.write(" + ")
             expr2py(output, rhs)
+            output.write(")")
         case e.Subtract(_, lhs, rhs):
+            output.write("(")
             expr2py(output, lhs)
             output.write(" - ")
             expr2py(output, rhs)
+            output.write(")")
         case e.Negate(_, arg):
             output.write(" -")
             expr2py(output, arg)
         case e.Multiply(_, lhs, rhs):
+            output.write("(")
             expr2py(output, lhs)
             output.write(" * ")
             expr2py(output, rhs)
+            output.write(")")
         case e.Divide(_, lhs, rhs):
+            output.write("(")
             expr2py(output, lhs)
             output.write(" / ")
             expr2py(output, rhs)
+            output.write(")")
         case e.Modulo(_, lhs, rhs):
+            output.write("(")
             expr2py(output, lhs)
             output.write(" % ")
             expr2py(output, rhs)
+            output.write(")")
         case e.And(_, lhs, rhs):
+            output.write("(")
             expr2py(output, lhs)
             output.write(" and ")
             expr2py(output, rhs)
+            output.write(")")
         case e.Or(_, lhs, rhs):
+            output.write("(")
             expr2py(output, lhs)
             output.write(" or ")
             expr2py(output, rhs)
+            output.write(")")
         case e.Not(_, target):
             output.write("not ")
             expr2py(output, target)
@@ -254,29 +281,41 @@ def expr2py(output, expr: e.Expression):
             expr2py(output, rhs)
             output.write(")")
         case e.Equal(_, lhs, rhs):
+            output.write("(")
             expr2py(output, lhs)
             output.write(" == ")
             expr2py(output, rhs)
+            output.write(")")
         case e.NotEqual(_, lhs, rhs):
+            output.write("(")
             expr2py(output, lhs)
             output.write(" != ")
             expr2py(output, rhs)
+            output.write(")")
         case e.LessThan(_, lhs, rhs):
+            output.write("(")
             expr2py(output, lhs)
             output.write(" < ")
             expr2py(output, rhs)
+            output.write(")")
         case e.LessThanOrEqual(_, lhs, rhs):
+            output.write("(")
             expr2py(output, lhs)
             output.write(" <= ")
             expr2py(output, rhs)
+            output.write(")")
         case e.GreaterThan(_, lhs, rhs):
+            output.write("(")
             expr2py(output, lhs)
             output.write(" > ")
             expr2py(output, rhs)
+            output.write(")")
         case e.GreaterThanOrEqual(_, lhs, rhs):
+            output.write("(")
             expr2py(output, lhs)
             output.write(" >= ")
             expr2py(output, rhs)
+            output.write(")")
         case e.Exists(_, x, t, body):
             output.write("Exists(")
             output.write(x.name)
@@ -357,6 +396,8 @@ def stmt2py(output, stmt: s.Statement, indent):
             output.write("\n")
         case s.Next(_, inst):
             output.write(f"{space}self.{inst.name}.next()\n")
+        case s.HoleStmt(_):
+            output.write(f"{space}??\n")
         case _:
             raise ValueError(f"Unsupported statement {stmt}")
 
@@ -374,5 +415,7 @@ def cmd2py(output, cmd: p.Command, indent):
             output.write(f"{space}self.induction({k})\n")
         case p.BoundedModelChecking(_, k):
             output.write(f"{space}self.bmc({k})\n")
+        case p.HoleCmd(_):
+            output.write(f"{space}??\n")
         case _:
             raise ValueError(f"Unsupported command {cmd}")

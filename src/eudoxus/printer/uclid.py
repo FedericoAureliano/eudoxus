@@ -258,74 +258,111 @@ def expr2ucl(output, expr: e.Expression):
             expr2ucl(output, value)
             output.write("]")
         case e.Ite(_, cond, then, else_):
-            output.write("if (")
+            output.write("(")
+            output.write("if ")
+            close = False
+            match cond:
+                case e.BooleanValue(_, _) | e.FunctionApplication(_, _, []):
+                    output.write("(")
+                    close = True
             expr2ucl(output, cond)
-            output.write(") then ")
+            if close:
+                output.write(")")
+            output.write(" then ")
             expr2ucl(output, then)
             output.write(" else ")
             expr2ucl(output, else_)
+            output.write(")")
         case e.Add(_, lhs, rhs):
+            output.write("(")
             expr2ucl(output, lhs)
             output.write(" + ")
             expr2ucl(output, rhs)
+            output.write(")")
         case e.Subtract(_, lhs, rhs):
+            output.write("(")
             expr2ucl(output, lhs)
             output.write(" - ")
             expr2ucl(output, rhs)
+            output.write(")")
         case e.Negate(_, arg):
             output.write(" -")
             expr2ucl(output, arg)
         case e.Multiply(_, lhs, rhs):
+            output.write("(")
             expr2ucl(output, lhs)
             output.write(" * ")
             expr2ucl(output, rhs)
+            output.write(")")
         case e.Divide(_, lhs, rhs):
+            output.write("(")
             expr2ucl(output, lhs)
             output.write(" / ")
             expr2ucl(output, rhs)
+            output.write(")")
         case e.Modulo(_, lhs, rhs):
+            output.write("(")
             expr2ucl(output, lhs)
             output.write(" % ")
             expr2ucl(output, rhs)
+            output.write(")")
         case e.And(_, lhs, rhs):
+            output.write("(")
             expr2ucl(output, lhs)
             output.write(" && ")
             expr2ucl(output, rhs)
+            output.write(")")
         case e.Or(_, lhs, rhs):
+            output.write("(")
             expr2ucl(output, lhs)
             output.write(" || ")
             expr2ucl(output, rhs)
+            output.write(")")
         case e.Not(_, target):
             output.write("!")
             expr2ucl(output, target)
         case e.Implies(_, lhs, rhs):
+            output.write("(")
             expr2ucl(output, lhs)
             output.write(" ==> ")
             expr2ucl(output, rhs)
+            output.write(")")
         case e.Equal(_, lhs, rhs):
+            output.write("(")
             expr2ucl(output, lhs)
             output.write(" == ")
             expr2ucl(output, rhs)
+            output.write(")")
         case e.NotEqual(_, lhs, rhs):
+            output.write("(")
             expr2ucl(output, lhs)
             output.write(" != ")
             expr2ucl(output, rhs)
+            output.write(")")
         case e.LessThan(_, lhs, rhs):
+            output.write("(")
             expr2ucl(output, lhs)
             output.write(" < ")
             expr2ucl(output, rhs)
+            output.write(")")
         case e.LessThanOrEqual(_, lhs, rhs):
+            output.write("(")
             expr2ucl(output, lhs)
             output.write(" <= ")
             expr2ucl(output, rhs)
+            output.write(")")
         case e.GreaterThan(_, lhs, rhs):
+            output.write("(")
             expr2ucl(output, lhs)
             output.write(" > ")
             expr2ucl(output, rhs)
+            output.write(")")
         case e.GreaterThanOrEqual(_, lhs, rhs):
+            output.write("(")
             expr2ucl(output, lhs)
             output.write(" >= ")
             expr2ucl(output, rhs)
+            output.write(")")
         case e.Exists(_, x, t, body):
             output.write("(exists (")
             output.write(id2str(x))
@@ -378,9 +415,16 @@ def stmt2ucl(output, stmt: s.Statement, indent, prime_assignments):
             output.write(";\n")
         case s.If(_, cond, body, orelse):
             output.write(space)
-            output.write("if (")
+            output.write("if ")
+            close = False
+            match cond:
+                case e.BooleanValue(_, _) | e.FunctionApplication(_, _, []):
+                    output.write("(")
+                    close = True
             expr2ucl(output, cond)
-            output.write(") {\n")
+            if close:
+                output.write(")")
+            output.write(" {\n")
             stmt2ucl(output, body, indent + 1, prime_assignments)
             if orelse.statements != []:
                 output.write(space + "} else {\n")
@@ -425,5 +469,7 @@ def cmd2ucl(output, cmd: p.Command, indent):
             output.write(f"{space}bmc({k});\n")
             output.write(f"{space}check;\n")
             output.write(f"{space}print_results;\n")
+        case p.HoleCmd(_):
+            output.write(f"{space}??;\n")
         case _:
             raise ValueError(f"Unsupported command {cmd}")

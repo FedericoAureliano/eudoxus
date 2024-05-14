@@ -905,6 +905,22 @@ class TypeChecker(Checker):
                 holep = self.fresh_constant(self.universe.expr, "HoleExpr")
                 self.add_soft_constraint(hole == holep, pos, "hole")
                 return holep
+            case s.HoleStmt:
+                # Input: ??
+                # Soft: ?? == ??'
+                # Output: ??'
+                hole = self.universe.stmt.HoleStmt
+                holep = self.fresh_constant(self.universe.stmt, "HoleStmt")
+                self.add_soft_constraint(hole == holep, pos, "hole")
+                return holep
+            case p.HoleCmd:
+                # Input: ??
+                # Soft: ?? == ??'
+                # Output: ??'
+                hole = self.universe.cmd.HoleCmd
+                holep = self.fresh_constant(self.universe.cmd, "HoleCmd")
+                self.add_soft_constraint(hole == holep, pos, "hole")
+                return holep
             case _:
                 raise NotImplementedError(f"Unsupported class {cls}")
 
