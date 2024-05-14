@@ -4,6 +4,7 @@ from typing import List
 import eudoxus.ast.statement as s
 import eudoxus.ast.type as t
 import eudoxus.dfy.ast.params as p
+from eudoxus.ast import expression as e
 from eudoxus.ast.node import Identifier, Node
 from eudoxus.dfy.ast.statement import Ensures, Requires
 
@@ -14,6 +15,6 @@ class DfyModule(Node):
     name: Identifier
     params: List[p.Params]
     return_type: t.Type
-    body: s.Block
+    body: s.Block | e.Expression
     requires: List[Requires]
     ensures: List[Ensures]

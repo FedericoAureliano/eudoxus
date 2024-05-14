@@ -17,7 +17,7 @@ RESERVED_STATEMENTS = ["assume", "assert", "havoc"]
 PY_LANGUAGE = TSLanguage(ts.language(), "python")
 
 
-def search(query: str, node: TSNode) -> List[TSNode]:
+def ts_search(query: str, node: TSNode) -> List[TSNode]:
     query = query + " @target"
     matches = PY_LANGUAGE.query(query).matches(node)
     return [m[1]["target"] for m in matches]
@@ -52,10 +52,22 @@ class Parser:
             strict: if True, only return nodes that are direct children of the node
         """
         to_search = func.__doc__
-        while "{" in to_search:
-            to_search = f'f"""{to_search}"""'
-            to_search = eval(to_search)
-        results = search(to_search, node)
+        return self._search(to_search, node, strict=strict)
+
+    def _search(self, query, node: TSNode, strict=True) -> List[TSNode]:
+        """
+        Returns a list of nodes that match the query in the docstring of the function.
+        This is a trick to be able to use docstrings as queries (preconditions)
+
+        params:
+            func: a function whose docstring contains the query
+            node: the node to search in
+            strict: if True, only return nodes that are direct children of the node
+        """
+        while "{" in query:
+            query = f'f"""{query}"""'
+            query = eval(query)
+        results = ts_search(query, node)
         if strict:
             return [r for r in results if r.parent == node]
         return results

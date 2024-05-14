@@ -67,7 +67,7 @@ def main(src, language, output, check, src_dsl):
     modules = parser(src).parse()
 
     if check:
-        rewrites = checker().check(modules)
+        rewrites = checker(src).check(modules)
     else:
         rewrites = {}
 

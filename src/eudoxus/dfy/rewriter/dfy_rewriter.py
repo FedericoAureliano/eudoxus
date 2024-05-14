@@ -4,9 +4,10 @@ import eudoxus.ast.expression as e
 import eudoxus.ast.statement as s
 import eudoxus.ast.type as t
 from eudoxus.ast.node import Node, Position
+from eudoxus.dfy.ast import statement as dfy_s
+from eudoxus.dfy.ast.expression import Ite, Slice, Subscript
 from eudoxus.dfy.ast.module import DfyModule
 from eudoxus.dfy.ast.params import Param, Params
-from eudoxus.dfy.ast.statement import Ensures, Requires, Return
 
 
 class DfyRewriter:
@@ -88,9 +89,10 @@ class DfyRewriter:
             case s.Assert(position, condition):
                 new_condition = self.rewrite(condition)
                 return s.Assert(position, new_condition)
-            case Return(position, value):
+
+            case dfy_s.Return(position, value):
                 new_value = self.rewrite(value)
-                return Return(position, new_value)
+                return dfy_s.Return(position, new_value)
             case s.Block(position, statements):
                 new_statements = [self.rewrite(s) for s in statements]
                 return s.Block(position, new_statements)
@@ -99,6 +101,14 @@ class DfyRewriter:
                 new_then_branch = self.rewrite(then_branch)
                 new_else_branch = self.rewrite(else_branch)
                 return s.If(position, new_condition, new_then_branch, new_else_branch)
+            case dfy_s.While(position, cond, invariant, decreases, body):
+                new_cond = self.rewrite(cond)
+                new_invariant = [self.rewrite(i) for i in invariant]
+                new_decreases = [self.rewrite(d) for d in decreases]
+                new_body = self.rewrite(body)
+                return dfy_s.While(
+                    position, new_cond, new_invariant, new_decreases, new_body
+                )
             case s.Assignment(position, target, value):
                 new_target = self.rewrite(target)
                 new_value = self.rewrite(value)
@@ -120,12 +130,19 @@ class DfyRewriter:
                 new_domain = [self.rewrite(d) for d in domain]
                 new_codomain = self.rewrite(codomain)
                 return t.Function(position, new_domain, new_codomain)
-            case Requires(position, condition):
+            case dfy_s.Requires(position, condition):
                 new_condition = self.rewrite(condition)
-                return Requires(position, new_condition)
-            case Ensures(position, condition):
+                return dfy_s.Requires(position, new_condition)
+            case dfy_s.Ensures(position, condition):
                 new_condition = self.rewrite(condition)
-                return Ensures(position, new_condition)
+                return dfy_s.Ensures(position, new_condition)
+            case dfy_s.Invariant(position, condition):
+                new_condition = self.rewrite(condition)
+                return dfy_s.Invariant(position, new_condition)
+            case dfy_s.Decreases(position, expression):
+                new_expression = self.rewrite(expression)
+                return dfy_s.Decreases(position, new_expression)
+
             case Params(position, params):
                 new_params = [self.rewrite(p) for p in params]
                 return Params(position, new_params)
@@ -133,6 +150,29 @@ class DfyRewriter:
                 new_name = self.rewrite(name)
                 new_type = self.rewrite(type)
                 return Param(position, new_name, new_type)
+            case Subscript(position, target, index):
+                new_target = self.rewrite(target)
+                new_index = self.rewrite(index)
+                return Subscript(position, new_target, new_index)
+            case Slice(position, start, end, step):
+                new_start, new_end, new_step = None, None, None
+                if start is not None:
+                    new_start = self.rewrite(start)
+                if end is not None:
+                    new_end = self.rewrite(end)
+                if step is not None:
+                    new_step = self.rewrite(step)
+                return Slice(position, new_start, new_end, new_step)
+
+            case Ite(position, condition, then_expr, else_expr):
+                new_condition, new_then_expr, new_else_expr = None, None, None
+                if condition is not None:
+                    new_condition = self.rewrite(condition)
+                if then_expr is not None:
+                    new_then_expr = self.rewrite(then_expr)
+                if else_expr is not None:
+                    new_else_expr = self.rewrite(else_expr)
+                return Ite(position, new_condition, new_then_expr, new_else_expr)
 
             case _:
                 return node

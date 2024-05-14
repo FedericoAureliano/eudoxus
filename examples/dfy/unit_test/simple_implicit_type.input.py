@@ -2,7 +2,7 @@ import dafnypy
 from typing import List
 
 @dafnypy.verify
-def sum(m: int, n) -> int:
+def test_sum(m: int, n) -> int:
     dafnypy.requires(m >= 0)
     dafnypy.requires(n >= 0)
     result = m + n

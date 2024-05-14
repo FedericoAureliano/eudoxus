@@ -6,13 +6,14 @@ import eudoxus.ast.statement as s
 import eudoxus.ast.type as t
 from eudoxus.ast.module import Module
 from eudoxus.ast.node import Hole
+from eudoxus.dfy.ast import statement as dfy_s
+from eudoxus.dfy.ast.expression import Ite, Slice, Subscript
 from eudoxus.dfy.ast.list import List as ListType
 from eudoxus.dfy.ast.params import Param, Params
-from eudoxus.dfy.ast.statement import Ensures, Requires, Return
-from eudoxus.printer.uclid import expr2ucl
+from eudoxus.printer.uclid import op2ucl
 
 
-def type2ucl(output, type: t.Type):
+def type2dfy(output, type: t.Type):
     match type:
         case t.Boolean(_):
             output.write("bool")
@@ -24,9 +25,8 @@ def type2ucl(output, type: t.Type):
             output.write(f"bv{size}")
         case ListType(_, elem_t):
             output.write("seq<")
-            type2ucl(output, elem_t)
+            type2dfy(output, elem_t)
             output.write(">")
-
         case Hole(_):
             output.write("??")
         case _:
@@ -35,20 +35,20 @@ def type2ucl(output, type: t.Type):
 
 def return_type2dfy(output, return_type: t.Type):
     output.write(" : ")
-    type2ucl(output, return_type)
+    type2dfy(output, return_type)
 
 
-def requires2dfy(output, requires: List[Requires]):
+def requires2dfy(output, requires: List[dfy_s.Requires]):
     for r in requires:
         output.write("requires( ")
-        expr2ucl(output, r.condition)
+        expr2dfy(output, r.condition)
         output.write(" );\n")
 
 
-def ensures2dfy(output, ensures: Ensures):
+def ensures2dfy(output, ensures: dfy_s.Ensures):
     for ens in ensures:
         output.write("ensures( ")
-        expr2ucl(output, ens.condition)
+        expr2dfy(output, ens.condition)
         output.write(" );\n")
 
 
@@ -75,8 +75,24 @@ def module2dfy(output, module: Module, indent):
         for statement in module.body.statements:
             stmt2dfy(output, statement, indent)
         output.write("}\n")
+    elif method_or_function == "function":
+        output.write(f"{method_or_function} {name}")
+        params2dfy(output, module.params)
+        output.write(" : ")
+        type2dfy(output, module.return_type)
+        requires2dfy(output, module.requires)
+        ensures2dfy(output, module.ensures)
+        output.write(" {\n")
+        indent += 1
+        space = "  " * indent
+        output.write(space)
+        expr2dfy(output, module.body)
+        output.write("\n}\n")
+
     else:
-        raise NotImplementedError
+        raise ValueError(
+            f"Unsupported {method_or_function} is not a method or function"
+        )
 
 
 def params2dfy(output, params: Params) -> str:
@@ -91,7 +107,7 @@ def params2dfy(output, params: Params) -> str:
 
 def param2dfy(output, param: Param) -> str:
     output.write(f"{param.name.name} :")
-    type2ucl(output, param.type)
+    type2dfy(output, param.type)
 
 
 def stmt2dfy(output, stmt: s.Statement, indent):
@@ -101,12 +117,12 @@ def stmt2dfy(output, stmt: s.Statement, indent):
             target = target.name
             output.write(space + target)
             output.write(" := ")
-            expr2ucl(output, value)
+            expr2dfy(output, value)
             output.write(";\n")
         case s.If(_, cond, body, orelse):
             output.write(space)
             output.write("if (")
-            expr2ucl(output, cond)
+            expr2dfy(output, cond)
             output.write(") {\n")
             stmt2dfy(output, body, indent + 1)
             if orelse.statements != []:
@@ -126,29 +142,149 @@ def stmt2dfy(output, stmt: s.Statement, indent):
             output.write(space + name + " = *" + ";\n")
         case s.Assume(_, cond):
             output.write(space + "assume ")
-            expr2ucl(output, cond)
+            expr2dfy(output, cond)
             output.write(";\n")
         case s.Assert(_, cond):
             output.write(space + "assert ")
-            expr2ucl(output, cond)
+            expr2dfy(output, cond)
             output.write(";\n")
         case Hole(_):
             output.write(space + "??;\n")
-        case Return(_, value):
+        case dfy_s.Return(_, value):
             output.write(space + "return ")
-            expr2ucl(output, value)
+            expr2dfy(output, value)
             output.write(";\n")
-        case Requires(_, cond):
+        case dfy_s.Requires(_, cond):
             output.write(space + "requires( ")
-            expr2ucl(output, cond)
+            expr2dfy(output, cond)
             output.write(");\n")
 
-        case Ensures(_, cond):
+        case dfy_s.Ensures(_, cond):
             output.write(space + "ensures( ")
-            expr2ucl(output, cond)
+            expr2dfy(output, cond)
             output.write(");\n")
+        case dfy_s.While(_, cond, invariant, decreases, body):
+            output.write(space + "while (")
+            expr2dfy(output, cond)
+            output.write(")\n")
+
+            for inv in invariant:
+                output.write(space + "invariant(")
+                expr2dfy(output, inv.condition)
+                output.write(");\n")
+            for dec in decreases:
+                output.write(space + "decreases(")
+                expr2dfy(output, dec.condition)
+                output.write(");\n")
+            output.write(space + "{\n")
+            stmt2dfy(output, body, indent + 1)
+            output.write(space + "}\n")
+        case dfy_s.Comment(_, comment):
+            output.write(space + comment.replace("#", "//", 1) + "\n")
         case _:
             raise ValueError(f"Unsupported statement {stmt}")
+
+
+def expr2dfy(output, expr: e.Expression):
+    match expr:
+        case e.Variant(_, name):
+            output.write(name)
+        case e.Selection(_, target, field):
+            expr2dfy(output, target)
+            output.write(".")
+            output.write(field.name)
+        case e.Application(_, name, args) if isinstance(name, e.Identifier):
+            name = name.name
+            if name == "len":
+                assert len(args) == 1
+                output.write("|")
+                for i, a in enumerate(args):
+                    if i > 0:
+                        output.write(", ")
+                    expr2dfy(output, a)
+                output.write("|")
+            else:
+                output.write(name)
+                if len(args) > 0:
+                    output.write("(")
+                    for i, a in enumerate(args):
+                        if i > 0:
+                            output.write(", ")
+                        expr2dfy(output, a)
+                    output.write(")")
+        case e.Application(_, op, args) if isinstance(op, e.Operator):
+            match op:
+                case e.Quantifier(_, bindings):
+                    name = "forall" if isinstance(op, e.Forall) else "exists"
+                    output.write("(")
+                    output.write(name)
+                    output.write(" (")
+                    for i, (n, ty) in enumerate(bindings):
+                        if i > 0:
+                            output.write(", ")
+                        output.write(n.name)
+                        output.write(": ")
+                        type2dfy(output, ty)
+                    output.write(") :: ")
+                    expr2dfy(output, args[0])
+                    output.write(")")
+                case e.Not(_):
+                    op2ucl(output, op)
+                    expr2dfy(output, args[0])
+                case e.Add(_) | e.Subtract(_) | e.Multiply(_) | e.Divide(_) | e.Modulo(
+                    _
+                ) | e.And(_) | e.Or(_):
+                    for i, a in enumerate(args):
+                        if i > 0:
+                            output.write(" ")
+                            op2ucl(output, op)
+                            output.write(" ")
+                        expr2dfy(output, a)
+                case e.Equal(_) | e.NotEqual(_) | e.LessThan(_) | e.GreaterThan(
+                    _
+                ) | e.LessThanOrEqual(_) | e.GreaterThanOrEqual(_):
+                    expr2dfy(output, args[0])
+                    for i, a in enumerate(args[1:]):
+                        output.write(" ")
+                        op2ucl(output, op)
+                        output.write(" ")
+                        expr2dfy(output, a)
+                        if i < len(args) - 2:
+                            output.write(" ")
+                            op2ucl(output, e.And(op.position))
+                            output.write(" ")
+                            expr2dfy(output, args[i + 1])
+                case _:
+                    raise ValueError(f"Unsupported operator {op}")
+        case e.Boolean(_, value) | e.Integer(_, value):
+            output.write(str(value).lower())
+        case e.BitVector(_, value, width):
+            output.write(f"{value}bv{width}")
+        case Hole(_):
+            output.write("??")
+        case Subscript(_, list_value, subscript):
+            expr2dfy(output, list_value)
+            output.write("[")
+            expr2dfy(output, subscript)
+            output.write("]")
+        case Slice(_, start, end, step):
+            if start:
+                expr2dfy(output, start)
+            output.write(":")
+            if end:
+                expr2dfy(output, end)
+            if step:
+                output.write(":")
+                expr2dfy(output, step)
+        case Ite(_, condition, then_expr, else_expr):
+            output.write("if ")
+            expr2dfy(output, condition)
+            output.write(" then ")
+            expr2dfy(output, then_expr)
+            output.write(" else ")
+            expr2dfy(output, else_expr)
+        case _:
+            raise ValueError(f"Unsupported expression {expr}")
 
 
 def cmd2ucl(output, cmd: p.Command, indent):
