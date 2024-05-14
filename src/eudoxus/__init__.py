@@ -33,8 +33,9 @@ def main_(
     task: Path,
     language: Language = Language.uclid,
     output: Path = None,
-    inference: bool = True,
     iterations: int = 2,
+    inference: bool = True,
+    remind: bool = True,
     debug: Annotated[bool, typer.Option(hidden=True)] = False,
 ) -> None:
     if output is None:
@@ -49,13 +50,13 @@ def main_(
             return
         output = open(output, "w")
 
-    pipeline(task, language, output, inference, iterations, debug)
+    pipeline(task, language, output, inference, iterations, debug, remind)
 
     if output is not sys.stdout:
         output.close()
 
 
-def pipeline(task, language, output, inference, iterations, debug):
+def pipeline(task, language, output, inference, iterations, debug, remind):
     clocks = {"llm": 0, "repair": 0}
 
     def timeit(clock, f, *args, **kwargs):
@@ -85,11 +86,11 @@ def pipeline(task, language, output, inference, iterations, debug):
     repaired = repaired.getvalue()
     generator_log("Repaired:", repaired)
 
-    iters = 1
+    llm_calls = 1
     for _ in range(1, iterations):
         if "??" not in repaired:
             break
-        prompt = get_complete_prompt(repaired)
+        prompt = get_complete_prompt(repaired, task, remind)
         generator_log("Prompt:", prompt)
         llm_response = timeit("llm", chat, prompt)
         llm_log("Response:", llm_response)
@@ -99,12 +100,13 @@ def pipeline(task, language, output, inference, iterations, debug):
         timeit("repair", repair, python, Language.python, repaired, inference, debug)
         repaired = repaired.getvalue()
         generator_log("Repaired:", repaired)
-        iters += 1
+        llm_calls += 1
 
-    stats = f"iters: {iters}\n"
-    stats += f"change: {len(repaired.splitlines()) - len(original.splitlines())}\n"
-    stats += f"llm: {clocks['llm']:.2f}s\n"
-    stats += f"repair: {clocks['repair']:.2f}s"
+    stats = f"Original Lines: {len(original.splitlines())}\n"
+    stats += f"Final Lines:    {len(repaired.splitlines())}\n"
+    stats += f"LLM Calls:      {llm_calls}\n"
+    stats += f"LLM Time:       {clocks['llm']:.2f}s\n"
+    stats += f"Repair Time:    {clocks['repair']:.2f}s"
     generator_log("Stats:", stats)
 
     repair(repaired, language, output, inference, debug)

@@ -33,16 +33,30 @@ def get_sketch_prompt(task) -> str:
     return prompt
 
 
-def get_complete_prompt(code_with_holes, original=None):
+def get_complete_prompt(code_with_holes: str, task: str, use_original: bool) -> str:
     """Returns the repair prompt."""
+    if task.endswith("."):
+        task = task[:-1]
+
     prompt = ""
 
-    if original:
-        prompt += "\nFix the Python code below by replacing every occurrence of `??` "
-        prompt += f"so that it accomplishes this task: {original}\n"
-        prompt += f"```python\n{code_with_holes}\n```\n"
-    else:
-        prompt += "\nFix the Python code below by replacing every occurrence of `??` "
-        prompt += f"with the correct code:\n```python\n{code_with_holes}\n```\n"
+    prompt += "\nFix the following Python code by replacing every occurrence of `??` "
+    prompt += "with the correct code."
+    prompt += f"\n```python\n{code_with_holes}\n```\n"
+    prompt += "Make sure that your code extends the `Module` class below"
+
+    if use_original:
+        prompt += " and that it completes the following task.\n\n"
+        prompt += "> " + task.replace("\n", " ").replace("\r", " ").replace("  ", " ")
+        prompt = prompt.rstrip()
+
+    if prompt.endswith("."):
+        prompt = prompt[:-1]
+
+    prompt += ".\n\nReply with your Python code inside one unique code block."
+    module_class = "```python\n" + get_api_description() + "\n```\n"
+    prompt += f"\n\n{module_class}\n"
+    prompt += "I can definitely do that! Here is the fixed Python code:\n"
+    prompt += "```python\n"
 
     return prompt

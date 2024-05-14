@@ -18,8 +18,9 @@ pip3 install .
 ╭─ Options ─────────────────────────────────────────────────────────────────────╮
 │ --language                        [python|uclid]  [default: uclid]            │
 │ --output                          PATH            [default: None]             │
-│ --inference     --no-inference                    [default: inference]        │
 │ --iterations                      INTEGER         [default: 2]                │
+│ --inference     --no-inference                    [default: inference]        │
+│ --remind        --no-remind                       [default: remind]           │
 │ --help                                            Show this message and exit. │
 ╰───────────────────────────────────────────────────────────────────────────────╯
 ```
