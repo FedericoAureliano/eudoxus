@@ -430,8 +430,6 @@ class Parser:
             object: (_)
             attribute: (_))
         """
-        print(node.sexp())
-        print(node.children)
         p = pos(node)
         record = self.parse_expr(node.child_by_field_name("object"))
         selector = self.parse_identifier(node.child_by_field_name("attribute"))
