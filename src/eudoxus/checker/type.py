@@ -156,6 +156,10 @@ class Universe:
 
 
 class TypeChecker(Checker):
+    """
+    Check if the types are correct.
+    """
+
     def reason_to_weight(self, reason: str) -> int:
         match reason:
             case "hole":
@@ -921,6 +925,9 @@ class TypeChecker(Checker):
                 holep = self.fresh_constant(self.universe.cmd, "HoleCmd")
                 self.add_soft_constraint(hole == holep, pos, "hole")
                 return holep
+            case n.HoleId:
+                # return a fresh symbol
+                return self.fresh_constant(self.universe.symbol, "HoleId")
             case _:
                 raise NotImplementedError(f"Unsupported class {cls}")
 

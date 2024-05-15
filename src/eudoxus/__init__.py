@@ -133,12 +133,12 @@ def repair(src, language, output, inference, debug):
     modules = Parser(src, debug).parse()
 
     if inference:
-        checkers = [SelectChecker, InstanceChecker, DeclaredChecker, TypeChecker]
+        checkers = [InstanceChecker, SelectChecker, DeclaredChecker, TypeChecker]
     else:
         checkers = []
 
     for checker in checkers:
-        if checker == InstanceChecker:
+        if checker == DeclaredChecker:
             rewrites, new_mods = checker().check(modules)
             modules = new_mods + modules
         else:

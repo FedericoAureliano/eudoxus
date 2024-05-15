@@ -179,6 +179,12 @@ class RecordSelect(Expression):
 
 
 @dataclass(frozen=True)
+class InstanceSelect(Expression):
+    istance: Identifier
+    selector: Identifier
+
+
+@dataclass(frozen=True)
 class ArraySelect(Expression):
     array: Expression
     index: Expression
