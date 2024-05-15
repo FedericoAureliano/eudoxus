@@ -130,6 +130,12 @@ class Or(Expression):
 
 
 @dataclass(frozen=True)
+class Xor(Expression):
+    arg1: Expression
+    arg2: Expression
+
+
+@dataclass(frozen=True)
 class Not(Expression):
     arg: Expression
 

@@ -275,6 +275,12 @@ def expr2py(output, expr: e.Expression):
             output.write(" or ")
             expr2py(output, rhs)
             output.write(")")
+        case e.Xor(_, lhs, rhs):
+            output.write("Xor(")
+            expr2py(output, lhs)
+            output.write(", ")
+            expr2py(output, rhs)
+            output.write(")")
         case e.Not(_, target):
             output.write("not ")
             expr2py(output, target)

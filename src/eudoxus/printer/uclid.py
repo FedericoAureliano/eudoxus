@@ -322,6 +322,12 @@ def expr2ucl(output, expr: e.Expression):
             output.write(" || ")
             expr2ucl(output, rhs)
             output.write(")")
+        case e.Xor(_, lhs, rhs):
+            output.write("(")
+            expr2ucl(output, lhs)
+            output.write(" xor ")
+            expr2ucl(output, rhs)
+            output.write(")")
         case e.Not(_, target):
             output.write("!")
             expr2ucl(output, target)

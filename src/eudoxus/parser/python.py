@@ -281,6 +281,10 @@ class Parser:
                 if len(args) == 1:
                     return args[0]
                 return e.Or(pos, *args)
+            case "xor" | "exclusive_or" if 1 <= len(args) <= 2:
+                if len(args) == 1:
+                    return args[0]
+                return e.Xor(pos, *args)
             case "implies" | "impl" | "if_" if 1 <= len(args) <= 2:
                 if len(args) == 1:
                     return args[0]
@@ -416,12 +420,18 @@ class Parser:
         index = self.parse_expr(node.child_by_field_name("subscript"))
         return e.ArraySelect(pos(node), array, index)
 
+    def parse_error(self, node: TSNode) -> str:
+        """(ERROR)"""
+        return self.text(node)
+
     def parse_select_expr(self, node: TSNode) -> e.RecordSelect:
         """
         (attribute
             object: (_)
             attribute: (_))
         """
+        print(node.sexp())
+        print(node.children)
         p = pos(node)
         record = self.parse_expr(node.child_by_field_name("object"))
         selector = self.parse_identifier(node.child_by_field_name("attribute"))
@@ -594,6 +604,11 @@ class Parser:
             (parenthesized_expression)
         ]
         """
+        errors = self.search(self.parse_error, node)
+        if len(errors) > 0 and self.debug:
+            raise ValueError(f"Errors: {[self.parse_error(e) for e in errors]}")
+        elif len(errors) > 0:
+            return e.HoleExpr(pos(node))
         match node.type:
             case "identifier":
                 id = self.parse_flat_identifier(node)

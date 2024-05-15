@@ -110,7 +110,7 @@ def pipeline(task, language, output, inference, iterations, debug, remind):
     stats += f"Repair Time:    {clocks['repair']:.2f}s"
     generator_log("Stats:", stats)
 
-    repair(repaired, language, output, inference, debug)
+    repair(repaired, language, output, False, debug)
 
 
 def repair(src, language, output, inference, debug):
