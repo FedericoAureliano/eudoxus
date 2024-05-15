@@ -205,6 +205,10 @@ def expr2py(output, expr: e.Expression):
             expr2py(output, target)
             output.write(".")
             output.write(field.name)
+        case e.InstanceSelect(_, target, field):
+            output.write("self." + target.name)
+            output.write(".")
+            output.write(field.name)
         case e.ArraySelect(_, target, index):
             expr2py(output, target)
             output.write("[")

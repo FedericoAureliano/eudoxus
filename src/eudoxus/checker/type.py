@@ -881,6 +881,9 @@ class TypeChecker(Checker):
                 )
                 self.add_hard_constraint(self.term_to_type(x) == self.field_to_type(fp))
                 return x
+            case e.InstanceSelect:
+                # TODO
+                return self.universe.expr.InstanceSelect(children[0], children[1])
             case p.Block:
                 arg = foldl(
                     lambda x, y: self.universe.cmd_list.cons(y, x),

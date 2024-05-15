@@ -245,6 +245,10 @@ def expr2ucl(output, expr: e.Expression):
             expr2ucl(output, target)
             output.write(".")
             output.write(id2str(field))
+        case e.InstanceSelect(_, target, field):
+            output.write(id2str(target))
+            output.write(".")
+            output.write(id2str(field))
         case e.ArraySelect(_, target, index):
             expr2ucl(output, target)
             output.write("[")
