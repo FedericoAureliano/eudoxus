@@ -47,12 +47,42 @@ class Node:
 
     def visit(self, visitor):
         """
+        This allows editing of the AST in a bottom-up fashion.
         Visit the node and its children, calling the visitor on each node.
+
         param visitor: a function that takes a class, a position, and a list of
                        children, and returns a new node
         """
         new_children = self._visit_children(visitor)
         return visitor(self.__class__, self.position, new_children)
+
+    def traverse(self, enter, exit):
+        """
+        Visit the node and its children from top to bottom. Calls the entry
+        visitor before going to the children and the exit visitor after visiting
+        the children.
+
+        param enter: a function that takes a node and returns nothing, but may
+                        have side effects.
+        param exit: a function that takes a node and returns nothing, but may
+                        have side effects.
+        """
+        enter(self)
+        children = [getattr(self, v.name) for v in dataclasses.fields(self)]
+        for child in children:
+            if isinstance(child, Node):
+                child.traverse(enter, exit)
+            elif isinstance(child, list):
+                for c in child:
+                    if isinstance(c, Node):
+                        c.traverse(enter, exit)
+                    elif isinstance(c, tuple):
+                        for cc in c:
+                            if isinstance(cc, Node):
+                                cc.traverse(enter, exit)
+            else:
+                continue
+        exit(self)
 
 
 @dataclass(frozen=True)

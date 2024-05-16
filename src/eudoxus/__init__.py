@@ -9,6 +9,7 @@ from typing_extensions import Annotated
 
 from eudoxus.checker.declared import DeclaredChecker
 from eudoxus.checker.instance import InstanceChecker
+from eudoxus.checker.scope import ScopeChecker
 from eudoxus.checker.select import SelectChecker
 from eudoxus.checker.type import TypeChecker
 from eudoxus.llm.gpt import chat
@@ -133,7 +134,18 @@ def repair(src, language, output, inference, debug):
     modules = Parser(src, debug).parse()
 
     if inference:
-        checkers = [InstanceChecker, SelectChecker, DeclaredChecker, TypeChecker]
+        # Instance first: changes var declarations to instance declarations
+        # Select next: changes record selections to instance selections
+        # Scope next: changes variable names to avoid shadowing and adds declarations
+        # Declared next: adds missing non-variable declarations, like modules
+        # Type last: adds missing types
+        checkers = [
+            InstanceChecker,
+            SelectChecker,
+            ScopeChecker,
+            DeclaredChecker,
+            TypeChecker,
+        ]
     else:
         checkers = []
 

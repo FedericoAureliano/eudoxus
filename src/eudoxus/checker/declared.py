@@ -11,7 +11,7 @@ from eudoxus.checker.interface import Checker
 
 class DeclaredChecker(Checker):
     """
-    Declare variables, types, instances, and modules that are used but not declared.
+    Declare types, instances, and modules that are used but not declared.
     """
 
     def declared_visitor(self, cls, pos, children):
@@ -22,8 +22,6 @@ class DeclaredChecker(Checker):
                 self.declared_types.add(children[0].name)
             case s.TypeDecl:
                 self.declared_types.add(children[0].name)
-            case s.LocalDecl | s.InputDecl | s.SharedDecl | s.OutputDecl:
-                self.declared_vars.add(children[0].name)
             case s.InstanceDecl:
                 self.declared_instances.add(children[0].name)
 
@@ -31,16 +29,12 @@ class DeclaredChecker(Checker):
 
     def used_visitor(self, cls, pos, children):
         match cls:
-            case e.FunctionApplication:
-                self.used_vars.add(children[0].name)
             case t.SynonymType:
                 self.used_types.add(children[0].name)
             case s.InstanceDecl:
                 self.used_modules.add(children[1].name)
             case s.Next:
                 self.used_instances.add(children[0].name)
-            case s.Havoc:
-                self.used_vars.add(children[0].name)
             case e.InstanceSelect:
                 self.used_instances.add(children[0].name)
 
@@ -62,17 +56,14 @@ class DeclaredChecker(Checker):
 
         for module in modules:
             self.declared_types = set()
-            self.declared_vars = set()
             self.declared_instances = set()
             self.used_types = set()
-            self.used_vars = set()
             self.used_instances = set()
 
             module.visit(self.declared_visitor)
             module.visit(self.used_visitor)
 
             types_to_declare = self.used_types - self.declared_types
-            vars_to_declare = self.used_vars - self.declared_vars
             instances_to_declare = self.used_instances - self.declared_instances
 
             type_block = module.types
@@ -88,17 +79,6 @@ class DeclaredChecker(Checker):
                 new_type_decls.append(new_type_decl)
             new_type_block = s.Block(new_pos(), new_type_decls + type_block.statements)
             rewrites[pt] = new_type_block
-
-            var_block = module.locals
-            pv = var_block.position
-            new_var_decls = []
-            for var_name in vars_to_declare:
-                new_var_decl = s.LocalDecl(
-                    new_pos(), Identifier(new_pos(), var_name), t.HoleType(new_pos())
-                )
-                new_var_decls.append(new_var_decl)
-            new_var_block = s.Block(new_pos(), new_var_decls + var_block.statements)
-            rewrites[pv] = new_var_block
 
             instance_block = module.instances
             pi = instance_block.position

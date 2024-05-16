@@ -36,8 +36,6 @@ class SelectChecker(Checker):
         return cls(pos, *children)
 
     def check(self, modules: List[m.Module]) -> Dict[Position, Node]:
-        self.position = -2000
-
         rewrites = {}
 
         for module in modules:

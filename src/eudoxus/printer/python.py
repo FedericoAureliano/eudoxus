@@ -328,7 +328,7 @@ def expr2py(output, expr: e.Expression):
             output.write(")")
         case e.Exists(_, x, t, body):
             output.write("Exists(")
-            output.write(x.name)
+            output.write("self." + x.name)
             output.write(", ")
             type2py(output, t)
             output.write(", ")
@@ -336,7 +336,7 @@ def expr2py(output, expr: e.Expression):
             output.write(")")
         case e.Forall(_, x, t, body):
             output.write("Forall(")
-            output.write(x.name)
+            output.write("self." + x.name)
             output.write(", ")
             type2py(output, t)
             output.write(", ")

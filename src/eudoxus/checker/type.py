@@ -818,27 +818,28 @@ class TypeChecker(Checker):
             case e.Forall | e.Exists:
                 # Input: forall x: t. c
                 # Hard: type(c) == bool
-                # Hard: type(forall x: t'. c) == bool
-                # Hard: type(x) = t'
-                # Soft: t = t'
-                # Output: forall x: t'. c
+                # Hard: type(forall x: t. c) == bool
+                # Hard: type(x) = t
+                # Output: forall x: t. c
                 x = children[0]
                 xapp = self.universe.expr.FunctionApplication(
                     x, self.universe.expr_list.empty
                 )
-                tt = children[1]
+                xt = children[1]
                 c = children[2]
-                ttp = self.fresh_constant(self.universe.type, "QuantifierHole")
+                q = (
+                    self.universe.expr.Forall(x, xt, c)
+                    if cls == e.Forall
+                    else self.universe.expr.Exists(x, xt, c)
+                )
                 self.add_hard_constraint(
                     self.term_to_type(c) == self.universe.type.BooleanType
                 )
-                self.add_hard_constraint(self.term_to_type(xapp) == ttp)
                 self.add_hard_constraint(
-                    self.term_to_type(self.universe.expr.Forall(x, ttp, c))
-                    == self.universe.type.BooleanType
+                    self.term_to_type(q) == self.universe.type.BooleanType
                 )
-                self.add_soft_constraint(tt == ttp, pos, "bad_type")
-                return self.universe.expr.Forall(x, ttp, c)
+                self.add_hard_constraint(self.term_to_type(xapp) == xt)
+                return q
             case e.ArrayStore:
                 # Input: a[x] = y
                 # Hard: type(a) == Array(type(x), type(y))
@@ -1071,6 +1072,9 @@ class TypeChecker(Checker):
         self.add_hard_constraint(z3.Distinct([sym for sym in self.symbol_map.values()]))
 
         positions, self.model = self.solve()
+
+        # print(f"Model: {self.model}")
+        # print(f"Edits: {[self.pos_to_node[pos] for pos in positions]}")
 
         self.to_repair = {position: n.HoleId(position) for position in positions}
 

@@ -14,7 +14,7 @@ class InstanceChecker(Checker):
     """
 
     def check(self, modules: List[m.Module]) -> Dict[Position, Node]:
-        self.position = -3000
+        self.position = -2000
 
         def new_pos():
             self.position -= 1
