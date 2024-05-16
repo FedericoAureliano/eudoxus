@@ -377,8 +377,12 @@ class Parser:
                         bindings = [
                             (binding, t.HoleType(self.fpos())) for binding in bindings
                         ]
-                body = arguments.child(3)
-                body = self.parse_expr(body)
+
+                if arguments.child_count >= 4:
+                    body = arguments.child(3)
+                    body = self.parse_expr(body)
+                else:
+                    body = e.HoleExpr(self.fpos())
                 if function.name.lower() == "forall":
                     return foldl(
                         lambda x, y: e.Forall(self.fpos(), *x, y),
@@ -989,7 +993,26 @@ class Parser:
         name = self.text(node.child_by_field_name("name"))
         body = node.child_by_field_name("body")
         match name:
-            case "init" | "next":
+            case "next" | "control" | "step" | "transition":
+                match body.child(0).type:
+                    # ignore while true at the top level of the next block
+                    case "while_statement":
+                        body = body.child(0)
+                        condition = self.parse_expr(
+                            body.child_by_field_name("condition")
+                        )
+                        if isinstance(condition, e.BooleanValue) and condition.value:
+                            body = self.search(
+                                self.parse_statement, body.child_by_field_name("body")
+                            )
+                            return s.Block(
+                                self.fpos(),
+                                [self.parse_statement(stmt) for stmt in body],
+                            )
+                stmts = self.search(self.parse_statement, body)
+                stmts = [self.parse_statement(stmt) for stmt in stmts]
+                return s.Block(self.fpos(), stmts)
+            case "init":
                 stmts = self.search(self.parse_statement, body)
                 stmts = [self.parse_statement(stmt) for stmt in stmts]
                 return s.Block(self.fpos(), stmts)
@@ -1155,7 +1178,12 @@ class Parser:
         )
 
         next_blocks = [
-            b for b in self.search(self.parse_stmt_block, body) if has_name(b, "next")
+            b
+            for b in self.search(self.parse_stmt_block, body)
+            if has_name(b, "next")
+            or has_name(b, "step")
+            or has_name(b, "transition")
+            or has_name(b, "control")
         ]
         next = s.Block(
             self.fpos(),

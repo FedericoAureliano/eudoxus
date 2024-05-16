@@ -577,9 +577,15 @@ class TypeChecker(Checker):
                 # Hard: type(x == y) == bool
                 # Output: x == y
                 x = children[0]
+                xp = self.fresh_constant(self.universe.expr, "EqualHole")
+                self.add_soft_constraint(x == xp, pos, "bad_expr")
+
                 y = children[1]
-                x_eq_y = self.universe.expr.Equal(x, y)
-                self.add_hard_constraint(self.term_to_type(x) == self.term_to_type(y))
+                yp = self.fresh_constant(self.universe.expr, "EqualHole")
+                self.add_soft_constraint(y == yp, pos, "bad_expr")
+
+                x_eq_y = self.universe.expr.Equal(xp, yp)
+                self.add_hard_constraint(self.term_to_type(xp) == self.term_to_type(yp))
                 self.add_hard_constraint(
                     self.term_to_type(x_eq_y) == self.universe.type.BooleanType
                 )

@@ -3,11 +3,10 @@ from typing import List, Tuple
 import eudoxus.ast.expression as e
 import eudoxus.ast.statement as s
 from eudoxus.ast.node import Identifier
-from eudoxus.repair.interface import Checker
 from eudoxus.repair.scope import ScopeStack
 
 
-class SequentialChecker(Checker):
+class SequentialChecker:
     """
     Check if the next block is sequential or parallel.
     """

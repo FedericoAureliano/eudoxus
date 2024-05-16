@@ -29,7 +29,7 @@ class TickCounter(Module):
 
 class System(Module):
   def instances(self):
-    self.tick_counter = TickCounter()
+    self.tick_counter = TickCounter(clock_tick=??)
 
   def control(self):
     self.induction(1)
