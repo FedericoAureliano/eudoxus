@@ -55,7 +55,7 @@ def check_example(input, output, language):
 
     # run without solver but with debug to try to catch exception
     try:
-        eudoxus(input_path, language, StringIO(), False, True)
+        eudoxus(input_path, language, StringIO(), False, True, False)
     except ValueError as e:
         if "xor self" in str(e):
             pass
@@ -66,7 +66,7 @@ def check_example(input, output, language):
 
     # run with solver and without debug to check end-to-end result
     actual = StringIO()
-    eudoxus(input_path, language, actual, True, False)
+    eudoxus(input_path, language, actual, True, False, True)
     actual = actual.getvalue()
 
     if clean(actual) != clean(expected):

@@ -5,7 +5,7 @@ import eudoxus.ast.module as m
 import eudoxus.ast.statement as s
 import eudoxus.ast.type as t
 from eudoxus.ast.node import HoleId, Node, Position
-from eudoxus.checker.interface import Checker
+from eudoxus.repair.interface import Checker
 
 
 class SelectChecker(Checker):

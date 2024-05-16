@@ -3,5 +3,5 @@ class Quantifiers(Module):
         self.x = int
 
     def next(self):
-        assert Exists(self.x1, int, self.x1 > 0)
-        assert Forall(self.x1, int, self.x1 < 10)
+        assert Exists(self.x0, int, self.x0 > 0)
+        assert Forall(self.x1, bool, self.x1)

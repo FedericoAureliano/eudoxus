@@ -3,6 +3,7 @@ import eudoxus.ast.node as n
 import eudoxus.ast.proof as p
 import eudoxus.ast.statement as s
 import eudoxus.ast.type as t
+from eudoxus.analyze.sequential import SequentialChecker
 from eudoxus.ast.module import Module
 
 keywords = set(
@@ -99,10 +100,25 @@ def next2ucl(output, next: s.Block, indent):
         case s.Block(_, []):
             return
     space = "  " * indent
-    output.write(space + "next {\n")
-    stmt2ucl(output, next, indent + 1, True)
-    output.write("\n")
-    output.write(space + "}\n")
+
+    sequential, assigned = SequentialChecker().check(next)
+
+    # check if there are duplicate assignments
+    if sequential:
+        output.write(space + "procedure step()\n")
+        for name in set(assigned):
+            output.write(f"{space}  modifies {name};\n")
+        output.write(space + "{\n")
+        stmt2ucl(output, next, indent + 1, False)
+        output.write(space + "}\n\n")
+        output.write(space + "next {\n")
+        output.write(space + "  call step();\n")
+        output.write(space + "}\n")
+    else:
+        output.write(space + "next {\n")
+        stmt2ucl(output, next, indent + 1, True)
+        output.write("\n")
+        output.write(space + "}\n")
 
 
 def specs2ucl(output, spec: e.Expression, indent):

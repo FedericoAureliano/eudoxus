@@ -4,4 +4,4 @@ class Forall(Module):
         self.y = int
 
     def specification(self):
-        return Forall(self.x1, bool, Implies(self.x1, self.y == 100))
+        return Forall(self.x0, bool, Implies(self.x0, self.y == 100))

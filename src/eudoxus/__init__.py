@@ -7,18 +7,19 @@ from pathlib import Path
 import typer
 from typing_extensions import Annotated
 
-from eudoxus.checker.declared import DeclaredChecker
-from eudoxus.checker.instance import InstanceChecker
-from eudoxus.checker.scope import ScopeChecker
-from eudoxus.checker.select import SelectChecker
-from eudoxus.checker.type import TypeChecker
 from eudoxus.llm.gpt import chat
 from eudoxus.llm.prompts import get_complete_prompt, get_sketch_prompt
 from eudoxus.llm.utils import extract_code
-from eudoxus.parser.python import Parser
-from eudoxus.printer.python import module2py
-from eudoxus.printer.uclid import module2ucl
-from eudoxus.rewriter import Rewriter
+from eudoxus.parse.python import Parser
+from eudoxus.print.python import module2py
+from eudoxus.print.uclid import module2ucl
+from eudoxus.repair.declared import DeclaredChecker
+from eudoxus.repair.instance import InstanceChecker
+from eudoxus.repair.quantifier import QuantifierChecker
+from eudoxus.repair.scope import ScopeChecker
+from eudoxus.repair.select import SelectChecker
+from eudoxus.repair.type import TypeChecker
+from eudoxus.rewrite import Rewriter
 from eudoxus.utils import generator_log, llm_log
 
 
@@ -38,6 +39,7 @@ def main_(
     iterations: int = 2,
     inference: bool = True,
     remind: bool = True,
+    solver: Annotated[bool, typer.Option(hidden=True)] = True,
     debug: Annotated[bool, typer.Option(hidden=True)] = False,
 ) -> None:
     if output is None:
@@ -52,13 +54,13 @@ def main_(
             return
         output = open(output, "w")
 
-    pipeline(task, language, output, inference, iterations, debug, remind)
+    pipeline(task, language, output, inference, iterations, debug, remind, solver)
 
     if output is not sys.stdout:
         output.close()
 
 
-def pipeline(task, language, output, inference, iterations, debug, remind):
+def pipeline(task, language, output, inference, iterations, debug, remind, solver):
     clocks = {"llm": 0, "repair": 0}
 
     def timeit(clock, f, *args, **kwargs):
@@ -73,7 +75,7 @@ def pipeline(task, language, output, inference, iterations, debug, remind):
 
     if iterations < 1:
         # assume task is a path to a file with code to repair
-        repair(task, language, output, inference, debug)
+        repair(task, language, output, inference, debug, solver)
         return
 
     prompt = get_sketch_prompt(task)
@@ -84,7 +86,9 @@ def pipeline(task, language, output, inference, iterations, debug, remind):
     original = python
     generator_log("Extracted:", python)
     repaired = StringIO()
-    timeit("repair", repair, python, Language.python, repaired, inference, debug)
+    timeit(
+        "repair", repair, python, Language.python, repaired, inference, debug, solver
+    )
     repaired = repaired.getvalue()
     generator_log("Repaired:", repaired)
 
@@ -99,7 +103,16 @@ def pipeline(task, language, output, inference, iterations, debug, remind):
         python = extract_code(llm_response)
         generator_log("Extracted:", python)
         repaired = StringIO()
-        timeit("repair", repair, python, Language.python, repaired, inference, debug)
+        timeit(
+            "repair",
+            repair,
+            python,
+            Language.python,
+            repaired,
+            inference,
+            debug,
+            solver,
+        )
         repaired = repaired.getvalue()
         generator_log("Repaired:", repaired)
         llm_calls += 1
@@ -111,10 +124,10 @@ def pipeline(task, language, output, inference, iterations, debug, remind):
     stats += f"Repair Time:    {clocks['repair']:.2f}s"
     generator_log("Stats:", stats)
 
-    repair(repaired, language, output, False, debug)
+    repair(repaired, language, output, False, debug, solver)
 
 
-def repair(src, language, output, inference, debug):
+def repair(src, language, output, inference, debug, solver):
     def write():
         if language == Language.python:
             for m in modules:
@@ -137,15 +150,18 @@ def repair(src, language, output, inference, debug):
         # Instance first: changes var declarations to instance declarations
         # Select next: changes record selections to instance selections
         # Scope next: changes variable names to avoid shadowing and adds declarations
+        # Quantifier next: changes quantifiers to use unique variable names
         # Declared next: adds missing non-variable declarations, like modules
-        # Type last: adds missing types
         checkers = [
             InstanceChecker,
             SelectChecker,
             ScopeChecker,
+            QuantifierChecker,
             DeclaredChecker,
-            TypeChecker,
         ]
+        # Type last: adds missing types using a MAX-SMT solver
+        if solver:
+            checkers.append(TypeChecker)
     else:
         checkers = []
 

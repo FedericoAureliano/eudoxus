@@ -6,7 +6,7 @@ import eudoxus.ast.proof as p
 import eudoxus.ast.statement as s
 import eudoxus.ast.type as t
 from eudoxus.ast.node import Identifier, Node, Position
-from eudoxus.checker.interface import Checker
+from eudoxus.repair.interface import Checker
 
 
 class DeclaredChecker(Checker):

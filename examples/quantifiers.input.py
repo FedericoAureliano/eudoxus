@@ -4,4 +4,4 @@ class Quantifiers(Module):
 
     def next(self):
         assert exists([(x, Integer())], x > 0)
-        assert forall([(x, Integer())], x < 10)
+        assert forall([(x, Boolean())], x)

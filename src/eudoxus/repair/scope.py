@@ -5,7 +5,7 @@ import eudoxus.ast.module as m
 import eudoxus.ast.statement as s
 import eudoxus.ast.type as t
 from eudoxus.ast.node import Identifier, Node, Position
-from eudoxus.checker.interface import Checker
+from eudoxus.repair.interface import Checker
 
 
 class Scope:
@@ -49,10 +49,10 @@ class ScopeStack:
         if count == 1:
             return name
 
-        new_name = f"{name}{count - 1}"
+        new_name = f"{name}{count - 2}"
         while self.exists(new_name):
             count += 1
-            new_name = f"{name}{count - 1}"
+            new_name = f"{name}{count - 2}"
 
         return new_name
 
@@ -73,11 +73,13 @@ class ScopeChecker(Checker):
     ```
     var x: boolean;
     assert (forall (x: integer) :: x = 0);
+    assert (forall (x: boolean) :: x);
     ```
     becomes
     ```
     var x: boolean;
     assert (forall (x1: integer) :: x1 = 0);
+    assert (forall (x1: boolean) :: x1);
     ```
     """
 
