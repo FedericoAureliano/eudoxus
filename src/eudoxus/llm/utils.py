@@ -7,6 +7,8 @@ def extract_code(output) -> str:
     output = output.replace("``````", "```")
 
     end_index = output.rfind("```")
+    if end_index <= len("```python\n"):
+        end_index = len(output)
     before_start = output.rfind("```", 0, end_index)
     # find the newline after the index
     start_index = output.find("\n", before_start + 1)

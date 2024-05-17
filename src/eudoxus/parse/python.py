@@ -504,6 +504,7 @@ class Parser:
 
         ops = [self.text(node.child(i)) for i in range(1, node.child_count, 2)]
 
+        base = e.HoleExpr(self.fpos())
         for i, arg in enumerate(args):
             if i == 0:
                 continue
