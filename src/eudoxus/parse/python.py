@@ -82,11 +82,12 @@ class Parser:
             attribute: (identifier))
         """
         object = self.text(node.child_by_field_name("object"))
+        attribute = self.text(node.child_by_field_name("attribute"))
         match object:
             case "self":
-                return Identifier(
-                    self.fpos(), self.text(node.child_by_field_name("attribute"))
-                )
+                return Identifier(self.fpos(), attribute)
+            case "random" if attribute.lower() in ["random", "choice"]:
+                return Identifier(self.fpos(), attribute)
             case _ if self.debug:
                 raise ValueError(f"Unsupported object: {node.sexp()}")
             case _:

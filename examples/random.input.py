@@ -4,7 +4,7 @@ class Random(Module):
         self.y = bool
 
     def init(self):
-        self.x = random() # random.random()
+        self.x = random.random()
         self.y = choice([True])
 
         if random() < 0.5:
