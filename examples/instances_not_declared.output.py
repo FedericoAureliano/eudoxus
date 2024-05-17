@@ -1,5 +1,5 @@
 class A(Module):
-    pass
+    ??
 
 class B(Module):
     def inputs(self):

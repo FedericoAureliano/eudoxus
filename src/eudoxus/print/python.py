@@ -24,10 +24,10 @@ def module2py(output, module: Module, indent):
     specs2py(output, module.specification, indent)
     control2py(output, module.control, indent)
 
-    # if we didn't write anything other than the class definition, write a pass
+    # if we didn't write anything other than the class definition, write a hole
     after = output.tell()
     if before == after:
-        output.write("  pass\n")
+        output.write("  ??\n")
 
 
 def types2py(output, types: s.Block, indent):
@@ -392,7 +392,7 @@ def stmt2py(output, stmt: s.Statement, indent):
                 for stmt in stmts:
                     stmt2py(output, stmt, indent)
             else:
-                output.write(f"{space}pass\n")
+                output.write(f"{space}??\n")
         case s.Havoc(_, target):
             name = target.name
             output.write(f"{space}Havoc(self.{name})\n")
