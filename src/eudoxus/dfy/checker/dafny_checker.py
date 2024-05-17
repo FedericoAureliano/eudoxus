@@ -8,9 +8,10 @@ import eudoxus.ast.type as t
 from eudoxus.ast.module import Module
 from eudoxus.ast.node import Hole, Node, Position
 from eudoxus.checker.interface import Checker
+from eudoxus.dfy.ast import expression as dfy_e
 from eudoxus.dfy.ast import statement as dfy_s
-from eudoxus.dfy.ast.expression import Ite, Slice, Subscript
-from eudoxus.dfy.ast.list import List as ListType
+from eudoxus.dfy.ast.built_in import built_in_src
+from eudoxus.dfy.ast.list_and_sets import ListType, SetType
 from eudoxus.dfy.ast.params import Params
 
 predefined = Position(0)
@@ -30,6 +31,11 @@ class DfyTypeChecker(Checker):
         self.elt_type = self.declare_function(
             "eudoxus.elt_ty", self.type_sort, self.type_sort
         )  # maps list types to element types
+
+        self.has_len = self.declare_function(
+            "eudoxus.has_len", self.type_sort, BoolSort()
+        )  # just means you can take len of this and check if _ in it
+
         self.is_list = self.declare_function(
             "eudoxus.is_list", self.type_sort, BoolSort()
         )
@@ -38,6 +44,7 @@ class DfyTypeChecker(Checker):
         self.variables = {}
         self.ops = {}
         self.constants = {}
+        self.terms = {}
 
         self.function_symbol_table = {}
         # In theory, we might want to have inference across functions/methods
@@ -48,60 +55,26 @@ class DfyTypeChecker(Checker):
         self.reverse_type_map = {}
 
         self.input_holes = []
+        self.src = src
 
-        self.text = lambda start, end: src[start:end].decode("utf-8")
+    def text(self, start, end):
+        def offset(x, inc):
+            return x - inc * 1000
+
+        if start >= 0:
+            return self.src[start:end].decode("utf-8")
+        else:
+            builtin_idx = start // 1000
+            if builtin_idx in built_in_src.keys():
+                return built_in_src[builtin_idx][
+                    offset(start, builtin_idx) : offset(end, builtin_idx)
+                ]
 
     def params2z3(self, params: Params) -> None:
         for param in params.params:
             ty, name = param.type, param.name
 
             self.decl2z3(s.Variable(None, name, ty))
-
-    def check(self, modules: List[Module]) -> Dict[Position, Node]:
-        for module in modules:
-            self.decl2z3(s.Variable(None, module.ret_name, module.return_type))
-            self.params2z3(module.params)
-            for stmt in module.requires:
-                self.stmt2z3(stmt)
-            for stmt in module.ensures:
-                self.stmt2z3(stmt)
-
-            # add self to symbol table
-            self.function_symbol_table[module.name.name] = {
-                "params": module.params,
-                "return_type": module.return_type,
-            }
-            if module.method_or_function == "method":
-                for stmt in module.body.statements:
-                    if isinstance(stmt, dfy_s.Return):
-                        value = self.expr2z3(stmt.expr)
-                        pos = stmt.position
-                        self.add_soft_constraint(
-                            self.type(value)
-                            == self.type(self.variables[module.ret_name.name]),
-                            pos,
-                        )
-                    else:
-                        self.stmt2z3(stmt)
-            elif module.method_or_function == "function":
-                self.expr2z3(module.body)
-            else:
-                raise ValueError(f"Unsupported module type {module.method_or_function}")
-
-        positions, model = self.solve()
-
-        positions = positions + self.input_holes
-
-        holes = {}
-        for pos in positions:
-            if pos in self.to_repair:
-                original_term, original_node = self.to_repair[pos]
-                assigned_term = model.eval(original_term, model_completion=True)
-                holes[pos] = self.repair(model, original_node, assigned_term)
-            else:
-                holes[pos] = Hole(pos)
-
-        return holes
 
     def find_type(self, model, assigned_type):
         for x, v in self.reverse_type_map.items():
@@ -166,6 +139,7 @@ class DfyTypeChecker(Checker):
                 #  - type(fresh_x) == fresh_y (hard)
                 #  - fresh_y == correct_y     (soft)
                 fresh_x = self.fresh_constant(self.term_sort, "term." + x + ".")
+
                 self.variables[x] = fresh_x
                 fresh_y = self.fresh_constant(self.type_sort, "type.")
                 self.add_hard_constraint(self.type(fresh_x) == fresh_y)
@@ -253,6 +227,17 @@ class DfyTypeChecker(Checker):
                 self.add_soft_constraint(self.type(z3x) == z3int, x.position)
             case dfy_s.Comment(_, _):
                 return
+            case dfy_s.Append(_, lst, item):
+                # Input: <lst>.append(<item>)
+                # Constraints:
+                #  - type(z3lst) == list_type  (hard)
+                #  - type(z3item) == elt_type(z3lst)  (hard)
+                z3lst = self.expr2z3(lst)
+                z3item = self.expr2z3(item)
+                self.add_soft_constraint(self.is_list(self.type(z3lst)), lst.position)
+                self.add_soft_constraint(
+                    self.elt_type(self.type(z3lst)) == self.type(z3item), item.position
+                )
             case _:
                 raise ValueError(f"Unsupported statement {stmt}")
 
@@ -283,6 +268,10 @@ class DfyTypeChecker(Checker):
                 elt_ty = self.type2z3(ty)
                 ty_name = str(elt_ty).replace("eudoxus.", "")
                 name = f"eudoxus.list.{ty_name}"
+            case SetType(_, ty):
+                elt_ty = self.type2z3(ty)
+                ty_name = str(elt_ty).replace("eudoxus.", "")
+                name = f"eudoxus.set.{ty_name}"
 
             case t.Enumeration(_, values):
                 values = [v.name for v in values]
@@ -291,11 +280,25 @@ class DfyTypeChecker(Checker):
                 raise ValueError(f"Unsupported type {type}")
 
         if name not in self.types:
+            # First time instantiating
             self.types[name] = self.declare_constant(name, self.type_sort)
             if elt_ty is not None:
                 self.add_hard_constraint(self.elt_type(self.types[name]) == elt_ty)
+            if name.startswith("eudoxus.list"):
                 self.add_hard_constraint(
                     self.is_list(self.types[name]) == True  # noqa: E712
+                )
+
+                self.add_hard_constraint(
+                    self.has_len(self.types[name]) == True  # noqa: E712
+                )
+
+            elif name.startswith("eudoxus.set"):
+                self.add_hard_constraint(
+                    self.has_len(self.types[name]) == True  # noqa: E712
+                )
+                self.add_hard_constraint(
+                    self.is_list(self.types[name]) == False  # noqa: E712
                 )
             else:
                 self.add_hard_constraint(
@@ -328,6 +331,8 @@ class DfyTypeChecker(Checker):
             return self.constants[expr]
 
         match expr:
+            case e.Identifier(_, name):
+                return self.variables[name]
             case e.Boolean(_, c):
                 fresh = self.fresh_constant(
                     self.term_sort, "term.boolean." + str(c) + "."
@@ -356,6 +361,21 @@ class DfyTypeChecker(Checker):
                 self.add_soft_constraint(self.type(fresh) == expected, expr.position)
                 self.to_repair[expr.position] = (fresh, expr)
                 return fresh
+            case e.Application(_, dfy_e.In(_), [x, y]):
+                # Input: <x> in <y>
+                # Constraints:
+                #  - type(z3x) == elt_type(z3y)  (hard)
+                #  - type(z3ret) == z3boolean     (hard)
+                z3x = self.expr2z3(x)
+                z3y = self.expr2z3(y)
+                elt_type = self.elt_type(self.type(z3y))
+                self.add_soft_constraint(self.type(z3x) == elt_type, x.position)
+                z3ret = self.fresh_constant(self.term_sort, "term.")
+                self.add_soft_constraint(
+                    self.type(z3ret) == self.type2z3(boolean), expr.position
+                )
+                self.terms[str(z3ret)] = str(expr)
+                return z3ret
             case e.Application(_, op, args) if isinstance(op, e.Operator):
                 old_variables = self.variables.copy()
                 arity = len(args) + 1
@@ -461,11 +481,12 @@ class DfyTypeChecker(Checker):
                     z3args = self.expr2z3(args[0])
                     z3ret = self.fresh_constant(self.term_sort, "term.")
                     self.add_soft_constraint(
-                        self.is_list(self.type(z3args)), args[0].position
+                        self.has_len(self.type(z3args)), args[0].position
                     )
                     self.add_soft_constraint(
                         self.type(z3ret) == self.type2z3(integer), expr.position
                     )
+                    self.terms[str(z3ret)] = str(expr)
                     return z3ret
                 elif name in self.function_symbol_table.keys():
                     if len(args) != len(
@@ -491,6 +512,7 @@ class DfyTypeChecker(Checker):
                         ),
                         expr.position,
                     )
+                    self.terms[str(z3ret)] = str(expr)
                     return z3ret
 
                 else:
@@ -498,7 +520,7 @@ class DfyTypeChecker(Checker):
 
             case e.Variant(_, name):
                 return self.variants[name]
-            case Subscript(_, lst, index):
+            case dfy_e.Subscript(_, lst, index):
                 # Input: <lst>[<index>]
                 # Constraints:
                 #  - type(z3index) == z3int
@@ -506,7 +528,7 @@ class DfyTypeChecker(Checker):
                 # need is_list(z3lst) to reject indexing into non_list
                 z3lst = self.expr2z3(lst)
                 self.add_soft_constraint(self.is_list(self.type(z3lst)), lst.position)
-                if isinstance(index, Slice):
+                if isinstance(index, dfy_e.Slice):
                     if index.start is not None:
                         z3start = self.expr2z3(index.start)
                         self.add_soft_constraint(
@@ -537,13 +559,15 @@ class DfyTypeChecker(Checker):
                     )
 
                     z3ret = self.fresh_constant(self.term_sort, "term.")
+
                     self.add_soft_constraint(
                         self.type(z3ret) == self.elt_type(self.type(z3lst)),
                         expr.position,
                     )
+                self.terms[str(z3ret)] = str(expr)
 
                 return z3ret
-            case Ite(_, cond, then_expr, else_expr):
+            case dfy_e.Ite(_, cond, then_expr, else_expr):
                 # Input: <then_expr> if <cond> else <else_expr>
                 # Constraints:
                 #  - type(z3cond) == z3boolean
@@ -562,7 +586,130 @@ class DfyTypeChecker(Checker):
                 self.add_soft_constraint(
                     self.type(z3ret) == self.type(z3then_expr), expr.position
                 )
+                self.terms[str(z3ret)] = str(expr)
+                return z3ret
+            case dfy_e.Set(_, content):
+                if content is None:
+                    z3ret = self.fresh_constant(self.term_sort, "term.")
+                    self.add_soft_constraint(
+                        self.is_list(self.type(z3ret)) == False,  # noqa: E712
+                        expr.position,
+                    )
+                    self.add_soft_constraint(
+                        self.has_len(self.type(z3ret)) == True,  # noqa: E712
+                        expr.position,
+                    )
+                    self.terms[str(z3ret)] = str(expr)
+                    return z3ret
+                z3content = [self.expr2z3(item) for item in content]
+                z3ret = self.fresh_constant(self.term_sort, "term.")
+                self.add_soft_constraint(
+                    self.is_list(self.type(z3ret)) == False, expr.position  # noqa: E712
+                )
+                self.add_soft_constraint(
+                    self.has_len(self.type(z3ret)) == True, expr.position  # noqa: E712
+                )
+                self.add_soft_constraint(
+                    self.elt_type(self.type(z3ret)) == self.type(z3content[0]),
+                    expr.position,
+                )
+                self.terms[str(z3ret)] = str(expr)
+                return z3ret
+            case dfy_e.ForAll(_, variable, domain, predicate, condition):
+                # Input: forall <variable> in <domain> | <condition> :: <predicate>
+                # Constraints:
+                #  - type(z3domain) == list_type
+                #  - type(z3predicate) == z3boolean
+                #  - type(z3ret) == z3boolean
+                #  - type(z3cond) == z3boolean
+                self.variables[variable.name] = self.fresh_constant(
+                    self.term_sort, "term." + variable.name + "."
+                )
+                if domain.callee.name == "range":
+                    for a in domain.arguments:
+                        self.add_soft_constraint(
+                            self.type(self.expr2z3(a)) == self.type2z3(integer),
+                            a.position,
+                        )
+                else:
+                    z3domain = self.expr2z3(domain)
+                    self.add_soft_constraint(
+                        self.has_len(self.type(z3domain)), domain.position
+                    )
+
+                z3ret = self.fresh_constant(self.term_sort, "term.")
+                z3predicate = self.expr2z3(predicate)
+                z3boolean = self.type2z3(boolean)
+                z3cond = self.expr2z3(condition) if condition is not None else None
+
+                self.add_soft_constraint(
+                    self.type(z3predicate) == z3boolean, predicate.position
+                )
+                self.add_soft_constraint(self.type(z3ret) == z3boolean, expr.position)
+
+                if z3cond is not None:
+                    self.add_soft_constraint(
+                        self.type(z3cond) == z3boolean, condition.position
+                    )
+
+                return z3ret
+            case dfy_e.EmptyList(_):
+                z3ret = self.fresh_constant(self.term_sort, "term.")
+                self.add_soft_constraint(
+                    self.is_list(self.type(z3ret)) == True, expr.position  # noqa: E712
+                )
+                self.add_soft_constraint(
+                    self.has_len(self.type(z3ret)) == True, expr.position  # noqa: E712
+                )
+                self.terms[str(z3ret)] = str(expr)
                 return z3ret
 
             case _:
                 raise ValueError(f"Unsupported expression {expr}")
+
+    def check(self, modules: List[Module]) -> Dict[Position, Node]:
+        for module in modules:
+            if module.method_or_function == "method":
+                self.decl2z3(s.Variable(None, module.ret_name, module.return_type))
+            self.params2z3(module.params)
+            for stmt in module.requires:
+                self.stmt2z3(stmt)
+            for stmt in module.ensures:
+                self.stmt2z3(stmt)
+
+            # add self to symbol table
+            self.function_symbol_table[module.name.name] = {
+                "params": module.params,
+                "return_type": module.return_type,
+            }
+            if module.method_or_function == "method":
+                for stmt in module.body.statements:
+                    if isinstance(stmt, dfy_s.Return):
+                        value = self.expr2z3(stmt.expr)
+                        pos = stmt.position
+                        self.add_soft_constraint(
+                            self.type(value)
+                            == self.type(self.variables[module.ret_name.name]),
+                            pos,
+                        )
+                    else:
+                        self.stmt2z3(stmt)
+            elif module.method_or_function == "function":
+                self.expr2z3(module.body)
+            else:
+                raise ValueError(f"Unsupported module type {module.method_or_function}")
+
+        positions, model = self.solve()
+
+        positions = positions + self.input_holes
+
+        holes = {}
+        for pos in positions:
+            if pos in self.to_repair:
+                original_term, original_node = self.to_repair[pos]
+                assigned_term = model.eval(original_term, model_completion=True)
+                holes[pos] = self.repair(model, original_node, assigned_term)
+            else:
+                holes[pos] = Hole(pos)
+
+        return holes

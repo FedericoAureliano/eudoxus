@@ -6,10 +6,10 @@ import eudoxus.ast.expression as e
 import eudoxus.ast.statement as s
 from eudoxus.ast.node import Hole, Identifier, Position
 from eudoxus.ast.type import Boolean, Float, Integer, Type
+from eudoxus.dfy.ast import expression as dfy_e
 from eudoxus.dfy.ast import statement as dfy_s
 from eudoxus.dfy.ast.built_in import built_ins
-from eudoxus.dfy.ast.expression import Ite, Slice, Subscript
-from eudoxus.dfy.ast.list import List as ListType
+from eudoxus.dfy.ast.list_and_sets import ListType
 from eudoxus.dfy.ast.module import DfyModule
 from eudoxus.dfy.ast.params import Param, Params
 from eudoxus.parser.python import Parser, pos
@@ -18,7 +18,7 @@ from eudoxus.parser.python import Parser, pos
 class DfyParser(Parser):
     def __init__(self, src: str):
         super().__init__(src)
-        self.ext_functions = []
+        self.ext_functions = set()
         self.variables = []
 
     def parse_simple_type(self, node: TSNode) -> Type:
@@ -42,6 +42,11 @@ class DfyParser(Parser):
                 case "List":
                     return ListType(
                         pos(node.children[0].children[0]),
+                        self.parse_type(node.children[0].children[1].children[1]),
+                    )
+                case "Set":
+                    return dfy_e.SetType(
+                        pos(node),
                         self.parse_type(node.children[0].children[1].children[1]),
                     )
                 case _:
@@ -77,6 +82,36 @@ class DfyParser(Parser):
         untyped_param_list = [c for c in node.children if c.type == "identifier"]
         params = params + [self.parse_untyped_parameter(p) for p in untyped_param_list]
         return Params(pos(node), params)
+
+    def parse_app_expr(self, node: TSNode) -> e.Application:
+        """
+        (call
+            function: {self.parse_identifier.__doc__}
+            arguments: (argument_list))
+        """
+
+        def parse_args() -> List[e.Expression]:
+            arguments = self.search(
+                self.parse_expr, node.child_by_field_name("arguments")
+            )
+            arguments = [self.parse_expr(arg) for arg in arguments]
+            return arguments
+
+        fnode = node.child_by_field_name("function")
+        function = self.parse_identifier(fnode)
+        match function.name.lower():
+            case "set" if parse_args() == []:
+                return dfy_e.Set(pos(node), None)
+            case _:
+                arguments = parse_args()
+                name = function.name
+                if function.name == "set":
+                    name = "cast_to_set"
+                ret = self.expr_helper(pos(node), name, arguments)
+                if isinstance(ret.callee, e.Identifier) and ret.callee.name != "len":
+                    self.ext_functions.add(ret.callee.name)
+
+                return ret
 
     def parse_statement(self, node: TSNode) -> s.Statement:
         """
@@ -134,6 +169,14 @@ class DfyParser(Parser):
                         return self.parse_decreases_statement(node)
                     case "havoc":
                         return self.parse_havoc_statement(node)
+            case "expression_statement" if "append" in self.text(node):
+                assert "append" == self.text(
+                    node.child(0)
+                    .child_by_field_name("function")
+                    .child_by_field_name("attribute")
+                )
+                return self.parse_append(node)
+
             case "expression_statement":
                 return self.parse_assignment(node)
             case "return_statement":
@@ -145,6 +188,22 @@ class DfyParser(Parser):
 
             case _:
                 raise ValueError(f"Unsupported object: {node.sexp()}")
+
+    def parse_append(self, node: TSNode) -> s.Statement:
+        call = node.child(0)
+        lst = self.parse_identifier(
+            call.child_by_field_name("function").child_by_field_name("object")
+        )
+        expr = call.child_by_field_name("arguments")
+        filtered_expr = self.search(self.parse_expr, expr)
+        parsed_expr = [self.parse_expr(arg) for arg in filtered_expr]
+        if len(parsed_expr) == 0:
+            elt = Hole(pos(expr))
+        elif len(parsed_expr) == 1:
+            elt = parsed_expr[0]
+        else:
+            raise ValueError(f"Expected at most 1 argument, got {len(parsed_expr)}")
+        return dfy_s.Append(pos(node), lst, elt)
 
     def parse_assignment(self, node: TSNode) -> s.Assignment:
         """
@@ -159,7 +218,8 @@ class DfyParser(Parser):
         """
 
         node = node.child(0)
-        lhs = self.parse_identifier(node.child_by_field_name("left"))
+        left = node.child_by_field_name("left")
+        lhs = self.parse_identifier(left)
         decl = lhs.name not in self.variables and lhs.name != "result"
         if decl:
             self.variables.append(lhs.name)
@@ -205,8 +265,29 @@ class DfyParser(Parser):
                 e.Application(p_rhs, e.Add(p_rhs), [lhs_as_app, rhs]),
                 decl=decl,
             )
+        elif self.has_name(node.children[1], ":"):
+            # typed
+            return dfy_s.DeclAssignment(
+                pos(node), lhs, rhs, self.parse_type(node.children[2])
+            )
+
         else:
             raise ValueError(f"Unsupported object: {node.sexp()}")
+
+    def parse_empty_list(self, node: TSNode) -> e.Application:
+        """
+        (list)
+        """
+        return dfy_e.EmptyList(pos(node))
+
+    def parse_flat_identifier(self, node: TSNode) -> Identifier:
+        """(identifier)"""
+        text = self.text(node)
+        text_check = "".join([c for c in text if c.isalpha()])
+        if text_check == "array":
+            text = text.replace("array", "arr")
+        # identifiers not allowed
+        return Identifier(pos(node), text)
 
     def parse_expr(self, node: TSNode) -> e.Expression:
         """
@@ -223,6 +304,9 @@ class DfyParser(Parser):
             {self.parse_integer.__doc__}
             {self.parse_subscript.__doc__}
             {self.parse_ite_expression.__doc__}
+            {self.parse_empty_list.__doc__}
+            {self.parse_forall_expression.__doc__}
+            {self.parse_set_expression.__doc__}
         ]
         """
         match node.type:
@@ -237,13 +321,16 @@ class DfyParser(Parser):
             case "call" if node.child_by_field_name("function").type == "call":
                 ret = self.parse_app_of_app_expr(node)
                 if isinstance(ret.callee, e.Identifier) and ret.callee.name != "len":
-                    self.ext_functions.append(ret.callee.name)
+                    self.ext_functions.add(ret.callee.name)
                 return ret
+            case "call" if self.text(
+                node.child_by_field_name("function")
+            ) == "all" and node.child_by_field_name(
+                "arguments"
+            ).type == "generator_expression":
+                return self.parse_forall_expression(node)
             case "call":
-                ret = self.parse_app_expr(node)
-                if isinstance(ret.callee, e.Identifier) and ret.callee.name != "len":
-                    self.ext_functions.append(ret.callee.name)
-                return ret
+                return self.parse_app_expr(node)
             case "binary_operator":
                 return self.parse_binary_expression(node)
             case "comparison_operator":
@@ -258,12 +345,23 @@ class DfyParser(Parser):
                 return self.parse_subscript(node)
             case "conditional_expression":
                 return self.parse_ite_expression(node)
+            case "list":
+                return self.parse_empty_list(node)
+            case "set":
+                return self.parse_set_expression(node)
             case _:
                 raise ValueError(
                     f"Unsupported object: {node.sexp()} of type {node.type}"
                 )
 
-    def parse_subscript(self, node: TSNode) -> Subscript:
+    def parse_set_expression(self, node: TSNode) -> dfy_e.Set:
+        """
+        (set (_))
+        """
+        # eventually going to need to support more than one element
+        return dfy_e.Set(pos(node), [self.parse_expr(node.children[1])])
+
+    def parse_subscript(self, node: TSNode) -> dfy_e.Subscript:
         """(subscript
             value: (_)
             subscript: (_)
@@ -292,10 +390,10 @@ class DfyParser(Parser):
                             f"Too many slice entries: {self.text(subscript)}"
                         )
 
-            parsed_subscript = Slice(pos(subscript), left, right, step)
+            parsed_subscript = dfy_e.Slice(pos(subscript), left, right, step)
         else:
             parsed_subscript = self.parse_expr(subscript)
-        return Subscript(pos(node), list_value, parsed_subscript)
+        return dfy_e.Subscript(pos(node), list_value, parsed_subscript)
 
     def expr_helper(
         self, pos: Position, f: str, args: List[e.Expression]
@@ -344,14 +442,14 @@ class DfyParser(Parser):
             case _:
                 return e.Application(pos, Identifier(pos, f), args)
 
-    def parse_ite_expression(self, node: TSNode) -> Ite:
+    def parse_ite_expression(self, node: TSNode) -> dfy_e.Ite:
         """
         (conditional_expression (_) (_) (_))
         """
         true_expr = self.parse_expr(node.child(0))
         condition = self.parse_expr(node.child(2))
         false_expr = self.parse_expr(node.child(4))
-        return Ite(pos(node), condition, true_expr, false_expr)
+        return dfy_e.Ite(pos(node), condition, true_expr, false_expr)
 
     def parse_while_statement(self, node: TSNode) -> s.Statement:
         """
@@ -416,13 +514,82 @@ class DfyParser(Parser):
             call.child_by_field_name("function").child_by_field_name("attribute")
         )
         expr = call.child_by_field_name("arguments")
-        expr = self.search(self.parse_expr, expr)
-        expr = [self.parse_expr(arg) for arg in expr]
+        filtered_expr = self.search(self.parse_expr, expr)
+        parsed_expr = [self.parse_expr(arg) for arg in filtered_expr]
 
-        if function.name == ast_node.__name__.lower() and len(expr) == 1:
-            return ast_node(pos(node), expr[0])
+        if function.name == ast_node.__name__.lower() and len(parsed_expr) == 1:
+            return ast_node(pos(node), parsed_expr[0])
         else:
-            raise ValueError(f"Unsupported object: {node.sexp()}")
+            raise ValueError(
+                f"Unsupported object: {node.sexp()} \n\n {self.text(node)}"
+            )
+
+    def parse_comparison_expression(self, node: TSNode) -> e.Application:
+        """
+        (comparison_operator)
+        """
+        p = pos(node)
+        args = self.search(self.parse_expr, node)
+        args = [self.parse_expr(arg) for arg in args]
+        match self.text(node.child(1)):
+            case "==":
+                return e.Application(p, e.Equal(p), args)
+            case "!=":
+                return e.Application(p, e.NotEqual(p), args)
+            case "<":
+                return e.Application(p, e.LessThan(p), args)
+            case ">":
+                return e.Application(p, e.GreaterThan(p), args)
+            case "<=":
+                return e.Application(p, e.LessThanOrEqual(p), args)
+            case ">=":
+                return e.Application(p, e.GreaterThanOrEqual(p), args)
+            case "in":
+                return e.Application(p, dfy_e.In(p), args)
+            case "not" if self.text(node.child(2)) == "in":
+                return e.Application(p, e.Not(p), [e.Application(p, dfy_e.In(p), args)])
+            case _:
+                raise ValueError(f"Unsupported object: {node.sexp()}")
+
+    def parse_forall_expression(self, node: TSNode) -> e.Application:
+        """
+        (call function: (identifier)
+            arguments: (generator_expression)
+        )
+        """
+        # all( predicate(x) for x in list if condition(x) )
+        assert (
+            self.text(node.child_by_field_name("function")) == "all"
+        ), "Expected all function"
+        predicate = self.parse_expr(
+            node.child_by_field_name("arguments").child_by_field_name("body")
+        )
+        for_in_clause = self._search(
+            "( for_in_clause )",
+            node.child_by_field_name("arguments"),
+            strict=False,
+        )
+        assert len(for_in_clause) == 1, "Expected one for_in_clause"
+        for_in_clause = for_in_clause[0]
+
+        variable = self.parse_identifier(for_in_clause.child_by_field_name("left"))
+        domain = self.parse_expr(for_in_clause.child_by_field_name("right"))
+        # need to automatically handle if it's a range operator
+
+        if_clause = self._search(
+            "( if_clause )",
+            node.child_by_field_name("arguments"),
+            strict=False,
+        )
+        condition = None
+        if len(if_clause) == 1:
+            if_clause = if_clause[0]
+            condition = self.parse_expr(if_clause.child(1))
+            # predicate = e.Application (pos(node), e.Implies, [condition, predicate])
+        elif len(if_clause) > 1:
+            raise ValueError(f"Expected one or none if_clause, got {len(if_clause)}")
+
+        return dfy_e.ForAll(pos(node), variable, domain, predicate, condition)
 
     def parse_requires_statement(self, node: TSNode) -> dfy_s.Requires:
         """
@@ -495,16 +662,35 @@ class DfyParser(Parser):
 
         # support case where result isn't the output name
         return_stmts = [s for s in stmts if isinstance(s, dfy_s.Return)]
-        if len(return_stmts) == 1:
-            ret_name = return_stmts[0].expr.callee
-        else:
-            ret_name = Identifier(None, "result")
-        self.variables.append(ret_name.name)
 
         def convert_to_assign(assign, ret_name):
             if assign.target.name != ret_name.name:
                 return assign
             return s.Assignment(assign.position, assign.target, assign.value)
+
+        return_type = self.parse_type(function_def.child_by_field_name("return_type"))
+
+        if len([s for s in stmts if not isinstance(s, dfy_s.Comment)]) == 1:
+            single_stmt = [s for s in stmts if not isinstance(s, dfy_s.Comment)][0]
+            if isinstance(single_stmt, dfy_s.Return):
+                # case where we have a function
+                return DfyModule(
+                    pn,
+                    "function",
+                    name,
+                    parsed_params,
+                    return_type,
+                    None,
+                    single_stmt.expr,
+                    requires,
+                    ensures,
+                )
+        # only need to parse the return name if it's a method
+        if len(return_stmts) == 1:
+            ret_name = return_stmts[0].expr.callee
+        else:
+            ret_name = Identifier(None, "result")
+        self.variables.append(ret_name.name)
 
         stmts = [
             stmt
@@ -512,49 +698,29 @@ class DfyParser(Parser):
             else convert_to_assign(stmt, ret_name)
             for stmt in stmts
         ]
-
         parsed_body = s.Block(pos(body), [s for s in stmts if s is not None])
-        return_type = self.parse_type(function_def.child_by_field_name("return_type"))
 
-        if len([s for s in stmts if not isinstance(s, dfy_s.Comment)]) == 1:
-            single_stmt = [s for s in stmts if not isinstance(s, dfy_s.Comment)][0]
-            if isinstance(single_stmt, dfy_s.Return):
-                return (
-                    DfyModule(
-                        pn,
-                        "function",
-                        name,
-                        parsed_params,
-                        return_type,
-                        None,
-                        single_stmt.expr,
-                        requires,
-                        ensures,
-                    ),
-                    self.ext_functions,
-                )
-
-        return (
-            DfyModule(
-                pn,
-                "method",
-                name,
-                parsed_params,
-                return_type,
-                ret_name,
-                parsed_body,
-                requires,
-                ensures,
-            ),
-            self.ext_functions,
+        return DfyModule(
+            pn,
+            "method",
+            name,
+            parsed_params,
+            return_type,
+            ret_name,
+            parsed_body,
+            requires,
+            ensures,
         )
 
-    def parse(self):
+    def parse(self, builtins=True):
         modules = super().parse()
-        only_modules = [m for m, _ in modules]
-        ext_fns = [
-            built_in_module
-            for built_in_name, built_in_module in built_ins.items()
-            if any([built_in_name in ext_fn for _, ext_fn in modules])
-        ]
-        return ext_fns + only_modules
+        if builtins:
+            ext_fns = [
+                built_in_module
+                for built_in_name, built_in_module in built_ins.items()
+                if any([built_in_name in ext_fn for ext_fn in self.ext_functions])
+            ]
+
+        else:
+            ext_fns = []
+        return ext_fns + modules

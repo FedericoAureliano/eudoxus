@@ -31,6 +31,9 @@ def main_(
     output: Path = None,
     check: bool = True,
     src_dsl: Language = Language.python,
+    annotations: bool = True,
+    comments: bool = True,
+    builtins: bool = True,
 ) -> None:
     """
     language is the target language
@@ -51,20 +54,20 @@ def main_(
             return
         output = open(output, "w")
 
-    main(src, language, output, check, src_dsl)
+    main(src, language, output, check, src_dsl, annotations, comments, builtins)
 
     if output is not sys.stdout:
         output.close()
 
 
-def main(src, language, output, check, src_dsl):
+def main(src, language, output, check, src_dsl, annotations, comments, builtins):
     with open(src, "rb") as f:
         src = f.read()
 
     parser = Parser if src_dsl != Language.dafny else DfyParser
     checker = TypeChecker if src_dsl != Language.dafny else DfyTypeChecker
 
-    modules = parser(src).parse()
+    modules = parser(src).parse(builtins=builtins)
 
     if check:
         rewrites = checker(src).check(modules)
@@ -86,4 +89,4 @@ def main(src, language, output, check, src_dsl):
 
     if language == Language.dafny:
         for m in modules:
-            module2dfy(output, m, 0)
+            module2dfy(output, m, 0, annotations=annotations, comments=comments)

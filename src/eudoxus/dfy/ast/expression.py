@@ -1,6 +1,16 @@
 from dataclasses import dataclass
 
 from eudoxus.ast import expression as e
+from eudoxus.ast.node import Identifier
+from eudoxus.dfy.ast.list_and_sets import (  # noqa: F401
+    EmptyList,
+    In,
+    ListType,
+    Set,
+    SetType,
+    Slice,
+    Subscript,
+)
 
 
 @dataclass(frozen=True)
@@ -11,13 +21,8 @@ class Ite(e.Expression):
 
 
 @dataclass(frozen=True)
-class Slice(e.Expression):
-    start: e.Expression | None
-    end: e.Expression | None
-    step: e.Expression | None
-
-
-@dataclass(frozen=True)
-class Subscript(e.Expression):
-    list_value: e.Expression
-    subscript: e.Expression | Slice
+class ForAll(e.Expression):
+    variable: Identifier
+    domain: e.Expression
+    prediate: e.Expression
+    condition: e.Expression | None

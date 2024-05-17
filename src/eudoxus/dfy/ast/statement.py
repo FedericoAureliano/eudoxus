@@ -50,3 +50,9 @@ class DeclAssignment(Statement):
     target: Identifier
     value: e.Expression
     ty: t.Type
+
+
+@dataclass(frozen=True)
+class Append(Statement):
+    lst: e.Expression
+    item: e.Expression

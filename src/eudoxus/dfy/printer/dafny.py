@@ -6,11 +6,14 @@ import eudoxus.ast.statement as s
 import eudoxus.ast.type as t
 from eudoxus.ast.module import Module
 from eudoxus.ast.node import Hole
+from eudoxus.dfy.ast import expression as dfy_e
 from eudoxus.dfy.ast import statement as dfy_s
-from eudoxus.dfy.ast.expression import Ite, Slice, Subscript
-from eudoxus.dfy.ast.list import List as ListType
+from eudoxus.dfy.ast.list_and_sets import ListType, SetType
 from eudoxus.dfy.ast.params import Param, Params
 from eudoxus.printer.uclid import op2ucl
+
+ANNOTATIONS = True
+COMMENTS = False
 
 
 def type2dfy(output, type: t.Type):
@@ -25,6 +28,10 @@ def type2dfy(output, type: t.Type):
             output.write(f"bv{size}")
         case ListType(_, elem_t):
             output.write("seq<")
+            type2dfy(output, elem_t)
+            output.write(">")
+        case SetType(_, elem_t):
+            output.write("set<")
             type2dfy(output, elem_t)
             output.write(">")
         case Hole(_):
@@ -52,11 +59,16 @@ def ensures2dfy(output, ensures: dfy_s.Ensures):
         output.write(" );\n")
 
 
-def module2dfy(output, module: Module, indent):
+def module2dfy(output, module: Module, indent, annotations=True, comments=True):
     """
     Note that this uses module for consistency with ucl
     but is actually a method or a function in dafny.
     """
+    global ANNOTATIONS
+    global COMMENTS
+    ANNOTATIONS = annotations
+    COMMENTS = comments
+    # TODO: this should be done as a class, but using a function for now
     name = module.name.name
     method_or_function = module.method_or_function
     if method_or_function == "method":
@@ -70,8 +82,9 @@ def module2dfy(output, module: Module, indent):
         return_type2dfy(output, module.return_type)
 
         output.write(")\n")
-        requires2dfy(output, module.requires)
-        ensures2dfy(output, module.ensures)
+        if ANNOTATIONS:
+            requires2dfy(output, module.requires)
+            ensures2dfy(output, module.ensures)
 
         # return_statement2dfy(output, )
         output.write("{\n")
@@ -169,32 +182,42 @@ def stmt2dfy(output, stmt: s.Statement, indent):
             expr2dfy(output, value)
             output.write(";\n")
         case dfy_s.Requires(_, cond):
-            output.write(space + "requires( ")
-            expr2dfy(output, cond)
-            output.write(");\n")
+            if ANNOTATIONS:
+                output.write(space + "requires( ")
+                expr2dfy(output, cond)
+                output.write(");\n")
 
         case dfy_s.Ensures(_, cond):
-            output.write(space + "ensures( ")
-            expr2dfy(output, cond)
-            output.write(");\n")
+            if ANNOTATIONS:
+                output.write(space + "ensures( ")
+                expr2dfy(output, cond)
+                output.write(");\n")
         case dfy_s.While(_, cond, invariant, decreases, body):
             output.write(space + "while (")
             expr2dfy(output, cond)
             output.write(")\n")
 
             for inv in invariant:
-                output.write(space + "invariant(")
-                expr2dfy(output, inv.condition)
-                output.write(");\n")
+                if ANNOTATIONS:
+                    output.write(space + "invariant(")
+                    expr2dfy(output, inv.condition)
+                    output.write(");\n")
             for dec in decreases:
-                output.write(space + "decreases(")
-                expr2dfy(output, dec.condition)
-                output.write(");\n")
+                if ANNOTATIONS:
+                    output.write(space + "decreases(")
+                    expr2dfy(output, dec.condition)
+                    output.write(");\n")
             output.write(space + "{\n")
             stmt2dfy(output, body, indent + 1)
             output.write(space + "}\n")
         case dfy_s.Comment(_, comment):
-            output.write(space + comment.replace("#", "//", 1) + "\n")
+            if COMMENTS:
+                output.write(space + comment.replace("#", "//", 1) + "\n")
+        case dfy_s.Append(_, lst, item):
+            output.write(space)
+            output.write(lst.name + f":= {lst.name} + [")
+            expr2dfy(output, item)
+            output.write("];\n")
         case _:
             raise ValueError(f"Unsupported statement {stmt}")
 
@@ -218,6 +241,8 @@ def expr2dfy(output, expr: e.Expression):
                     expr2dfy(output, a)
                 output.write("|")
             else:
+                if name == "set":
+                    name = "cast_to_set"
                 output.write(name)
                 if len(args) > 0:
                     output.write("(")
@@ -244,7 +269,9 @@ def expr2dfy(output, expr: e.Expression):
                     output.write(")")
                 case e.Not(_):
                     op2ucl(output, op)
+                    output.write("(")
                     expr2dfy(output, args[0])
+                    output.write(")")
                 case e.Add(_) | e.Subtract(_) | e.Multiply(_) | e.Divide(_) | e.Modulo(
                     _
                 ) | e.And(_) | e.Or(_):
@@ -268,6 +295,10 @@ def expr2dfy(output, expr: e.Expression):
                             op2ucl(output, e.And(op.position))
                             output.write(" ")
                             expr2dfy(output, args[i + 1])
+                case dfy_e.In(_):
+                    expr2dfy(output, args[0])
+                    output.write(" in ")
+                    expr2dfy(output, args[1])
                 case _:
                     raise ValueError(f"Unsupported operator {op}")
         case e.Boolean(_, value) | e.Integer(_, value):
@@ -276,27 +307,57 @@ def expr2dfy(output, expr: e.Expression):
             output.write(f"{value}bv{width}")
         case Hole(_):
             output.write("??")
-        case Subscript(_, list_value, subscript):
+        case dfy_e.Subscript(_, list_value, subscript):
             expr2dfy(output, list_value)
             output.write("[")
             expr2dfy(output, subscript)
             output.write("]")
-        case Slice(_, start, end, step):
+        case dfy_e.Slice(_, start, end, step):
             if start:
                 expr2dfy(output, start)
-            output.write(":")
+            output.write("..")
             if end:
                 expr2dfy(output, end)
             if step:
-                output.write(":")
-                expr2dfy(output, step)
-        case Ite(_, condition, then_expr, else_expr):
+                print("step is currently not supported")
+                # TODO: support reverse and maybe implement a built in
+        case dfy_e.Ite(_, condition, then_expr, else_expr):
             output.write("if ")
             expr2dfy(output, condition)
             output.write(" then ")
             expr2dfy(output, then_expr)
             output.write(" else ")
             expr2dfy(output, else_expr)
+        case dfy_e.ForAll(_, variable, domain, predicate, condition):
+            output.write("forall ")
+
+            output.write(variable.name)
+
+            if condition is not None:
+                output.write(" | ")
+                expr2dfy(output, condition)
+            output.write(" :: ")
+            if domain.callee.name == "range":
+                maximum = domain.arguments[0]
+                output.write(f"(0 <= {variable.name} && {variable.name} < ")
+                expr2dfy(output, maximum)
+                output.write(")")
+            else:
+                output.write(variable.name)
+                output.write(" in ")
+                expr2dfy(output, domain)
+            output.write(" ==> ")
+            expr2dfy(output, predicate)
+        case dfy_e.EmptyList(_):
+            output.write("[]")
+
+        case dfy_e.Set(_, content):
+            output.write("{")
+            if content is not None:
+                for c in content:
+                    expr2dfy(output, c)
+            output.write("}")
+
         case _:
             raise ValueError(f"Unsupported expression {expr}")
 
