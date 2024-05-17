@@ -35,7 +35,7 @@ class SelectChecker(Checker):
 
         return cls(pos, *children)
 
-    def check(self, modules: List[m.Module]) -> Dict[Position, Node]:
+    def check(self, modules: List[m.Module]) -> List[Dict[Position, Node]]:
         rewrites = {}
 
         for module in modules:
@@ -68,4 +68,4 @@ class SelectChecker(Checker):
                         elif n.name in self.declared_records:
                             rewrites[f.position] = HoleId(pos)
 
-        return rewrites
+        return [rewrites]

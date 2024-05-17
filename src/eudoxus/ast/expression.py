@@ -204,5 +204,11 @@ class ArrayStore(Expression):
 
 
 @dataclass(frozen=True)
+class Nondet(Node):
+    # It's a node so that it doesn't appear in the ADT AST
+    pass
+
+
+@dataclass(frozen=True)
 class HoleExpr(Expression):
     pass

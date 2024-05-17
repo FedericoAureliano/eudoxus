@@ -351,7 +351,7 @@ def expr2py(output, expr: e.Expression):
                         output.write(", ")
                     expr2py(output, a)
                 output.write(")")
-        case e.HoleExpr(_) | n.HoleId(_):
+        case e.HoleExpr(_) | n.HoleId(_) | e.Nondet(_):
             output.write("??")
         case _:
             raise ValueError(f"Unsupported expression {expr}")
@@ -406,6 +406,14 @@ def stmt2py(output, stmt: s.Statement, indent):
             output.write("\n")
         case s.Next(_, inst):
             output.write(f"{space}self.{inst.name}.next()\n")
+        case s.LocalDecl(_, name, type) | s.InputDecl(_, name, type) | s.OutputDecl(
+            _, name, type
+        ) | s.SharedDecl(_, name, type):
+            name = name.name
+            output.write(space + "self." + name)
+            output.write(" = ")
+            type2py(output, type)
+            output.write("\n")
         case s.HoleStmt(_):
             output.write(f"{space}??\n")
         case _:

@@ -415,7 +415,7 @@ def expr2ucl(output, expr: e.Expression):
                         output.write(", ")
                     expr2ucl(output, a)
                 output.write(")")
-        case e.HoleExpr(_) | n.HoleId(_):
+        case e.HoleExpr(_) | n.HoleId(_) | e.Nondet(_):
             output.write("??")
         case _:
             raise ValueError(f"Unsupported expression {expr}")
@@ -475,6 +475,12 @@ def stmt2ucl(output, stmt: s.Statement, indent, prime_assignments):
             output.write(";\n")
         case s.Next(_, inst):
             output.write(space + f"next({inst.name});\n")
+        case s.LocalDecl(_, name, type):
+            name = id2str(name)
+            output.write(space + "var " + name)
+            output.write(": ")
+            type2ucl(output, type)
+            output.write(";\n")
         case s.HoleStmt(_):
             output.write(space + "??;\n")
         case _:

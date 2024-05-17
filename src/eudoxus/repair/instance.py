@@ -46,7 +46,7 @@ class InstanceChecker(Checker):
                 new_args.append((Identifier(self.fpos(), io), e.HoleExpr(self.fpos())))
         return new_args
 
-    def check(self, modules: List[m.Module]) -> Dict[Position, Node]:
+    def check(self, modules: List[m.Module]) -> List[Dict[Position, Node]]:
         rewrites = {}
 
         self.declared_modules = set([m.name.name for m in modules])
@@ -88,4 +88,4 @@ class InstanceChecker(Checker):
             lpos = module.locals.position
             rewrites[lpos] = s.Block(self.fpos(), new_locals)
 
-        return rewrites
+        return [rewrites]

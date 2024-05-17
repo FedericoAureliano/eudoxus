@@ -14,7 +14,7 @@ class Checker:
         self.hard_constraints = set()
         self.soft_constraints = set()
 
-    def check(self, modules: List[Module]) -> Dict[Position, Node]:
+    def check(self, modules: List[Module]) -> List[Dict[Position, Node]]:
         raise NotImplementedError("Implement this method in a subclass!")
 
     def reason_to_weight(self, reason: str) -> int:

@@ -48,7 +48,7 @@ class QuantifierChecker(Checker):
             case e.Forall(_, _, _, _) | e.Exists(_, _, _, _):
                 self.map = {}
 
-    def check(self, modules: List[m.Module]) -> Dict[Position, Node]:
+    def check(self, modules: List[m.Module]) -> List[Dict[Position, Node]]:
         self.rewrites = {}
         self.used_names = set()
         self.map = {}
@@ -56,4 +56,4 @@ class QuantifierChecker(Checker):
         for module in modules:
             module.traverse(self.enter_quant, self.exit_quant)
 
-        return self.rewrites
+        return [self.rewrites]

@@ -80,8 +80,6 @@ class Node:
                         for cc in c:
                             if isinstance(cc, Node):
                                 cc.traverse(enter, exit)
-            else:
-                continue
         exit(self)
 
 

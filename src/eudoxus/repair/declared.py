@@ -42,7 +42,7 @@ class DeclaredChecker(Checker):
 
     def check(
         self, modules: List[m.Module]
-    ) -> Tuple[Dict[Position, Node], List[m.Module]]:
+    ) -> Tuple[List[Dict[Position, Node]], List[m.Module]]:
         self.position = -1000
 
         def new_pos():
@@ -115,4 +115,4 @@ class DeclaredChecker(Checker):
             )
             new_modules.append(new_module)
 
-        return rewrites, new_modules
+        return [rewrites], new_modules

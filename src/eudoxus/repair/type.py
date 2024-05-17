@@ -1036,7 +1036,7 @@ class TypeChecker(Checker):
 
         return cls(pos, *children)
 
-    def check(self, modules: List[m.Module]) -> Dict[Position, Node]:
+    def check(self, modules: List[m.Module]) -> List[Dict[Position, Node]]:
         self.universe = Universe()
 
         # to get the type of terms
@@ -1087,4 +1087,4 @@ class TypeChecker(Checker):
         for module in modules:
             module.visit(self.repair)
 
-        return self.to_repair
+        return [self.to_repair]

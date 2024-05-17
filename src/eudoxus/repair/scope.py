@@ -121,7 +121,7 @@ class ScopeChecker(Checker):
             case e.Forall(_, _, _, _) | e.Exists(_, _, _, _):
                 self.scopes.exit_scope()
 
-    def check(self, modules: List[m.Module]) -> Dict[Position, Node]:
+    def check(self, modules: List[m.Module]) -> List[Dict[Position, Node]]:
         self.position = -3000
 
         def new_pos():
@@ -147,4 +147,4 @@ class ScopeChecker(Checker):
             new_var_block = s.Block(new_pos(), new_var_decls + var_block.statements)
             self.rewrites[pv] = new_var_block
 
-        return self.rewrites
+        return [self.rewrites]
