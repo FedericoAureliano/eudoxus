@@ -31,6 +31,6 @@ class System(Module):
   def instances(self):
     self.tick_counter = TickCounter(clock_tick=??)
 
-  def control(self):
+  def proof(self):
     self.induction(1)
 

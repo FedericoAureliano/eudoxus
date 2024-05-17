@@ -804,6 +804,16 @@ class Parser:
         )
         return s.If(self.fpos(), condition, consequence, inner)
 
+    def parse_with_statement(self, node: TSNode) -> s.If:
+        """
+        (with_statement)
+        """
+        body = self.search(self.parse_statement, node.child_by_field_name("body"))
+        body = s.Block(self.fpos(), [self.parse_statement(stmt) for stmt in body])
+        return s.If(
+            self.fpos(), e.HoleExpr(self.fpos()), body, s.Block(self.fpos(), [])
+        )
+
     def parse_step_statement(self, node: TSNode) -> s.Next:
         """
         (expression_statement
@@ -877,6 +887,7 @@ class Parser:
             {self.parse_assignment.__doc__}
             {self.parse_augmented_assignment.__doc__}
             {self.parse_if_statement.__doc__}
+            {self.parse_with_statement.__doc__}
             {self.parse_assert_statement.__doc__}
             {self.parse_assume_statement.__doc__}
             {self.parse_havoc_statement.__doc__}
@@ -900,6 +911,8 @@ class Parser:
         match node.type:
             case "if_statement":
                 return self.parse_if_statement(node)
+            case "with_statement":
+                return self.parse_with_statement(node)
             case "assert_statement":
                 return self.parse_assert_statement(node)
             case "expression_statement" if is_reserved(get_func_name(node)):
@@ -993,7 +1006,7 @@ class Parser:
         name = self.text(node.child_by_field_name("name"))
         body = node.child_by_field_name("body")
         match name:
-            case "next" | "control" | "step" | "transition":
+            case "next" | "control" | "step" | "transition" | "main":
                 match body.child(0).type:
                     # ignore while true at the top level of the next block
                     case "while_statement":
@@ -1012,7 +1025,7 @@ class Parser:
                 stmts = self.search(self.parse_statement, body)
                 stmts = [self.parse_statement(stmt) for stmt in stmts]
                 return s.Block(self.fpos(), stmts)
-            case "init":
+            case "init" | "start" | "initial":
                 stmts = self.search(self.parse_statement, body)
                 stmts = [self.parse_statement(stmt) for stmt in stmts]
                 return s.Block(self.fpos(), stmts)
@@ -1170,7 +1183,9 @@ class Parser:
         )
 
         init_blocks = [
-            b for b in self.search(self.parse_stmt_block, body) if has_name(b, "init")
+            b
+            for b in self.search(self.parse_stmt_block, body)
+            if has_name(b, "init") or has_name(b, "start") or has_name(b, "initial")
         ]
         init = s.Block(
             self.fpos(),
@@ -1183,6 +1198,7 @@ class Parser:
             if has_name(b, "next")
             or has_name(b, "step")
             or has_name(b, "transition")
+            or has_name(b, "main")
             or has_name(b, "control")
         ]
         next = s.Block(

@@ -96,7 +96,7 @@ def control2py(output, control: p.Command, indent):
         case p.Block(_, []):
             return
     space = "  " * indent
-    output.write(f"{space}def control(self):\n")
+    output.write(f"{space}def proof(self):\n")
     cmd2py(output, control, indent + 1)
     output.write("\n")
 
