@@ -8,12 +8,16 @@ from eudoxus.ast.node import Identifier, Node
 
 @dataclass(frozen=True)
 class Statement(Node):
-    pass
+    def is_empty(self):
+        return False
 
 
 @dataclass(frozen=True)
 class Block(Statement):
     statements: List[Statement]
+
+    def is_empty(self):
+        return len(self.statements) == 0
 
 
 @dataclass(frozen=True)

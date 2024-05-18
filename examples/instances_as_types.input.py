@@ -1,5 +1,6 @@
 class A(Module):
-    pass
+    def locals(self):
+        self.x = int
 
 class main(Module):
     def locals(self):

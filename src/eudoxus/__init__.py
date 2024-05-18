@@ -29,6 +29,11 @@ class Language(str, Enum):
     uclid = "uclid"
 
 
+class Model(str, Enum):
+    gpt4 = "gpt-4-turbo-2024-04-09"
+    gpt35 = "gpt-3.5-turbo-0125"
+
+
 eudoxus = typer.Typer(pretty_exceptions_enable=False, add_completion=False)
 
 
@@ -36,6 +41,7 @@ eudoxus = typer.Typer(pretty_exceptions_enable=False, add_completion=False)
 def main_(
     task: Path,
     language: Language = Language.uclid,
+    model: Model = Model.gpt4,
     output: Path = None,
     iterations: int = 2,
     inference: bool = True,
@@ -55,13 +61,17 @@ def main_(
             return
         output = open(output, "w")
 
-    pipeline(task, language, output, inference, iterations, debug, remind, solver)
+    pipeline(
+        task, language, model, output, inference, iterations, debug, remind, solver
+    )
 
     if output is not sys.stdout:
         output.close()
 
 
-def pipeline(task, language, output, inference, iterations, debug, remind, solver):
+def pipeline(
+    task, language, model, output, inference, iterations, debug, remind, solver
+):
     clocks = {"llm": 0, "repair": 0}
 
     def timeit(clock, f, *args, **kwargs):
@@ -81,7 +91,7 @@ def pipeline(task, language, output, inference, iterations, debug, remind, solve
 
     prompt = get_sketch_prompt(task)
     generator_log("Prompt:", prompt)
-    llm_response = timeit("llm", chat, prompt)
+    llm_response = timeit("llm", chat, prompt, model)
     llm_log("Response:", llm_response)
     python = extract_code(llm_response)
     original = python
@@ -99,7 +109,7 @@ def pipeline(task, language, output, inference, iterations, debug, remind, solve
             break
         prompt = get_complete_prompt(repaired, task, remind)
         generator_log("Prompt:", prompt)
-        llm_response = timeit("llm", chat, prompt)
+        llm_response = timeit("llm", chat, prompt, model)
         llm_log("Response:", llm_response)
         python = extract_code(llm_response)
         generator_log("Extracted:", python)
@@ -146,6 +156,8 @@ def repair(src, language, output, inference, debug, solver):
         src = src.encode()
 
     modules = Parser(src, debug).parse()
+    # filter out any empty modules named Module
+    modules = [m for m in modules if not m.is_empty()]
 
     if inference:
         # Nondet first: removes all nondet expressions and adds declarations

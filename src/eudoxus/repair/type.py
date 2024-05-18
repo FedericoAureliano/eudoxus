@@ -1075,7 +1075,9 @@ class TypeChecker(Checker):
             module.visit(encode_and_save)
 
         # make sure that all the symbols are unique
-        self.add_hard_constraint(z3.Distinct([sym for sym in self.symbol_map.values()]))
+        symbols = [sym for sym in self.symbol_map.values()]
+        if len(symbols) > 1:
+            self.add_hard_constraint(z3.Distinct(symbols))
 
         positions, self.model = self.solve()
 

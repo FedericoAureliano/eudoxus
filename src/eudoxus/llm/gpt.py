@@ -3,7 +3,7 @@ import os
 from openai import OpenAI
 
 
-def chat(prompt, engine="gpt-4-0613"):
+def chat(prompt, engine):
     if os.environ["OPENAI_API_KEY"]:
         client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
     else:

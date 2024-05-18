@@ -19,3 +19,18 @@ class Module(Node):
     next: s.Statement
     specification: e.Expression
     control: p.Command
+
+    def is_empty(self):
+        return (
+            self.types.is_empty()
+            and self.locals.is_empty()
+            and self.inputs.is_empty()
+            and self.outputs.is_empty()
+            and self.sharedvars.is_empty()
+            and self.instances.is_empty()
+            and self.init.is_empty()
+            and self.next.is_empty()
+            and isinstance(self.specification, e.BooleanValue)
+            and self.specification.value
+            and self.control.is_empty()
+        )

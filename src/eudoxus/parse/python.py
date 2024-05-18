@@ -100,6 +100,8 @@ class Parser:
             {self.parse_self_identifier.__doc__}
         ]
         """
+        if node is None:
+            return HoleId(self.fpos())
         match node.type:
             case "identifier":
                 return self.parse_flat_identifier(node)
@@ -141,7 +143,8 @@ class Parser:
             return t.ArrayType(self.fpos(), index_t, elem_t)
         elif "enum" in name.lower():
             if (
-                args.child_count >= 3
+                args is not None
+                and args.child_count >= 4
                 and args.child(1).type == "string"
                 and args.child(3).type == "list"
             ):
@@ -149,14 +152,15 @@ class Parser:
                 args = args.child(3)
 
             args_list = self.search(self.parse_string, args, strict=False)
-            args_list = [
-                Identifier(self.fpos(), self.parse_string(arg)) for arg in args_list
-            ]
+            args_list = [self.parse_string(arg) for arg in args_list]
+            if len(args_list) == 1 and " " in args_list[0]:
+                args_list = args_list[0].split(" ")
+            args_list = [Identifier(self.fpos(), arg) for arg in args_list]
 
             if len(args_list) == 0:
                 args_list = self.search(self.parse_integer, args, strict=False)
                 args_list = [self.parse_integer(arg) for arg in args_list]
-                k = args_list[0]
+                k = args_list[0] if len(args_list) > 0 else 0
                 args_list = []
                 for _ in range(k.value):
                     args_list.append(
@@ -366,38 +370,41 @@ class Parser:
         function = self.parse_identifier(fnode)
         match function.name.lower():
             case "forall" | "exists":
+                quant = e.Forall if function.name.lower() == "forall" else e.Exists
+
                 arguments = node.child_by_field_name("arguments")
+
+                # first look for identifier-type pairs
                 bindings = self.search(
                     self.parse_name_type_pair, arguments, strict=False
                 )
                 bindings = [self.parse_name_type_pair(binding) for binding in bindings]
-                if len(bindings) == 0:
-                    bindings = self.search(self.parse_identifier, arguments)
-                    bindings = [self.parse_identifier(binding) for binding in bindings]
-                    if len(bindings) == 0:
-                        bindings = [(HoleId(self.fpos()), t.HoleType(self.fpos()))]
-                    else:
-                        bindings = [
-                            (binding, t.HoleType(self.fpos())) for binding in bindings
-                        ]
-
-                if arguments.child_count >= 4:
-                    body = arguments.child(3)
-                    body = self.parse_expr(body)
-                else:
-                    body = e.HoleExpr(self.fpos())
-                if function.name.lower() == "forall":
+                if len(bindings) > 0:
+                    # then we had Forall([(x1, t1), ..., (xn, tn)], body)
+                    body = self.search(self.parse_expr, arguments)
+                    body = self.parse_expr(body[0])
                     return foldl(
-                        lambda x, y: e.Forall(self.fpos(), *x, y),
-                        e.Forall(self.fpos(), *bindings[0], body),
+                        lambda x, y: quant(self.fpos(), *x, y),
+                        quant(self.fpos(), *bindings[0], body),
                         bindings[1:],
                     )
+                elif len(arguments.children) == 7:
+                    # then we had Forall(x1, t1, body)
+                    x = self.parse_identifier(arguments.children[1])
+                    ty = self.parse_type_expr(arguments.children[3])
+                    body = self.parse_expr(arguments.children[5])
+                    return quant(self.fpos(), x, ty, body)
+                elif len(arguments.children) == 5:
+                    # then we had Forall(x1, body)
+                    x = self.parse_identifier(arguments.children[1])
+                    body = self.parse_expr(arguments.children[3])
+                    return quant(self.fpos(), x, t.HoleType(self.fpos()), body)
                 else:
-                    return foldl(
-                        lambda x, y: e.Exists(self.fpos(), *x, y),
-                        e.Exists(self.fpos(), *bindings[0], body),
-                        bindings[1:],
-                    )
+                    if self.debug:
+                        raise ValueError(
+                            f"Unsupported object: {len(arguments.children)}"
+                        )
+                    return e.HoleExpr(self.fpos())
             case _:
                 arguments, kwargs = parse_args()
                 return self.expr_helper(self.fpos(), function.name, arguments, kwargs)

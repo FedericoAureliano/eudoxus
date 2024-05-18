@@ -6,12 +6,16 @@ from eudoxus.ast.node import Node
 
 @dataclass(frozen=True)
 class Command(Node):
-    pass
+    def is_empty(self):
+        return False
 
 
 @dataclass(frozen=True)
 class Block(Command):
     commands: List[Command]
+
+    def is_empty(self):
+        return len(self.commands) == 0
 
 
 @dataclass(frozen=True)
