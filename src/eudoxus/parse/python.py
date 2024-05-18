@@ -623,7 +623,13 @@ class Parser:
         match node.type:
             case "identifier":
                 id = self.parse_flat_identifier(node)
-                return e.FunctionApplication(self.fpos(), id, [])
+                match id.name.lower():
+                    case "true":
+                        return e.BooleanValue(self.fpos(), True)
+                    case "false":
+                        return e.BooleanValue(self.fpos(), False)
+                    case _:
+                        return e.FunctionApplication(self.fpos(), id, [])
             case "attribute" if self.text(node.child_by_field_name("object")) == "self":
                 id = self.parse_self_identifier(node)
                 return e.FunctionApplication(self.fpos(), id, [])
