@@ -168,9 +168,21 @@ class TypeChecker(Checker):
                 return 1
             case "bad_type":
                 return 5
-            case "bad_expr":
-                return 10
+            case other if other.startswith("bad_expr_"):
+                depth = int(other.split("_")[2])
+                return 10 + depth ^ 2
+            case "hard":
+                return 5000
         raise NotImplementedError(f"Unsupported reason {reason}")
+
+    def get_depth(self, expr: z3.AstRef):
+        def get_depth_rec(expr, depth):
+            if z3.is_const(expr):
+                return depth
+            else:
+                return max(get_depth_rec(arg, depth + 1) for arg in expr.children())
+
+        return get_depth_rec(expr, 0)
 
     def str_to_symbol(self, symbol):
         if symbol not in self.symbol_map:
@@ -183,13 +195,13 @@ class TypeChecker(Checker):
                 # Hard: type(spec') == bool
                 # Soft: spec == spec'
                 spec = children[9]
-                specp = self.fresh_constant(self.universe.expr, "SpecHole")
-                children[9] = specp
-                self.add_hard_constraint(
-                    self.term_to_type(specp) == self.universe.type.BooleanType
-                )
                 spec_pos = self.z3_to_pos(spec)
-                self.add_soft_constraint(spec == specp, spec_pos, "bad_expr")
+                spec_depth = self.get_depth(spec)
+                self.add_soft_constraint(
+                    self.term_to_type(spec) == self.universe.type.BooleanType,
+                    spec_pos,
+                    f"bad_expr_{spec_depth}",
+                )
                 return self.universe.mod.Module(*children)
             case n.Identifier:
                 # Input: x
@@ -254,7 +266,10 @@ class TypeChecker(Checker):
 
                 for c in ground_values:
                     app_c_i = self.universe.expr.EnumValue(c)
-                    self.add_hard_constraint(self.term_to_type(app_c_i) == enu)
+                    cpos = self.z3_to_pos(app_c_i)
+                    self.add_soft_constraint(
+                        self.term_to_type(app_c_i) == enu, cpos, "bad_expr_1"
+                    )
 
                 ep = self.fresh_constant(self.universe.type, "EnumeratedTypeHole")
                 self.add_soft_constraint(ep == enu, pos, "bad_type")
@@ -269,7 +284,10 @@ class TypeChecker(Checker):
                 field_set = z3.K(self.universe.symbol, False)
                 for f in fields:
                     field_names.append(f[0])
-                    self.add_hard_constraint(self.field_to_type(f[0]) == f[1])
+                    fpos = self.z3_to_pos(f[1])
+                    self.add_soft_constraint(
+                        self.field_to_type(f[0]) == f[1], fpos, "bad_type"
+                    )
                     field_set = z3.Store(field_set, f[0], True)
                 rec = self.universe.type.RecordType(field_set)
                 rp = self.fresh_constant(self.universe.type, "RecordTypeHole")
@@ -298,7 +316,13 @@ class TypeChecker(Checker):
                 # Output: x = y;
                 x = children[0]
                 y = children[1]
-                self.add_hard_constraint(self.term_to_type(x) == self.term_to_type(y))
+                ypos = self.z3_to_pos(y)
+                weight = self.get_depth(y)
+                self.add_soft_constraint(
+                    self.term_to_type(x) == self.term_to_type(y),
+                    ypos,
+                    f"bad_expr_{weight}",
+                )
                 return self.universe.stmt.Assignment(x, y)
             case s.LocalDecl | s.OutputDecl | s.InputDecl | s.SharedDecl:
                 # Input: var x: t;
@@ -309,7 +333,11 @@ class TypeChecker(Checker):
                     xsym, self.universe.expr_list.empty
                 )
                 tz3 = children[1]
-                self.add_hard_constraint(self.term_to_type(xapp) == tz3)
+                tpos = self.z3_to_pos(tz3)
+                tweight = self.get_depth(tz3)
+                self.add_soft_constraint(
+                    self.term_to_type(xapp) == tz3, tpos, f"bad_expr_{tweight}"
+                )
                 return self.universe.stmt.LocalDecl(xsym, tz3)
             case s.TypeDecl:
                 # Input: type x = y;
@@ -318,7 +346,9 @@ class TypeChecker(Checker):
                 x = children[0]
                 y = children[1]
                 x_syn = self.symbol_to_type(x)
-                self.add_hard_constraint(x_syn == y)
+                ypos = self.z3_to_pos(y)
+                yweight = self.get_depth(y)
+                self.add_soft_constraint(x_syn == y, ypos, f"bad_expr_{yweight}")
                 return self.universe.stmt.TypeDecl(x, y)
             case s.InstanceDecl:
                 # Input: instance target: mod(pairs);
@@ -345,22 +375,27 @@ class TypeChecker(Checker):
                 # Soft: c == c'
                 # Output: if c' then t else e
                 cz3 = children[0]
-                cp = self.fresh_constant(self.universe.expr, "CondHole")
                 tc3 = children[1]
                 ez3 = children[2]
-                self.add_hard_constraint(
-                    self.term_to_type(cp) == self.universe.type.BooleanType
+                cpos = self.z3_to_pos(cz3)
+                cweight = self.get_depth(cz3)
+                self.add_soft_constraint(
+                    self.term_to_type(cz3) == self.universe.type.BooleanType,
+                    cpos,
+                    f"bad_expr_{cweight}",
                 )
-                cond_pos = self.z3_to_pos(cz3)
-                self.add_soft_constraint(cz3 == cp, cond_pos, "bad_expr")
                 return self.universe.stmt.If(cz3, tc3, ez3)
             case s.Assert:
                 # Input: assert c
                 # Hard: type(c) == bool
                 # Output: assert c
                 cz3 = children[0]
-                self.add_hard_constraint(
-                    self.term_to_type(cz3) == self.universe.type.BooleanType
+                cpos = self.z3_to_pos(cz3)
+                cweight = self.get_depth(cz3)
+                self.add_soft_constraint(
+                    self.term_to_type(cz3) == self.universe.type.BooleanType,
+                    cpos,
+                    f"bad_expr_{cweight}",
                 )
                 return self.universe.stmt.Assert(cz3)
             case s.Assume:
@@ -368,8 +403,12 @@ class TypeChecker(Checker):
                 # Hard: type(c) == bool
                 # Output: assume c
                 cz3 = children[0]
-                self.add_hard_constraint(
-                    self.term_to_type(cz3) == self.universe.type.BooleanType
+                cpos = self.z3_to_pos(cz3)
+                cweight = self.get_depth(cz3)
+                self.add_soft_constraint(
+                    self.term_to_type(cz3) == self.universe.type.BooleanType,
+                    cpos,
+                    f"bad_expr_{cweight}",
                 )
                 return self.universe.stmt.Assume(cz3)
             case s.Havoc:
@@ -391,8 +430,10 @@ class TypeChecker(Checker):
                 z = children[0]
                 zz3 = self.universe.expr.IntegerValue(z)
                 zp = self.fresh_constant(self.universe.expr, str(z))
-                self.add_hard_constraint(
-                    self.term_to_type(zz3) == self.universe.type.IntegerType
+                self.add_soft_constraint(
+                    self.term_to_type(zz3) == self.universe.type.IntegerType,
+                    pos,
+                    "bad_constant",
                 )
                 self.add_soft_constraint(zz3 == zp, pos, "bad_constant")
                 return zp
@@ -404,8 +445,10 @@ class TypeChecker(Checker):
                 r = children[0]
                 rz3 = self.universe.expr.RealValue(r)
                 rp = self.fresh_constant(self.universe.expr, str(r))
-                self.add_hard_constraint(
-                    self.term_to_type(rz3) == self.universe.type.RealType
+                self.add_soft_constraint(
+                    self.term_to_type(rz3) == self.universe.type.RealType,
+                    pos,
+                    "bad_constant",
                 )
                 self.add_soft_constraint(rz3 == rp, pos, "bad_constant")
                 return rp
@@ -417,8 +460,10 @@ class TypeChecker(Checker):
                 b = children[0]
                 bz3 = self.universe.expr.BooleanValue(b)
                 bp = self.fresh_constant(self.universe.expr, str(b))
-                self.add_hard_constraint(
-                    self.term_to_type(bz3) == self.universe.type.BooleanType
+                self.add_soft_constraint(
+                    self.term_to_type(bz3) == self.universe.type.BooleanType,
+                    pos,
+                    "bad_constant",
                 )
                 self.add_soft_constraint(bz3 == bp, pos, "bad_constant")
                 return bp
@@ -435,8 +480,10 @@ class TypeChecker(Checker):
                 vp = self.fresh_constant(z3.IntSort(), str(v))
                 wp = self.fresh_constant(z3.IntSort(), str(w))
                 bvp = self.fresh_constant(self.universe.expr, str(bv))
-                self.add_hard_constraint(
-                    self.term_to_type(bv) == self.universe.type.BitVectorType(w)
+                self.add_soft_constraint(
+                    self.term_to_type(bv) == self.universe.type.BitVectorType(w),
+                    pos,
+                    "bad_constant",
                 )
                 self.add_soft_constraint(bv == bvp, pos, "bad_constant")
                 self.add_soft_constraint(v == vp, pos, "bad_constant")
@@ -451,17 +498,26 @@ class TypeChecker(Checker):
                 x = children[0]
                 y = children[1]
                 x_plus_y = self.universe.expr.Add(x, y)
-                self.add_hard_constraint(self.term_to_type(x) == self.term_to_type(y))
-                self.add_hard_constraint(
-                    self.term_to_type(x_plus_y) == self.term_to_type(x)
+                weight = max(self.get_depth(x), self.get_depth(y)) + 1
+                self.add_soft_constraint(
+                    self.term_to_type(x) == self.term_to_type(y),
+                    pos,
+                    f"bad_expr_{weight}",
+                )
+                self.add_soft_constraint(
+                    self.term_to_type(x_plus_y) == self.term_to_type(x),
+                    pos,
+                    f"bad_expr_{weight}",
                 )
                 type_x = self.term_to_type(x)
-                self.add_hard_constraint(
+                self.add_soft_constraint(
                     z3.Or(
                         type_x == self.universe.type.IntegerType,
                         type_x == self.universe.type.RealType,
                         self.universe.type.is_BitVectorType(type_x),
-                    )
+                    ),
+                    pos,
+                    f"bad_expr_{weight}",
                 )
                 return x_plus_y
             case e.Subtract:
@@ -473,17 +529,26 @@ class TypeChecker(Checker):
                 x = children[0]
                 y = children[1]
                 x_minus_y = self.universe.expr.Subtract(x, y)
-                self.add_hard_constraint(self.term_to_type(x) == self.term_to_type(y))
-                self.add_hard_constraint(
-                    self.term_to_type(x_minus_y) == self.term_to_type(x)
+                weight = max(self.get_depth(x), self.get_depth(y)) + 1
+                self.add_soft_constraint(
+                    self.term_to_type(x) == self.term_to_type(y),
+                    pos,
+                    f"bad_expr_{weight}",
+                )
+                self.add_soft_constraint(
+                    self.term_to_type(x_minus_y) == self.term_to_type(x),
+                    pos,
+                    f"bad_expr_{weight}",
                 )
                 type_x = self.term_to_type(x)
-                self.add_hard_constraint(
+                self.add_soft_constraint(
                     z3.Or(
                         type_x == self.universe.type.IntegerType,
                         type_x == self.universe.type.RealType,
                         self.universe.type.is_BitVectorType(type_x),
-                    )
+                    ),
+                    pos,
+                    f"bad_expr_{weight}",
                 )
                 return x_minus_y
             case e.Negate:
@@ -493,16 +558,21 @@ class TypeChecker(Checker):
                 # Output: -x
                 x = children[0]
                 neg_x = self.universe.expr.Negate(x)
-                self.add_hard_constraint(
-                    self.term_to_type(neg_x) == self.term_to_type(x)
+                weight = self.get_depth(x)
+                self.add_soft_constraint(
+                    self.term_to_type(neg_x) == self.term_to_type(x),
+                    pos,
+                    f"bad_expr_{weight}",
                 )
                 type_x = self.term_to_type(x)
-                self.add_hard_constraint(
+                self.add_soft_constraint(
                     z3.Or(
                         type_x == self.universe.type.IntegerType,
                         type_x == self.universe.type.RealType,
                         self.universe.type.is_BitVectorType(type_x),
-                    )
+                    ),
+                    pos,
+                    f"bad_expr_{weight}",
                 )
                 return neg_x
             case e.Multiply:
@@ -514,17 +584,26 @@ class TypeChecker(Checker):
                 x = children[0]
                 y = children[1]
                 x_times_y = self.universe.expr.Multiply(x, y)
-                self.add_hard_constraint(self.term_to_type(x) == self.term_to_type(y))
-                self.add_hard_constraint(
-                    self.term_to_type(x_times_y) == self.term_to_type(x)
+                weight = max(self.get_depth(x), self.get_depth(y)) + 1
+                self.add_soft_constraint(
+                    self.term_to_type(x) == self.term_to_type(y),
+                    pos,
+                    f"bad_expr_{weight}",
+                )
+                self.add_soft_constraint(
+                    self.term_to_type(x_times_y) == self.term_to_type(x),
+                    pos,
+                    f"bad_expr_{weight}",
                 )
                 type_x = self.term_to_type(x)
-                self.add_hard_constraint(
+                self.add_soft_constraint(
                     z3.Or(
                         type_x == self.universe.type.IntegerType,
                         type_x == self.universe.type.RealType,
                         self.universe.type.is_BitVectorType(type_x),
-                    )
+                    ),
+                    pos,
+                    f"bad_expr_{weight}",
                 )
                 return x_times_y
             case e.Divide:
@@ -536,17 +615,26 @@ class TypeChecker(Checker):
                 x = children[0]
                 y = children[1]
                 x_div_y = self.universe.expr.Divide(x, y)
-                self.add_hard_constraint(self.term_to_type(x) == self.term_to_type(y))
-                self.add_hard_constraint(
-                    self.term_to_type(x_div_y) == self.term_to_type(x)
+                weight = max(self.get_depth(x), self.get_depth(y)) + 1
+                self.add_soft_constraint(
+                    self.term_to_type(x) == self.term_to_type(y),
+                    pos,
+                    f"bad_expr_{weight}",
+                )
+                self.add_soft_constraint(
+                    self.term_to_type(x_div_y) == self.term_to_type(x),
+                    pos,
+                    f"bad_expr_{weight}",
                 )
                 type_x = self.term_to_type(x)
-                self.add_hard_constraint(
+                self.add_soft_constraint(
                     z3.Or(
                         type_x == self.universe.type.IntegerType,
                         type_x == self.universe.type.RealType,
                         self.universe.type.is_BitVectorType(type_x),
-                    )
+                    ),
+                    pos,
+                    f"bad_expr_{weight}",
                 )
                 return x_div_y
             case e.Modulo:
@@ -558,17 +646,26 @@ class TypeChecker(Checker):
                 x = children[0]
                 y = children[1]
                 x_mod_y = self.universe.expr.Modulo(x, y)
-                self.add_hard_constraint(self.term_to_type(x) == self.term_to_type(y))
-                self.add_hard_constraint(
-                    self.term_to_type(x_mod_y) == self.term_to_type(x)
+                weight = max(self.get_depth(x), self.get_depth(y)) + 1
+                self.add_soft_constraint(
+                    self.term_to_type(x) == self.term_to_type(y),
+                    pos,
+                    f"bad_expr_{weight}",
+                )
+                self.add_soft_constraint(
+                    self.term_to_type(x_mod_y) == self.term_to_type(x),
+                    pos,
+                    f"bad_expr_{weight}",
                 )
                 type_x = self.term_to_type(x)
-                self.add_hard_constraint(
+                self.add_soft_constraint(
                     z3.Or(
                         type_x == self.universe.type.IntegerType,
                         type_x == self.universe.type.RealType,
                         self.universe.type.is_BitVectorType(type_x),
-                    )
+                    ),
+                    pos,
+                    f"bad_expr_{weight}",
                 )
                 return x_mod_y
             case e.Equal:
@@ -577,17 +674,18 @@ class TypeChecker(Checker):
                 # Hard: type(x == y) == bool
                 # Output: x == y
                 x = children[0]
-                xp = self.fresh_constant(self.universe.expr, "EqualHole")
-                self.add_soft_constraint(x == xp, pos, "bad_expr")
-
                 y = children[1]
-                yp = self.fresh_constant(self.universe.expr, "EqualHole")
-                self.add_soft_constraint(y == yp, pos, "bad_expr")
-
-                x_eq_y = self.universe.expr.Equal(xp, yp)
-                self.add_hard_constraint(self.term_to_type(xp) == self.term_to_type(yp))
-                self.add_hard_constraint(
-                    self.term_to_type(x_eq_y) == self.universe.type.BooleanType
+                x_eq_y = self.universe.expr.Equal(x, y)
+                weight = max(self.get_depth(x), self.get_depth(y)) + 1
+                self.add_soft_constraint(
+                    self.term_to_type(x) == self.term_to_type(y),
+                    pos,
+                    f"bad_expr_{weight}",
+                )
+                self.add_soft_constraint(
+                    self.term_to_type(x_eq_y) == self.universe.type.BooleanType,
+                    pos,
+                    f"bad_expr_{weight}",
                 )
                 return x_eq_y
             case e.NotEqual:
@@ -598,9 +696,16 @@ class TypeChecker(Checker):
                 x = children[0]
                 y = children[1]
                 x_neq_y = self.universe.expr.NotEqual(x, y)
-                self.add_hard_constraint(self.term_to_type(x) == self.term_to_type(y))
-                self.add_hard_constraint(
-                    self.term_to_type(x_neq_y) == self.universe.type.BooleanType
+                weight = max(self.get_depth(x), self.get_depth(y)) + 1
+                self.add_soft_constraint(
+                    self.term_to_type(x) == self.term_to_type(y),
+                    pos,
+                    f"bad_expr_{weight}",
+                )
+                self.add_soft_constraint(
+                    self.term_to_type(x_neq_y) == self.universe.type.BooleanType,
+                    pos,
+                    f"bad_expr_{weight}",
                 )
                 return x_neq_y
             case e.GreaterThan:
@@ -612,17 +717,26 @@ class TypeChecker(Checker):
                 x = children[0]
                 y = children[1]
                 x_gt_y = self.universe.expr.GreaterThan(x, y)
-                self.add_hard_constraint(self.term_to_type(x) == self.term_to_type(y))
-                self.add_hard_constraint(
-                    self.term_to_type(x_gt_y) == self.universe.type.BooleanType
+                weight = max(self.get_depth(x), self.get_depth(y)) + 1
+                self.add_soft_constraint(
+                    self.term_to_type(x) == self.term_to_type(y),
+                    pos,
+                    f"bad_expr_{weight}",
+                )
+                self.add_soft_constraint(
+                    self.term_to_type(x_gt_y) == self.universe.type.BooleanType,
+                    pos,
+                    f"bad_expr_{weight}",
                 )
                 type_x = self.term_to_type(x)
-                self.add_hard_constraint(
+                self.add_soft_constraint(
                     z3.Or(
                         type_x == self.universe.type.IntegerType,
                         type_x == self.universe.type.RealType,
                         self.universe.type.is_BitVectorType(type_x),
-                    )
+                    ),
+                    pos,
+                    f"bad_expr_{weight}",
                 )
                 return x_gt_y
             case e.GreaterThanOrEqual:
@@ -634,17 +748,26 @@ class TypeChecker(Checker):
                 x = children[0]
                 y = children[1]
                 x_ge_y = self.universe.expr.GreaterThanOrEqual(x, y)
-                self.add_hard_constraint(self.term_to_type(x) == self.term_to_type(y))
-                self.add_hard_constraint(
-                    self.term_to_type(x_ge_y) == self.universe.type.BooleanType
+                weight = max(self.get_depth(x), self.get_depth(y)) + 1
+                self.add_soft_constraint(
+                    self.term_to_type(x) == self.term_to_type(y),
+                    pos,
+                    f"bad_expr_{weight}",
+                )
+                self.add_soft_constraint(
+                    self.term_to_type(x_ge_y) == self.universe.type.BooleanType,
+                    pos,
+                    f"bad_expr_{weight}",
                 )
                 type_x = self.term_to_type(x)
-                self.add_hard_constraint(
+                self.add_soft_constraint(
                     z3.Or(
                         type_x == self.universe.type.IntegerType,
                         type_x == self.universe.type.RealType,
                         self.universe.type.is_BitVectorType(type_x),
-                    )
+                    ),
+                    pos,
+                    f"bad_expr_{weight}",
                 )
                 return x_ge_y
             case e.LessThan:
@@ -656,17 +779,26 @@ class TypeChecker(Checker):
                 x = children[0]
                 y = children[1]
                 x_lt_y = self.universe.expr.LessThan(x, y)
-                self.add_hard_constraint(self.term_to_type(x) == self.term_to_type(y))
-                self.add_hard_constraint(
-                    self.term_to_type(x_lt_y) == self.universe.type.BooleanType
+                weight = max(self.get_depth(x), self.get_depth(y)) + 1
+                self.add_soft_constraint(
+                    self.term_to_type(x) == self.term_to_type(y),
+                    pos,
+                    f"bad_expr_{weight}",
+                )
+                self.add_soft_constraint(
+                    self.term_to_type(x_lt_y) == self.universe.type.BooleanType,
+                    pos,
+                    f"bad_expr_{weight}",
                 )
                 type_x = self.term_to_type(x)
-                self.add_hard_constraint(
+                self.add_soft_constraint(
                     z3.Or(
                         type_x == self.universe.type.IntegerType,
                         type_x == self.universe.type.RealType,
                         self.universe.type.is_BitVectorType(type_x),
-                    )
+                    ),
+                    pos,
+                    f"bad_expr_{weight}",
                 )
                 return x_lt_y
             case e.LessThanOrEqual:
@@ -678,17 +810,26 @@ class TypeChecker(Checker):
                 x = children[0]
                 y = children[1]
                 x_le_y = self.universe.expr.LessThanOrEqual(x, y)
-                self.add_hard_constraint(self.term_to_type(x) == self.term_to_type(y))
-                self.add_hard_constraint(
-                    self.term_to_type(x_le_y) == self.universe.type.BooleanType
+                weight = max(self.get_depth(x), self.get_depth(y)) + 1
+                self.add_soft_constraint(
+                    self.term_to_type(x) == self.term_to_type(y),
+                    pos,
+                    f"bad_expr_{weight}",
+                )
+                self.add_soft_constraint(
+                    self.term_to_type(x_le_y) == self.universe.type.BooleanType,
+                    pos,
+                    f"bad_expr_{weight}",
                 )
                 type_x = self.term_to_type(x)
-                self.add_hard_constraint(
+                self.add_soft_constraint(
                     z3.Or(
                         type_x == self.universe.type.IntegerType,
                         type_x == self.universe.type.RealType,
                         self.universe.type.is_BitVectorType(type_x),
-                    )
+                    ),
+                    pos,
+                    f"bad_expr_{weight}",
                 )
                 return x_le_y
             case e.And:
@@ -699,14 +840,23 @@ class TypeChecker(Checker):
                 x = children[0]
                 y = children[1]
                 x_and_y = self.universe.expr.And(x, y)
-                self.add_hard_constraint(
-                    self.term_to_type(x) == self.universe.type.BooleanType
+                xweight = self.get_depth(x)
+                yweight = self.get_depth(y)
+                weight = max(xweight, yweight) + 1
+                self.add_soft_constraint(
+                    self.term_to_type(x) == self.universe.type.BooleanType,
+                    self.z3_to_pos(x),
+                    f"bad_expr_{xweight}",
                 )
-                self.add_hard_constraint(
-                    self.term_to_type(y) == self.universe.type.BooleanType
+                self.add_soft_constraint(
+                    self.term_to_type(y) == self.universe.type.BooleanType,
+                    self.z3_to_pos(y),
+                    f"bad_expr_{yweight}",
                 )
-                self.add_hard_constraint(
-                    self.term_to_type(x_and_y) == self.universe.type.BooleanType
+                self.add_soft_constraint(
+                    self.term_to_type(x_and_y) == self.universe.type.BooleanType,
+                    pos,
+                    f"bad_expr_{weight}",
                 )
                 return x_and_y
             case e.Or:
@@ -717,14 +867,23 @@ class TypeChecker(Checker):
                 x = children[0]
                 y = children[1]
                 x_or_y = self.universe.expr.Or(x, y)
-                self.add_hard_constraint(
-                    self.term_to_type(x) == self.universe.type.BooleanType
+                xweight = self.get_depth(x)
+                yweight = self.get_depth(y)
+                weight = max(xweight, yweight) + 1
+                self.add_soft_constraint(
+                    self.term_to_type(x) == self.universe.type.BooleanType,
+                    self.z3_to_pos(x),
+                    f"bad_expr_{xweight}",
                 )
-                self.add_hard_constraint(
-                    self.term_to_type(y) == self.universe.type.BooleanType
+                self.add_soft_constraint(
+                    self.term_to_type(y) == self.universe.type.BooleanType,
+                    self.z3_to_pos(y),
+                    f"bad_expr_{yweight}",
                 )
-                self.add_hard_constraint(
-                    self.term_to_type(x_or_y) == self.universe.type.BooleanType
+                self.add_soft_constraint(
+                    self.term_to_type(x_or_y) == self.universe.type.BooleanType,
+                    pos,
+                    f"bad_expr_{weight}",
                 )
                 return x_or_y
             case e.Xor:
@@ -735,14 +894,23 @@ class TypeChecker(Checker):
                 x = children[0]
                 y = children[1]
                 x_xor_y = self.universe.expr.Xor(x, y)
-                self.add_hard_constraint(
-                    self.term_to_type(x) == self.universe.type.BooleanType
+                xweight = self.get_depth(x)
+                yweight = self.get_depth(y)
+                weight = max(xweight, yweight) + 1
+                self.add_soft_constraint(
+                    self.term_to_type(x) == self.universe.type.BooleanType,
+                    self.z3_to_pos(x),
+                    f"bad_expr_{xweight}",
                 )
-                self.add_hard_constraint(
-                    self.term_to_type(y) == self.universe.type.BooleanType
+                self.add_soft_constraint(
+                    self.term_to_type(y) == self.universe.type.BooleanType,
+                    self.z3_to_pos(y),
+                    f"bad_expr_{yweight}",
                 )
-                self.add_hard_constraint(
-                    self.term_to_type(x_xor_y) == self.universe.type.BooleanType
+                self.add_soft_constraint(
+                    self.term_to_type(x_xor_y) == self.universe.type.BooleanType,
+                    pos,
+                    f"bad_expr_{weight}",
                 )
                 return x_xor_y
             case e.Implies:
@@ -753,14 +921,23 @@ class TypeChecker(Checker):
                 x = children[0]
                 y = children[1]
                 x_implies_y = self.universe.expr.Implies(x, y)
-                self.add_hard_constraint(
-                    self.term_to_type(x) == self.universe.type.BooleanType
+                xweight = self.get_depth(x)
+                yweight = self.get_depth(y)
+                weight = max(xweight, yweight) + 1
+                self.add_soft_constraint(
+                    self.term_to_type(x) == self.universe.type.BooleanType,
+                    self.z3_to_pos(x),
+                    f"bad_expr_{xweight}",
                 )
-                self.add_hard_constraint(
-                    self.term_to_type(y) == self.universe.type.BooleanType
+                self.add_soft_constraint(
+                    self.term_to_type(y) == self.universe.type.BooleanType,
+                    self.z3_to_pos(y),
+                    f"bad_expr_{yweight}",
                 )
-                self.add_hard_constraint(
-                    self.term_to_type(x_implies_y) == self.universe.type.BooleanType
+                self.add_soft_constraint(
+                    self.term_to_type(x_implies_y) == self.universe.type.BooleanType,
+                    pos,
+                    f"bad_expr_{weight}",
                 )
                 return x_implies_y
             case e.Not:
@@ -770,11 +947,17 @@ class TypeChecker(Checker):
                 # Output: not x
                 x = children[0]
                 not_x = self.universe.expr.Not(x)
-                self.add_hard_constraint(
-                    self.term_to_type(x) == self.universe.type.BooleanType
+                xweight = self.get_depth(x)
+                weight = xweight + 1
+                self.add_soft_constraint(
+                    self.term_to_type(x) == self.universe.type.BooleanType,
+                    self.z3_to_pos(x),
+                    f"bad_expr_{xweight}",
                 )
-                self.add_hard_constraint(
-                    self.term_to_type(not_x) == self.universe.type.BooleanType
+                self.add_soft_constraint(
+                    self.term_to_type(not_x) == self.universe.type.BooleanType,
+                    pos,
+                    f"bad_expr_{weight}",
                 )
                 return not_x
             case e.Ite:
@@ -787,14 +970,24 @@ class TypeChecker(Checker):
                 then_ = children[1]
                 else_ = children[2]
                 ite = self.universe.expr.Ite(cond, then_, else_)
-                self.add_hard_constraint(
-                    self.term_to_type(cond) == self.universe.type.BooleanType
+                cweight = self.get_depth(cond)
+                tweight = self.get_depth(then_)
+                eweight = self.get_depth(else_)
+                weight = max(cweight, tweight, eweight) + 1
+                self.add_soft_constraint(
+                    self.term_to_type(cond) == self.universe.type.BooleanType,
+                    self.z3_to_pos(cond),
+                    f"bad_expr_{cweight}",
                 )
-                self.add_hard_constraint(
-                    self.term_to_type(then_) == self.term_to_type(else_)
+                self.add_soft_constraint(
+                    self.term_to_type(then_) == self.term_to_type(else_),
+                    pos,
+                    f"bad_expr_{weight}",
                 )
-                self.add_hard_constraint(
-                    self.term_to_type(ite) == self.term_to_type(then_)
+                self.add_soft_constraint(
+                    self.term_to_type(ite) == self.term_to_type(then_),
+                    pos,
+                    f"bad_expr_{weight}",
                 )
                 return ite
             case e.FunctionApplication:
@@ -814,9 +1007,15 @@ class TypeChecker(Checker):
                 cvar = self.universe.expr.EnumValue(csym)
                 ctype = self.term_to_type(cvar)
 
-                self.add_hard_constraint(self.universe.type.is_EnumeratedType(ctype))
+                self.add_soft_constraint(
+                    self.universe.type.is_EnumeratedType(ctype),
+                    pos,
+                    f"bad_expr_{self.get_depth(cvar)}",
+                )
                 variants = self.universe.type.values(ctype)
-                self.add_hard_constraint(variants[csym])
+                self.add_soft_constraint(
+                    variants[csym], pos, f"bad_expr_{self.get_depth(cvar)}"
+                )
 
                 cp = self.fresh_constant(self.universe.expr, "EnumValueHole")
                 self.add_soft_constraint(cvar == cp, pos, "bad_constant")
@@ -838,13 +1037,21 @@ class TypeChecker(Checker):
                     if cls == e.Forall
                     else self.universe.expr.Exists(x, xt, c)
                 )
-                self.add_hard_constraint(
-                    self.term_to_type(c) == self.universe.type.BooleanType
+                self.add_soft_constraint(
+                    self.term_to_type(c) == self.universe.type.BooleanType,
+                    self.z3_to_pos(c),
+                    f"bad_expr_{self.get_depth(c)}",
                 )
-                self.add_hard_constraint(
-                    self.term_to_type(q) == self.universe.type.BooleanType
+                self.add_soft_constraint(
+                    self.term_to_type(q) == self.universe.type.BooleanType,
+                    pos,
+                    f"bad_expr_{self.get_depth(q)}",
                 )
-                self.add_hard_constraint(self.term_to_type(xapp) == xt)
+                self.add_soft_constraint(
+                    self.term_to_type(xapp) == xt,
+                    self.z3_to_pos(xt),
+                    f"bad_expr_{self.get_depth(xt)}",
+                )
                 return q
             case e.ArrayStore:
                 # Input: a[x] = y
@@ -858,10 +1065,16 @@ class TypeChecker(Checker):
                 a_type = self.term_to_type(a)
                 x_type = self.term_to_type(x)
                 y_type = self.term_to_type(y)
-                self.add_hard_constraint(
-                    a_type == self.universe.type.ArrayType(x_type, y_type)
+                self.add_soft_constraint(
+                    a_type == self.universe.type.ArrayType(x_type, y_type),
+                    pos,
+                    f"bad_expr_{self.get_depth(a)}",
                 )
-                self.add_hard_constraint(self.term_to_type(a_x_eq_y) == a_type)
+                self.add_soft_constraint(
+                    self.term_to_type(a_x_eq_y) == a_type,
+                    pos,
+                    f"bad_expr_{self.get_depth(a_x_eq_y)}",
+                )
                 return a_x_eq_y
             case e.ArraySelect:
                 # Input: a[x]
@@ -874,10 +1087,16 @@ class TypeChecker(Checker):
                 a_type = self.term_to_type(a)
                 x_type = self.term_to_type(x)
                 a_element_type = self.universe.type.element(a_type)
-                self.add_hard_constraint(
-                    a_type == self.universe.type.ArrayType(x_type, a_element_type)
+                self.add_soft_constraint(
+                    a_type == self.universe.type.ArrayType(x_type, a_element_type),
+                    pos,
+                    f"bad_expr_{self.get_depth(a)}",
                 )
-                self.add_hard_constraint(self.term_to_type(a_x) == a_element_type)
+                self.add_soft_constraint(
+                    self.term_to_type(a_x) == a_element_type,
+                    pos,
+                    f"bad_expr_{self.get_depth(a_x)}",
+                )
                 return a_x
             case e.RecordSelect:
                 # Input: r.f
@@ -893,18 +1112,30 @@ class TypeChecker(Checker):
                 f = children[1]
                 fp = self.fresh_constant(self.universe.symbol, "FieldHole")
                 x = self.fresh_constant(self.universe.expr, "RecordSelectHole")
-                self.add_soft_constraint(r == rp, self.z3_to_pos(r), "bad_expr")
+                self.add_soft_constraint(
+                    r == rp, self.z3_to_pos(r), f"bad_expr_{self.get_depth(r)}"
+                )
                 self.add_soft_constraint(f == fp, self.z3_to_pos(f), "bad_constant")
                 self.add_soft_constraint(
-                    x == self.universe.expr.RecordSelect(rp, fp), pos, "bad_expr"
+                    x == self.universe.expr.RecordSelect(rp, fp),
+                    pos,
+                    f"bad_expr_{self.get_depth(f)}",
                 )
-                self.add_hard_constraint(
-                    self.universe.type.is_RecordType(self.term_to_type(rp))
+                self.add_soft_constraint(
+                    self.universe.type.is_RecordType(self.term_to_type(rp)),
+                    pos,
+                    f"bad_expr_{self.get_depth(r)}",
                 )
-                self.add_hard_constraint(
-                    self.universe.type.fields(self.term_to_type(rp))[fp]
+                self.add_soft_constraint(
+                    self.universe.type.fields(self.term_to_type(rp))[fp],
+                    pos,
+                    f"bad_expr_{self.get_depth(f)}",
                 )
-                self.add_hard_constraint(self.term_to_type(x) == self.field_to_type(fp))
+                self.add_soft_constraint(
+                    self.term_to_type(x) == self.field_to_type(fp),
+                    pos,
+                    f"bad_expr_{self.get_depth(f)}",
+                )
                 return x
             case e.InstanceSelect:
                 # TODO
@@ -1077,7 +1308,9 @@ class TypeChecker(Checker):
         # make sure that all the symbols are unique
         symbols = [sym for sym in self.symbol_map.values()]
         if len(symbols) > 1:
-            self.add_hard_constraint(z3.Distinct(symbols))
+            self.add_soft_constraint(
+                z3.Distinct(symbols), modules[0].name.position, "hard"
+            )
 
         positions, self.model = self.solve()
 

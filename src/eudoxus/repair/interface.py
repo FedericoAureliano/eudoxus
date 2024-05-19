@@ -11,7 +11,6 @@ class Checker:
         z3.set_option("smt.random_seed", 0)
         self.opt_solver = z3.Optimize()
         self.opt_solver.set("maxsat_engine", "pd-maxres")
-        self.hard_constraints = set()
         self.soft_constraints = set()
 
     def check(self, modules: List[Module]) -> List[Dict[Position, Node]]:
@@ -32,17 +31,9 @@ class Checker:
     def fresh_constant(self, sort: z3.SortRef, prefix="") -> z3.ExprRef:
         return z3.FreshConst(sort, prefix)
 
-    def add_hard_constraint(self, constraint: z3.ExprRef) -> None:
-        # print(f"(hard)\t{constraint}")
-        self.hard_constraints.add(constraint)
-
-    def add_all_diff_hard(self, terms: List[z3.ExprRef]) -> None:
-        self.add_hard_constraint(z3.Distinct(*terms))
-
     def add_soft_constraint(
         self, constraint: z3.ExprRef, pos: Position, reason: str
     ) -> None:
-        # print(f"({self.reason_to_weight(reason)})\t{constraint}")
         self.soft_constraints.add((pos, reason, constraint))
 
     def add_conflict(self, pos: Position) -> None:
@@ -54,10 +45,6 @@ class Checker:
         changed and a model for inference.
         """
         self.opt_solver.push()
-
-        for c in sorted(list(self.hard_constraints), key=str):
-            # print(f"(on)\t{c}")
-            self.opt_solver.add(c)
 
         for p, r, c in sorted(list(self.soft_constraints), key=str):
             weight = self.reason_to_weight(r)
