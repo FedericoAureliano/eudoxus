@@ -10,58 +10,77 @@ class SequentialChecker:
     Check if the next block is sequential or parallel.
     """
 
-    def add(self, target: Identifier):
-        current_block = self.active_blocks[-1]
-        if current_block not in self.vars_per_block:
-            self.vars_per_block[current_block] = []
-        self.vars_per_block[current_block].append(target.name)
-        self.used_names.add(target.name)
+    def add(self, pos, target: Identifier):
+        if pos not in self.pos_to_used:
+            self.pos_to_used[pos] = set()
+        self.pos_to_used[pos].add(target.name)
 
     def enter_scope(self, node):
         match node:
-            case s.Block(pos, _):
-                previous_block = self.active_blocks[-1] if self.active_blocks else None
-                if previous_block is not None:
-                    if previous_block not in self.tree_of_scopes:
-                        self.tree_of_scopes[previous_block] = []
-                    self.tree_of_scopes[previous_block].append(pos)
-                self.active_blocks.append(pos)
-            case s.Havoc(_, target):
-                self.add(target)
-            case s.Assignment(_, e.FunctionApplication(_, target, _), _):
-                self.add(target)
+            case s.If(pos, _, then_, else_):
+                self.edges.append((pos, first(then_)))
+                self.edges.append((pos, first(else_)))
+            case s.Block(pos, stmts):
+                for i in range(len(stmts) - 1):
+                    if i == 0:
+                        self.edges.append((pos, first(node)))
+                    match stmts[i]:
+                        case s.If(pos, _, then_, else_):
+                            self.edges.append((last(then_), stmts[i + 1].position))
+                            self.edges.append((last(else_), stmts[i + 1].position))
+                        case _:
+                            self.edges.append(
+                                (stmts[i].position, stmts[i + 1].position)
+                            )
+            case s.Havoc(pos, target):
+                self.add(pos, target)
+            case s.Assignment(pos, e.FunctionApplication(_, target, _), _):
+                self.add(pos, target)
             case s.Assignment(
-                _, e.ArraySelect(_, e.FunctionApplication(_, target, _), _), _
+                pos, e.ArraySelect(_, e.FunctionApplication(_, target, _), _), _
             ):
-                self.add(target)
+                self.add(pos, target)
 
-    def exit_scope(self, node):
-        match node:
-            case s.Block(_, _):
-                self.active_blocks.pop()
+    def exit_scope(self, _):
+        pass
+
+    def is_sequential(self, pos, used):
+        new_used = list(self.pos_to_used.get(pos, set()))
+        if duplicates(used + new_used):
+            return True
+
+        sequential = False
+        for edge in self.edges:
+            if edge[0] == pos:
+                sequential = sequential or self.is_sequential(edge[1], used + new_used)
+        return sequential
 
     def check(self, next: s.Block) -> Tuple[bool, List[str]]:
-        self.vars_per_block = {}
-        self.active_blocks = []
-        self.tree_of_scopes = {}
-        self.used_names = set()
+        self.pos_to_used = {}
+        self.edges = []
 
         next.traverse(self.enter_scope, self.exit_scope)
 
-        sequential = dfs(next.position, self.tree_of_scopes, self.vars_per_block, [])
+        sequential = self.is_sequential(next.position, list())
 
-        return sequential, list(self.used_names)
+        used_names = set()
+        for used in self.pos_to_used.values():
+            used_names.update(used)
+
+        return sequential, list(used_names)
 
 
-def dfs(bpos, tree_of_scopes, vars_per_block, added_vars):
-    vars_in_block = vars_per_block[bpos] if bpos in vars_per_block else []
-    vars_in_block += added_vars
-    if len(vars_in_block) != len(set(vars_in_block)):
-        return True
+def duplicates(ls):
+    return len(ls) != len(set(ls))
 
-    children = tree_of_scopes[bpos] if bpos in tree_of_scopes else []
-    for child in children:
-        if dfs(child, tree_of_scopes, vars_per_block, vars_in_block):
-            return True
 
-    return False
+def first(b: s.Block):
+    if len(b.statements) == 0:
+        return b.position
+    return b.statements[0].position
+
+
+def last(b: s.Block):
+    if len(b.statements) == 0:
+        return b.position
+    return b.statements[-1].position
