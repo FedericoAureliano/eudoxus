@@ -14,6 +14,8 @@ from eudoxus.parse.python import Parser
 from eudoxus.print.python import module2py
 from eudoxus.print.uclid import module2ucl
 from eudoxus.repair.declared import DeclaredChecker
+from eudoxus.repair.double import DoubleChecker
+from eudoxus.repair.input import InputChecker
 from eudoxus.repair.instance import InstanceChecker
 from eudoxus.repair.nondet import NondetChecker
 from eudoxus.repair.quantifier import QuantifierChecker
@@ -167,12 +169,14 @@ def repair(src, language, output, inference, debug, solver):
         # Quantifier next: changes quantifiers to use unique variable names
         # Declared next: adds missing non-variable declarations, like modules
         checkers = [
+            InputChecker,
             NondetChecker,
             InstanceChecker,
             SelectChecker,
             ScopeChecker,
             QuantifierChecker,
             DeclaredChecker,
+            DoubleChecker,
         ]
         # Type last: adds missing types using a MAX-SMT solver
         if solver:
