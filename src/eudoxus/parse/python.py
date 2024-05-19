@@ -167,6 +167,11 @@ class Parser:
                         Identifier(self.fpos(), "anon_enum_" + str(self.enum_count))
                     )
                     self.enum_count += 1
+
+            # filter out duplicates
+            args_list = list(dict.fromkeys(args_list))
+            # remove the id from the list of values, if it exists
+            args_list = [arg for arg in args_list if arg.name != id.name]
             return t.EnumeratedType(self.fpos(), args_list)
         elif "record" in name.lower():
             fields = self.search(self.parse_string_type_pair, args, strict=False)

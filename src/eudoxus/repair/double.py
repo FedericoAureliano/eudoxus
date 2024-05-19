@@ -30,7 +30,9 @@ class DoubleChecker(Checker):
         match node:
             case s.TypeDecl(_, var, _) as ty:
                 self.used_types.append(ty)
-            case s.LocalDecl(_, var, _):
+            case s.LocalDecl(_, var, _) | s.InputDecl(_, var, _) | s.OutputDecl(
+                _, var, _
+            ) | s.SharedDecl(_, var, _):
                 self.used_vars.append(var.name)
 
     def exit_double(self, _):

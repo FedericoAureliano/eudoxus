@@ -13,6 +13,7 @@ class InstanceChecker(Checker):
     """
     Replace `var x: T` with `instance x: T(y:(??))` if T is a module with a
     single input/output y. Replace `instance x: T()` with `instance x: T(y:(??))`.
+    Remove `instance x: T(...)` if T is the module being declared.
     """
 
     def __init__(self):
@@ -71,7 +72,9 @@ class InstanceChecker(Checker):
             for decl in module.instances.statements:
                 match decl:
                     case s.InstanceDecl(_, lhs, mod, args):
-                        if mod.name in self.declared_modules:
+                        if mod.name == module.name.name:
+                            continue
+                        elif mod.name in self.declared_modules:
                             new_args = self.repair_args(mod.name, modules, args)
                             new_instance = s.InstanceDecl(
                                 self.fpos(), lhs, mod, new_args

@@ -444,7 +444,9 @@ def stmt2ucl(output, stmt: s.Statement, indent, prime_assignments):
             output.write("if ")
             close = False
             match cond:
-                case e.BooleanValue(_, _) | e.FunctionApplication(_, _, []):
+                case e.BooleanValue(_, _) | e.FunctionApplication(_, _, []) | e.Not(
+                    _, _
+                ):
                     output.write("(")
                     close = True
             expr2ucl(output, cond)
