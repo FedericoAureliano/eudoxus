@@ -138,16 +138,13 @@ class Parser:
             return t.BitVectorType(self.fpos(), size)
         elif "array" in name.lower():
             args_list = self.search(self.parse_type_expr, args)
-            if len(args_list) == 0:
-                args_list = self.search(self.parse_keyword_type_argument, args)
-                args_list = [
-                    self.parse_keyword_type_argument(arg)[1] for arg in args_list
-                ]
-                index_t = args_list[0]
-                elem_t = args_list[1]
-            elif len(args_list) == 2:
+            kwargs_list = self.search(self.parse_keyword_type_argument, args)
+            if len(args_list) == 2:
                 index_t = self.parse_type_expr(args_list[0])
                 elem_t = self.parse_type_expr(args_list[1])
+            elif len(kwargs_list) == 2:
+                index_t = self.parse_keyword_type_argument(kwargs_list[0])[1]
+                elem_t = self.parse_keyword_type_argument(kwargs_list[1])[1]
             elif self.debug:
                 raise ValueError(f"Unsupported object: {self.text(args)}")
             else:
@@ -172,9 +169,9 @@ class Parser:
             if len(args_list) == 0:
                 args_list = self.search(self.parse_integer, args, strict=False)
                 args_list = [self.parse_integer(arg) for arg in args_list]
-                k = args_list[0] if len(args_list) > 0 else 0
+                k = args_list[0].value if len(args_list) > 0 else 0
                 args_list = []
-                for _ in range(k.value):
+                for _ in range(k):
                     args_list.append(
                         Identifier(self.fpos(), "anon_enum_" + str(self.enum_count))
                     )

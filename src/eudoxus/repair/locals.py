@@ -2,20 +2,26 @@ from typing import Dict, List
 
 import eudoxus.ast.module as m
 import eudoxus.ast.statement as s
-from eudoxus.ast.node import Node, Position
+import eudoxus.ast.type as t
+from eudoxus.ast.node import Identifier, Node, Position
 from eudoxus.repair.interface import Checker
 
 
-class DoubleChecker(Checker):
+class LocalChecker(Checker):
     """
-    Find cases where an id is declared as a type and a var. For example,
+    Find cases where a type is declared but not used as a type.
     ```
     type x: boolean;
-    var x: boolean;
+    ...
+    assert x;
+    ...
     ```
     becomes
     ```
     var x: boolean;
+    ...
+    assert x;
+    ...
     ```
     """
 
@@ -26,29 +32,27 @@ class DoubleChecker(Checker):
         self.position -= 1
         return Position(self.position)
 
-    def enter_double(self, node):
+    def enter_locals(self, node):
         match node:
-            case s.TypeDecl(_, var, _) as ty:
-                self.used_types.append(ty)
-            case s.LocalDecl(_, var, _) | s.InputDecl(_, var, _) | s.OutputDecl(
-                _, var, _
-            ) | s.SharedDecl(_, var, _):
-                self.used_vars.append(var.name)
+            case s.TypeDecl(_, _, _) as ty:
+                self.declared_types.append(ty)
+            case t.SynonymType(_, Identifier(_, target)):
+                self.used_types.append(target)
 
-    def exit_double(self, _):
+    def exit_locals(self, _):
         pass
 
     def check(self, modules: List[m.Module]) -> List[Dict[Position, Node]]:
         self.rewrites = {}
-        self.used_vars = []
+        self.declared_types = []
         self.used_types = []
 
         for module in modules:
-            module.traverse(self.enter_double, self.exit_double)
+            module.traverse(self.enter_locals, self.exit_locals)
 
             new_decls = []
-            for ty in self.used_types:
-                if ty.target.name not in self.used_vars:
+            for ty in self.declared_types:
+                if ty.target.name in self.used_types:
                     new_decls.append(ty)
 
             type_pos = module.types.position

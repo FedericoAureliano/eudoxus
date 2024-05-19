@@ -7,6 +7,9 @@ class Enumeration:
 
     def locals(self):
         self.color = self.Color()
+        self.other = self.Other()
+        self.other2 = self.Other2()
+        self.other3 = self.Other3()
 
     def init(self):
         self.color = "red"

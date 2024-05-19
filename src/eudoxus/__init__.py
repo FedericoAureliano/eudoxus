@@ -14,9 +14,9 @@ from eudoxus.parse.python import Parser
 from eudoxus.print.python import module2py
 from eudoxus.print.uclid import module2ucl
 from eudoxus.repair.declared import DeclaredChecker
-from eudoxus.repair.double import DoubleChecker
 from eudoxus.repair.input import InputChecker
 from eudoxus.repair.instance import InstanceChecker
+from eudoxus.repair.locals import LocalChecker
 from eudoxus.repair.nondet import NondetChecker
 from eudoxus.repair.quantifier import QuantifierChecker
 from eudoxus.repair.scope import ScopeChecker
@@ -162,12 +162,6 @@ def repair(src, language, output, inference, debug, solver):
     modules = [m for m in modules if not m.is_empty()]
 
     if inference:
-        # Nondet first: removes all nondet expressions and adds declarations
-        # Instance next: changes var declarations to instance declarations
-        # Select next: changes record selections to instance selections
-        # Scope next: changes variable names to avoid shadowing and adds declarations
-        # Quantifier next: changes quantifiers to use unique variable names
-        # Declared next: adds missing non-variable declarations, like modules
         checkers = [
             InputChecker,
             NondetChecker,
@@ -175,8 +169,8 @@ def repair(src, language, output, inference, debug, solver):
             SelectChecker,
             ScopeChecker,
             QuantifierChecker,
+            LocalChecker,
             DeclaredChecker,
-            DoubleChecker,
         ]
         # Type last: adds missing types using a MAX-SMT solver
         if solver:
