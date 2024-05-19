@@ -1,10 +1,13 @@
+import re
+
+
 def extract_code(output) -> str:
     """Extracts the code from the LLM response."""
     output = output.rstrip()
     output = "```python\n" + output
 
-    # replace any occurrences of "``````" with "```"
-    output = output.replace("``````", "```")
+    # replace any occurrences of "``````" with "```" (including optional spaces)
+    output = re.sub(r"```\s*```", "```", output)
 
     end_index = output.rfind("```")
     if end_index <= len("```python\n"):

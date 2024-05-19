@@ -17,6 +17,10 @@ RESERVED_STATEMENTS = ["assume", "assert", "havoc"]
 
 PY_LANGUAGE = TSLanguage(ts.language(), "python")
 
+# threshold: if we remove this many chars, we should be suspicious and put a hole
+# instead of empty
+SOMETHING_THERE = 100
+
 
 def search(query: str, node: TSNode) -> List[TSNode]:
     query = query + " @target"
@@ -121,8 +125,16 @@ class Parser:
         elif "real" in name.lower():
             return t.RealType(self.fpos())
         elif "bv" in name.lower() or "bitvector" in name.lower():
-            size = self.search(self.parse_integer, args)[0]
-            size = self.parse_integer(size).value
+            size_args = self.search(self.parse_integer, args)
+            size_kwargs = self.search(self.parse_keyword_argument, args)
+            if len(size_args) == 1:
+                size = size_args[0]
+                size = self.parse_integer(size).value
+            elif len(size_kwargs) == 1:
+                size = size_kwargs[0]
+                size = self.parse_keyword_argument(size)[1].value
+            else:
+                return t.HoleType(self.fpos())
             return t.BitVectorType(self.fpos(), size)
         elif "array" in name.lower():
             args_list = self.search(self.parse_type_expr, args)
@@ -1027,9 +1039,13 @@ class Parser:
         """
         name = self.text(node.child_by_field_name("name"))
         body = node.child_by_field_name("body")
+        errors = self.search(self.parse_error, node)
+        if len(errors) > 0 and self.debug:
+            raise ValueError(f"Errors: {[self.parse_error(e) for e in errors]}")
         match name:
             case "next" | "control" | "step" | "transition" | "main":
-                match body.child(0).type:
+                child_type = body.child(0).type if body.child_count > 0 else ""
+                match child_type:
                     # ignore while true at the top level of the next block
                     case "while_statement":
                         body = body.child(0)
@@ -1046,10 +1062,16 @@ class Parser:
                             )
                 stmts = self.search(self.parse_statement, body)
                 stmts = [self.parse_statement(stmt) for stmt in stmts]
+                if len(stmts) == 0 and len(errors) > 0:
+                    return s.Block(self.fpos(), [s.HoleStmt(self.fpos())])
+                elif len(stmts) == 0 and len(str(body.sexp())) > SOMETHING_THERE:
+                    return s.Block(self.fpos(), [s.HoleStmt(self.fpos())])
                 return s.Block(self.fpos(), stmts)
             case "init" | "start" | "initial":
                 stmts = self.search(self.parse_statement, body)
                 stmts = [self.parse_statement(stmt) for stmt in stmts]
+                if len(stmts) == 0 and len(errors) > 0:
+                    return s.Block(self.fpos(), [s.HoleStmt(self.fpos())])
                 return s.Block(self.fpos(), stmts)
             case _ if self.debug:
                 raise ValueError(f"Unsupported object: {name}")

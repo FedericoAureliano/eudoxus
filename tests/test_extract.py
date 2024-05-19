@@ -36,3 +36,11 @@ def test_no_start_no_end():
         pass"""
     output = expected
     assert clean(extract_code(output)) == clean(expected)
+
+
+def test_double_end():
+    expected = """class A:
+    def __init__(self):
+        pass"""
+    output = f"```python\n{expected}\n```\n```"
+    assert clean(extract_code(output)) == clean(expected)
