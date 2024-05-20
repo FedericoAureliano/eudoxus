@@ -179,8 +179,6 @@ class Parser:
 
             # filter out duplicates
             args_list = list(dict.fromkeys(args_list))
-            # remove the id from the list of values, if it exists
-            args_list = [arg for arg in args_list if arg.name != id.name]
             return t.EnumeratedType(self.fpos(), args_list)
         elif "record" in name.lower():
             fields = self.search(self.parse_string_type_pair, args, strict=False)
@@ -648,7 +646,13 @@ class Parser:
                         return e.FunctionApplication(self.fpos(), id, [])
             case "attribute" if self.text(node.child_by_field_name("object")) == "self":
                 id = self.parse_self_identifier(node)
-                return e.FunctionApplication(self.fpos(), id, [])
+                match id.name.lower():
+                    case "true":
+                        return e.BooleanValue(self.fpos(), True)
+                    case "false":
+                        return e.BooleanValue(self.fpos(), False)
+                    case _:
+                        return e.FunctionApplication(self.fpos(), id, [])
             case "attribute":
                 return self.parse_select_expr(node)
             case "subscript":

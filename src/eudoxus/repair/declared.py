@@ -5,7 +5,7 @@ import eudoxus.ast.module as m
 import eudoxus.ast.proof as p
 import eudoxus.ast.statement as s
 import eudoxus.ast.type as t
-from eudoxus.ast.node import Identifier, Node, Position
+from eudoxus.ast.node import HoleId, Identifier, Node, Position
 from eudoxus.repair.interface import Checker
 
 
@@ -87,7 +87,7 @@ class DeclaredChecker(Checker):
                 new_instance_decl = s.InstanceDecl(
                     new_pos(),
                     Identifier(new_pos(), instance_name),
-                    Identifier(new_pos(), instance_name),
+                    HoleId(new_pos()),
                     [],
                 )
                 new_instance_decls.append(new_instance_decl)
