@@ -298,6 +298,7 @@ class TypeChecker(Checker):
                 # Soft: symbol_to_type(n) == t'
                 # Output: t'
                 sym = children[0]
+                self.add_soft_constraint(self.symbol_is_type(sym), pos, "hard")
                 tp = self.fresh_constant(self.universe.type, "SynonymTypeHole")
                 self.add_soft_constraint(
                     self.symbol_to_type(sym) == tp, pos, "bad_type"
@@ -329,6 +330,9 @@ class TypeChecker(Checker):
                 # Hard: type(x) == t
                 # Output: var x: t;
                 xsym = children[0]
+                self.add_soft_constraint(
+                    self.symbol_is_term(xsym), self.z3_to_pos(xsym), "hard"
+                )
                 xapp = self.universe.expr.FunctionApplication(
                     xsym, self.universe.expr_list.empty
                 )
@@ -345,10 +349,13 @@ class TypeChecker(Checker):
                 # Output: type x = y;
                 x = children[0]
                 y = children[1]
-                x_syn = self.symbol_to_type(x)
+                xtype = self.symbol_to_type(x)
                 ypos = self.z3_to_pos(y)
                 yweight = self.get_depth(y)
-                self.add_soft_constraint(x_syn == y, ypos, f"bad_expr_{yweight}")
+                self.add_soft_constraint(xtype == y, ypos, f"bad_expr_{yweight}")
+                self.add_soft_constraint(
+                    self.symbol_is_type(x), self.z3_to_pos(x), "hard"
+                )
                 return self.universe.stmt.TypeDecl(x, y)
             case s.InstanceDecl:
                 # Input: instance target: mod(pairs);
@@ -988,12 +995,16 @@ class TypeChecker(Checker):
                 )
                 return ite
             case e.FunctionApplication:
+                f = children[0]
                 arg = foldl(
                     lambda x, y: self.universe.expr_list.cons(y, x),
                     self.universe.expr_list.empty,
                     children[1],
                 )
-                return self.universe.expr.FunctionApplication(children[0], arg)
+                self.add_soft_constraint(
+                    self.symbol_is_term(f), self.z3_to_pos(f), "hard"
+                )
+                return self.universe.expr.FunctionApplication(f, arg)
             case e.EnumValue:
                 # Input: c
                 # Hard: type(c) is EnumType
@@ -1024,10 +1035,14 @@ class TypeChecker(Checker):
                 # Hard: type(x) = t
                 # Output: forall x: t. c
                 x = children[0]
+                self.add_soft_constraint(
+                    self.symbol_is_term(x), self.z3_to_pos(x), "hard"
+                )
                 xapp = self.universe.expr.FunctionApplication(
                     x, self.universe.expr_list.empty
                 )
                 xt = children[1]
+
                 c = children[2]
                 q = (
                     self.universe.expr.Forall(x, xt, c)
@@ -1282,6 +1297,14 @@ class TypeChecker(Checker):
             "field_to_type", self.universe.symbol, self.universe.type
         )
 
+        self.symbol_is_term = self.declare_function(
+            "symbol_is_term", self.universe.symbol, z3.BoolSort()
+        )
+
+        self.symbol_is_type = self.declare_function(
+            "symbol_is_type", self.universe.symbol, z3.BoolSort()
+        )
+
         self.symbol_map = {}
 
         self.pos_to_z3expr = {}
@@ -1307,6 +1330,14 @@ class TypeChecker(Checker):
         if len(symbols) > 1:
             self.add_soft_constraint(
                 z3.Distinct(symbols), modules[0].name.position, "hard"
+            )
+
+        # make sure that no symbol is both a term and a type
+        for sym in self.symbol_map.values():
+            self.add_soft_constraint(
+                z3.Not(z3.And(self.symbol_is_term(sym), self.symbol_is_type(sym))),
+                self.z3_to_pos(sym),
+                "hard",
             )
 
         positions, self.model = self.solve()

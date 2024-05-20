@@ -7,14 +7,15 @@ from pathlib import Path
 import typer
 from typing_extensions import Annotated
 
+from eudoxus.emit.python import module2py
+from eudoxus.emit.uclid import module2ucl
 from eudoxus.llm.gpt import chat
 from eudoxus.llm.prompts import get_complete_prompt, get_sketch_prompt
 from eudoxus.llm.utils import extract_code
 from eudoxus.parse.python import Parser
-from eudoxus.print.python import module2py
-from eudoxus.print.uclid import module2ucl
+from eudoxus.repair.cycle import CycleChecker
 from eudoxus.repair.declared import DeclaredChecker
-from eudoxus.repair.duplicates import DuplicateChecker
+from eudoxus.repair.duplicate import DuplicateChecker
 from eudoxus.repair.input import InputChecker
 from eudoxus.repair.instance import InstanceChecker
 from eudoxus.repair.locals import LocalChecker
@@ -171,6 +172,7 @@ def repair(src, language, output, inference, debug, solver):
             ScopeChecker,
             QuantifierChecker,
             LocalChecker,
+            CycleChecker,
             DeclaredChecker,
             DuplicateChecker,
         ]

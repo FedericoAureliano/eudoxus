@@ -878,7 +878,7 @@ class Parser:
         args = call.child_by_field_name("arguments")
         args = self.search(self.parse_identifier, args)
         args = [self.parse_identifier(arg) for arg in args]
-        match function.name:
+        match function.name.lower():
             case "havoc" if len(args) == 1:
                 return s.Havoc(self.fpos(), args[0])
             case _ if self.debug:
@@ -898,7 +898,7 @@ class Parser:
         args = call.child_by_field_name("arguments")
         args = self.search(self.parse_expr, args)
         args = [self.parse_expr(arg) for arg in args]
-        match function.name:
+        match function.name.lower():
             case "assume" if len(args) == 1:
                 return s.Assume(self.fpos(), args[0])
             case _ if self.debug:
@@ -950,13 +950,17 @@ class Parser:
                 return self.parse_assert_statement(node)
             case "expression_statement" if is_reserved(get_func_name(node)):
                 reserved = get_func_name(node)
-                match reserved:
+                match reserved.lower():
                     case "assume":
                         return self.parse_assume_statement(node)
                     case "assert":
                         return self.parse_assert_statement(node)
                     case "havoc":
                         return self.parse_havoc_statement(node)
+                    case _ if self.debug:
+                        raise ValueError(f"Unsupported object: {node.sexp()}")
+                    case _:
+                        return s.HoleStmt(self.fpos())
             case "expression_statement" if node.child(0).type == "augmented_assignment":
                 return self.parse_augmented_assignment(node)
             case "expression_statement" if node.child(0).type == "call":

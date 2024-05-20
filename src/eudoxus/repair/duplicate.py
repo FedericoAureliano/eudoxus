@@ -8,7 +8,7 @@ from eudoxus.repair.interface import Checker
 
 class DuplicateChecker(Checker):
     """
-    Remoce all duplicate type, variable, instance, and module declarations.
+    Remove all duplicate type, variable, instance, and module declarations.
     """
 
     def check(self, modules: List[m.Module]) -> List[Dict[Position, Node]]:
