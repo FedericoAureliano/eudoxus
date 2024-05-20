@@ -1,6 +1,6 @@
 class String(Module):
     def types(self):
-        self.str = Enum(??)
+        self.str = Enum("Goodbye, World!", "Hello, World!")
 
     def locals(self):
         self.s = self.str

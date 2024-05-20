@@ -107,7 +107,7 @@ def next2ucl(output, next: s.Block, indent):
     if sequential:
         output.write(space + "procedure step()\n")
         for name in set(assigned):
-            output.write(f"{space}  modifies {name};\n")
+            output.write(f"{space}  modifies {id2str(name)};\n")
         output.write(space + "{\n")
         stmt2ucl(output, next, indent + 1, False)
         output.write(space + "}\n\n")
@@ -214,6 +214,7 @@ def type2ucl(output, type: t.Type):
             type2ucl(output, elem_t)
         case t.EnumeratedType(_, values):
             output.write("enum { ")
+            values = sorted(values, key=lambda v: v.name)
             for i, v in enumerate(values):
                 if i > 0:
                     output.write(", ")
@@ -405,7 +406,7 @@ def expr2ucl(output, expr: e.Expression):
             output.write(") :: ")
             expr2ucl(output, body)
             output.write(")")
-        case e.FunctionApplication(_, name, args) if isinstance(name, e.Identifier):
+        case e.FunctionApplication(_, name, args):
             name = id2str(name)
             output.write(name)
             if len(args) > 0:
@@ -422,10 +423,19 @@ def expr2ucl(output, expr: e.Expression):
 
 
 def id2str(id):
-    name = id.name
-    if name in keywords:
-        return name + "_"
-    return name
+    match id:
+        case e.Identifier(_, name):
+            if name in keywords:
+                return name + "_"
+            return name
+        case n.HoleId(_):
+            return "??"
+        case other if isinstance(other, str):
+            if other in keywords:
+                return other + "_"
+            return other
+        case _:
+            raise ValueError(f"Unsupported identifier {id}")
 
 
 def stmt2ucl(output, stmt: s.Statement, indent, prime_assignments):

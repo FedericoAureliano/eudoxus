@@ -173,6 +173,8 @@ class TypeChecker(Checker):
                 return 10 + depth ^ 2
             case "hard":
                 return 5000
+            case "default":
+                return 1
         raise NotImplementedError(f"Unsupported reason {reason}")
 
     def get_depth(self, expr: z3.AstRef):
@@ -189,7 +191,7 @@ class TypeChecker(Checker):
             self.symbol_map[symbol] = self.fresh_constant(self.universe.symbol, symbol)
         return self.symbol_map[symbol]
 
-    def encode(self, cls, pos, children, prefix) -> Node:
+    def encode(self, cls, pos, children) -> Node:
         match cls:
             case m.Module:
                 # Hard: type(spec') == bool
@@ -206,7 +208,13 @@ class TypeChecker(Checker):
             case n.Identifier:
                 # Input: x
                 # Output: x
-                x = self.str_to_symbol(prefix + children[0])
+                x = self.str_to_symbol(self.prefix + children[0])
+                # by default, we assume that all symbols are terms or types
+                # for enum vals we assert that they are neither with a stronger weight
+                # the position is -1 so that we don't get a hole for violating this
+                self.add_soft_constraint(
+                    z3.Or(self.symbol_is_term(x), self.symbol_is_type(x)), -1, "default"
+                )
                 return x
             case t.IntegerType:
                 # Input: int
@@ -1011,7 +1019,7 @@ class TypeChecker(Checker):
                 # Hard: type(c)[c] == True
                 # Soft: c == c'
                 # Output: c'
-                csym = self.str_to_symbol(prefix + children[0])
+                csym = self.str_to_symbol(self.prefix + children[0])
                 cvar = self.universe.expr.EnumValue(csym)
                 ctype = self.term_to_type(cvar)
 
@@ -1024,6 +1032,10 @@ class TypeChecker(Checker):
                 self.add_soft_constraint(
                     variants[csym], pos, f"bad_expr_{self.get_depth(cvar)}"
                 )
+
+                # it's neither a type nor a term
+                self.add_soft_constraint(z3.Not(self.symbol_is_term(csym)), pos, "hard")
+                self.add_soft_constraint(z3.Not(self.symbol_is_type(csym)), pos, "hard")
 
                 cp = self.fresh_constant(self.universe.expr, "EnumValueHole")
                 self.add_soft_constraint(cvar == cp, pos, "bad_constant")
@@ -1247,7 +1259,22 @@ class TypeChecker(Checker):
                     w = self.model.eval(self.universe.type.width(z3expr))
                     return t.BitVectorType(position, w)
                 elif is_enum(z3expr):
-                    return t.EnumeratedType(position, set([n.HoleId(position)]))
+                    # get all the variants that are assigned this type
+                    variants = []
+                    for name, value in self.symbol_map.items():
+                        if self.model.eval(
+                            z3.And(
+                                self.universe.type.values(z3expr)[value],
+                                z3.Not(self.symbol_is_term(value)),
+                                z3.Not(self.symbol_is_type(value)),
+                            )
+                        ):
+                            variants.append(
+                                n.Identifier(position, name[len(self.prefix) :])
+                            )
+                    if len(variants) == 0:
+                        variants = [n.HoleId(position)]
+                    return t.EnumeratedType(position, set(variants))
             case self.universe.expr:
                 new_type = self.term_to_type(z3expr)
                 match node:
@@ -1311,6 +1338,7 @@ class TypeChecker(Checker):
         self.pos_to_node = {}
 
         for module in modules:
+            self.prefix = module.name.name + "_"
 
             def visit_and_save(cls, pos, children):
                 node = cls(pos, *children)
@@ -1318,7 +1346,7 @@ class TypeChecker(Checker):
                 return node
 
             def encode_and_save(cls, pos, children):
-                node = self.encode(cls, pos, children, module.name.name + "_")
+                node = self.encode(cls, pos, children)
                 self.pos_to_z3expr[pos] = node
                 return node
 
@@ -1348,6 +1376,7 @@ class TypeChecker(Checker):
         self.to_repair = {position: n.HoleId(position) for position in positions}
 
         for module in modules:
+            self.prefix = module.name.name + "_"
             module.visit(self.repair)
 
         return [self.to_repair]

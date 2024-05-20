@@ -1,6 +1,6 @@
 class SelectEnum(Module):
     def types(self):
-        self.color = Enum("RED", "GREEN", "BLUE")
+        self.color = Enum("BLUE", "GREEN", "RED")
 
     def locals(self):
         self.x = self.color

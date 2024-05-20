@@ -160,6 +160,7 @@ def type2py(output, type: t.Type):
             output.write(")")
         case t.EnumeratedType(_, values):
             output.write("Enum(")
+            values = sorted(values, key=lambda v: v.name)
             for i, v in enumerate(values):
                 if i > 0:
                     output.write(", ")
