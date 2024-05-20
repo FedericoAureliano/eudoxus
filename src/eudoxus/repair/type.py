@@ -1134,6 +1134,11 @@ class TypeChecker(Checker):
                 r = children[0]
                 rp = self.fresh_constant(self.universe.expr, "RecordHole")
                 f = children[1]
+
+                # it's neither a type nor a term
+                self.add_soft_constraint(z3.Not(self.symbol_is_term(f)), pos, "hard")
+                self.add_soft_constraint(z3.Not(self.symbol_is_type(f)), pos, "hard")
+
                 fp = self.fresh_constant(self.universe.symbol, "FieldHole")
                 x = self.fresh_constant(self.universe.expr, "RecordSelectHole")
                 self.add_soft_constraint(
@@ -1246,6 +1251,16 @@ class TypeChecker(Checker):
                 self.universe.type.is_EnumeratedType(x), model_completion=True
             )
 
+        def is_record(x):
+            return self.model.eval(
+                self.universe.type.is_RecordType(x), model_completion=True
+            )
+
+        def is_array(x):
+            return self.model.eval(
+                self.universe.type.is_ArrayType(x), model_completion=True
+            )
+
         # REPAIR RULES LIVE HERE
         match z3expr.sort():
             case self.universe.type:
@@ -1275,6 +1290,27 @@ class TypeChecker(Checker):
                     if len(variants) == 0:
                         variants = [n.HoleId(position)]
                     return t.EnumeratedType(position, set(variants))
+                elif is_record(z3expr):
+                    fields = []
+                    for name, selector in self.symbol_map.items():
+                        if self.model.eval(
+                            z3.And(
+                                self.universe.type.fields(z3expr)[selector],
+                                z3.Not(self.symbol_is_term(selector)),
+                                z3.Not(self.symbol_is_type(selector)),
+                            )
+                        ):
+                            field_id = n.Identifier(position, name[len(self.prefix) :])
+                            field_type = t.HoleType(position)
+                            fields.append((field_id, field_type))
+                    if len(fields) == 0:
+                        fields = [(n.HoleId(position), t.HoleType(position))]
+                    return t.RecordType(position, set(fields))
+                elif is_array(z3expr):
+                    element_type = t.HoleType(position)
+                    index_type = t.HoleType(position)
+                    return t.ArrayType(position, index_type, element_type)
+
             case self.universe.expr:
                 new_type = self.term_to_type(z3expr)
                 match node:

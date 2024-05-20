@@ -61,7 +61,7 @@ class SequentialChecker:
 
         next.traverse(self.enter_scope, self.exit_scope)
 
-        sequential = self.is_sequential(next.position, list())
+        sequential = self.is_sequential(first(next), list())
 
         used_names = set()
         for used in self.pos_to_used.values():
