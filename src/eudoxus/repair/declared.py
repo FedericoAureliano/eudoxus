@@ -69,7 +69,7 @@ class DeclaredChecker(Checker):
             type_block = module.types
             pt = type_block.position
             new_type_decls = []
-            for type_name in types_to_declare:
+            for type_name in sorted(types_to_declare):
                 if type_name in self.declared_modules:
                     # don't declare a type with an existing module's name
                     continue
@@ -83,7 +83,7 @@ class DeclaredChecker(Checker):
             instance_block = module.instances
             pi = instance_block.position
             new_instance_decls = []
-            for instance_name in instances_to_declare:
+            for instance_name in sorted(instances_to_declare):
                 new_instance_decl = s.InstanceDecl(
                     new_pos(),
                     Identifier(new_pos(), instance_name),

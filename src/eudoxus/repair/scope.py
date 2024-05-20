@@ -139,7 +139,7 @@ class ScopeChecker(Checker):
             var_block = module.locals
             pv = var_block.position
             new_var_decls = []
-            for var_name in self.vars_to_declare:
+            for var_name in sorted(self.vars_to_declare):
                 new_var_decl = s.LocalDecl(
                     new_pos(), Identifier(new_pos(), var_name), t.HoleType(new_pos())
                 )

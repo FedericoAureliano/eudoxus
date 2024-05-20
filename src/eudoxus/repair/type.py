@@ -659,11 +659,8 @@ class TypeChecker(Checker):
                 )
                 type_x = self.term_to_type(x)
                 self.add_soft_constraint(
-                    z3.Or(
-                        type_x == self.universe.type.IntegerType,
-                        type_x == self.universe.type.RealType,
-                        self.universe.type.is_BitVectorType(type_x),
-                    ),
+                    # mod only works on bitvectors
+                    self.universe.type.is_BitVectorType(type_x),
                     pos,
                     f"bad_expr_{weight}",
                 )

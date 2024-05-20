@@ -1,10 +1,10 @@
 class InPlace(Module):
     def outputs(self):
-        self.x = int
+        self.x = BitVector(2)
 
     def init(self):
-        self.x = self.x + 1
-        self.x = self.x - 1
-        self.x = self.x * 7
-        self.x = self.x / 3
-        self.x = self.x % 5
+        self.x = (self.x + BitVectorVal(1, 2))
+        self.x = (self.x - BitVectorVal(1, 2))
+        self.x = (self.x * BitVectorVal(7, 2))
+        self.x = (self.x / BitVectorVal(3, 2))
+        self.x = (self.x % BitVectorVal(5, 2))

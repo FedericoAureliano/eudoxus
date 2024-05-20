@@ -14,6 +14,7 @@ from eudoxus.parse.python import Parser
 from eudoxus.print.python import module2py
 from eudoxus.print.uclid import module2ucl
 from eudoxus.repair.declared import DeclaredChecker
+from eudoxus.repair.duplicates import DuplicateChecker
 from eudoxus.repair.input import InputChecker
 from eudoxus.repair.instance import InstanceChecker
 from eudoxus.repair.locals import LocalChecker
@@ -171,6 +172,7 @@ def repair(src, language, output, inference, debug, solver):
             QuantifierChecker,
             LocalChecker,
             DeclaredChecker,
+            DuplicateChecker,
         ]
         # Type last: adds missing types using a MAX-SMT solver
         if solver:

@@ -355,7 +355,9 @@ class Parser:
                 return e.RecordSelect(pos, *args)
             case "ite" | "ifthenelse" | "ifelse" | "if" | "if_" if len(args) == 3:
                 return e.Ite(pos, *args)
-            case "random" | "rand" | "choice" | "nondet":
+            case "random" | "rand" | "choice":
+                return e.Nondet(pos)
+            case other if "nondet" in other:
                 return e.Nondet(pos)
             case _ if self.debug:
                 raise ValueError(f"Unsupported function: {f}({args})")
