@@ -548,6 +548,10 @@ class DfyTypeChecker(Checker):
                         a0 = all_equal_types(args)
                         full_expr_type = self.type(a0)
 
+                    case e.Implies(_):
+                        name = "eudoxus.implies"
+                        all_some_type(args, boolean)
+                        full_expr_type = self.type2z3(boolean)
                     case _:
                         raise ValueError(f"Unsupported operator {op}")
 
@@ -815,6 +819,8 @@ class DfyTypeChecker(Checker):
                 )
                 self.terms[str(z3ret)] = str(expr)
                 return z3ret
+            case Hole(_):
+                return self.fresh_constant(self.term_sort, "term.")
             case _:
                 raise ValueError(f"Unsupported expression {expr}")
 

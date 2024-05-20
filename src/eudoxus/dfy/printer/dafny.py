@@ -64,6 +64,13 @@ def ensures2dfy(output, ensures: dfy_s.Ensures):
             output.write(" );\n")
 
 
+def decreases2dfy(output, decreases: dfy_s.Decreases):
+    for dec in decreases:
+        output.write("decreases( ")
+        expr2dfy(output, dec.condition)
+        output.write(" );\n")
+
+
 def module2dfy(output, module: Module, indent, annotations=True, comments=True):
     """
     Note that this uses module for consistency with ucl
@@ -90,6 +97,7 @@ def module2dfy(output, module: Module, indent, annotations=True, comments=True):
         if ANNOTATIONS:
             requires2dfy(output, module.requires)
             ensures2dfy(output, module.ensures)
+            decreases2dfy(output, module.decreases)
 
         # return_statement2dfy(output, )
         output.write("{\n")
@@ -98,11 +106,13 @@ def module2dfy(output, module: Module, indent, annotations=True, comments=True):
             stmt2dfy(output, statement, indent)
         output.write("}\n")
     elif method_or_function == "function":
-        output.write(f"{method_or_function} {name}")
+        output.write(f"{method_or_function} method {name}")
         params2dfy(output, module.params)
         output.write(" : ")
         type2dfy(output, module.return_type)
-        requires2dfy(output, module.requires)
+        output.write("\n")
+        if ANNOTATIONS:
+            requires2dfy(output, module.requires)
         ensures2dfy(output, module.ensures)
         output.write(" {\n")
         indent += 1
@@ -313,6 +323,10 @@ def expr2dfy(output, expr: e.Expression):
                     output.write(", ")
                     expr2dfy(output, args[1])
                     output.write(")")
+                case e.Implies(_):
+                    expr2dfy(output, args[0])
+                    output.write(" ==> ")
+                    expr2dfy(output, args[1])
                 case _:
                     raise ValueError(f"Unsupported operator {op}")
         case e.Boolean(_, value) | e.Integer(_, value):

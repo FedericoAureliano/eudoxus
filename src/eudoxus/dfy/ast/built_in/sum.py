@@ -109,4 +109,5 @@ SumModule = DfyModule(
     ),
     requires=[],
     ensures=[],
+    decreases=[],
 )

@@ -65,4 +65,5 @@ AbsModule = DfyModule(
     ),
     requires=[],
     ensures=[],
+    decreases=[],
 )

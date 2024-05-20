@@ -707,6 +707,8 @@ class DfyTypeChecker(Checker):
                 self.stmt2z3(stmt)
             for stmt in module.ensures:
                 self.stmt2z3(stmt)
+            for stmt in module.decreases:
+                self.stmt2z3(stmt)
 
             # add self to symbol table
             self.function_symbol_table[module.name.name] = {

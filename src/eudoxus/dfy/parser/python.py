@@ -22,7 +22,7 @@ class DfyParser(Parser):
         self.ext_functions = set()
         self.variables = []
 
-    def parse_identifier(self, node: TSNode) -> Identifier:
+    def parse_identifier(self, node: TSNode, unique: bool = False) -> Identifier:
         """
         [
             {self.parse_flat_identifier.__doc__}
@@ -32,7 +32,7 @@ class DfyParser(Parser):
 
         match node.type:
             case "identifier":
-                return self.parse_flat_identifier(node)
+                return self.parse_flat_identifier(node, unique=unique)
             case "attribute":
                 return self.parse_self_identifier(node)
 
@@ -321,12 +321,14 @@ class DfyParser(Parser):
         """
         return dfy_e.EmptyList(pos(node))
 
-    def parse_flat_identifier(self, node: TSNode) -> Identifier:
+    def parse_flat_identifier(self, node: TSNode, unique: bool = False) -> Identifier:
         """(identifier)"""
         text = self.text(node)
         text_check = "".join([c for c in text if c.isalpha()])
         if text_check == "array":
             text = text.replace("array", "arr")
+        if unique and text_check in list(built_ins.keys()) + ["power"]:
+            text = text + "_method"
         # identifiers not allowed
         return Identifier(pos(node), text)
 
@@ -349,7 +351,7 @@ class DfyParser(Parser):
             {self.parse_forall_expression.__doc__}
             {self.parse_set_expression.__doc__}
             {self.parse_unary_expression.__doc__}
-
+            (parenthesized_expression (_))
         ]
         """
         match node.type:
@@ -394,6 +396,8 @@ class DfyParser(Parser):
                 return self.parse_set_expression(node)
             case "unary_operator":
                 return self.parse_unary_expression(node)
+            case "parenthesized_expression":
+                return self.parse_expr(node.child(1))
             case _:
                 return Hole(pos(node))
                 # raise ValueError(
@@ -702,7 +706,9 @@ class DfyParser(Parser):
         # TODO: this should actually probably be returning None
         function_def = node.children[1]
 
-        name = self.parse_identifier(function_def.child_by_field_name("name"))
+        name = self.parse_identifier(
+            function_def.child_by_field_name("name"), unique=True
+        )
         params = function_def.child_by_field_name("parameters")
         body = function_def.child_by_field_name("body")
         pn = pos(node)
@@ -711,13 +717,90 @@ class DfyParser(Parser):
 
         stmts = [self.parse_statement(child) for child in body.children]
 
+        rewritten_stmts = []
+        for stmt in stmts:
+            if isinstance(stmt, s.If):
+                then_branch_stmts = []
+                for entry in stmt.then_branch.statements:
+                    if isinstance(entry, dfy_s.Ensures):
+                        rewritten_stmts.append(
+                            dfy_s.Ensures(
+                                entry.position,
+                                e.Application(
+                                    entry.position,
+                                    e.Implies(stmt.condition.position),
+                                    [stmt.condition, entry.condition],
+                                ),
+                            )
+                        )
+                    else:
+                        then_branch_stmts.append(entry)
+                else_branch_stmts = []
+                for entry in stmt.else_branch.statements:
+                    if isinstance(entry, dfy_s.Ensures):
+                        rewritten_stmts.append(
+                            dfy_s.Ensures(
+                                entry.position,
+                                e.Application(
+                                    entry.position,
+                                    e.Implies(stmt.condition.position),
+                                    [
+                                        e.Application(
+                                            stmt.condition.position,
+                                            e.Not(stmt.condition.position),
+                                            [stmt.condition],
+                                        ),
+                                        entry.condition,
+                                    ],
+                                ),
+                            )
+                        )
+                    else:
+                        else_branch_stmts.append(entry)
+                then_empty = all(
+                    isinstance(stmt, dfy_s.Comment) for stmt in then_branch_stmts
+                )
+                else_empty = all(
+                    isinstance(stmt, dfy_s.Comment) for stmt in else_branch_stmts
+                )
+                if then_empty and else_empty:
+                    for stmt in then_branch_stmts + else_branch_stmts:
+                        rewritten_stmts.append(stmt)
+                elif else_empty and not then_empty:
+                    rewritten_stmts.append(
+                        s.If(
+                            stmt.position,
+                            stmt.condition,
+                            s.Block(stmt.then_branch.position, then_branch_stmts),
+                            s.Block(stmt.else_branch.position, []),
+                        )
+                    )
+                elif then_empty and not else_empty:
+                    p = stmt.condition.position
+                    rewritten_stmts.append(
+                        s.If(
+                            stmt.position,
+                            e.Application(p, e.Not(p), [stmt.condition]),
+                            s.Block(stmt.else_branch.position, else_branch_stmts),
+                            s.Block(stmt.then_branch.position, []),
+                        )
+                    )
+
+            else:
+                rewritten_stmts.append(stmt)
+
+        stmts = rewritten_stmts
+
         ensures = [s for s in stmts if isinstance(s, dfy_s.Ensures)]
         requires = [s for s in stmts if isinstance(s, dfy_s.Requires)]
+        decreases = [s for s in stmts if isinstance(s, dfy_s.Decreases)]
 
         stmts = [
             s
             for s in stmts
-            if not isinstance(s, dfy_s.Ensures) and not isinstance(s, dfy_s.Requires)
+            if not isinstance(s, dfy_s.Ensures)
+            and not isinstance(s, dfy_s.Requires)
+            and not isinstance(s, dfy_s.Decreases)
         ]
 
         # support case where result isn't the output name
@@ -744,6 +827,7 @@ class DfyParser(Parser):
                     single_stmt.expr,
                     requires,
                     ensures,
+                    decreases,
                 )
         # only need to parse the return name if it's a method
         if len(return_stmts) == 1:
@@ -770,6 +854,7 @@ class DfyParser(Parser):
             parsed_body,
             requires,
             ensures,
+            decreases,
         )
 
     def parse(self, builtins=True):
@@ -804,6 +889,7 @@ class DfyParser(Parser):
             case "/":
                 return e.Application(p, e.Divide(p), [left, right])
             case "**":
+                self.ext_functions.add("power")
                 return e.Application(p, dfy_e.Power(p), [left, right])
             case _:
                 raise ValueError(

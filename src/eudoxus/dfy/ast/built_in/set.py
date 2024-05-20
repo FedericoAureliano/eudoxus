@@ -119,4 +119,5 @@ SetModule = DfyModule(
     ),
     requires=[],
     ensures=[],
+    decreases=[],
 )

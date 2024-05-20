@@ -6,7 +6,7 @@ import eudoxus.ast.type as t
 import eudoxus.dfy.ast.params as p
 from eudoxus.ast import expression as e
 from eudoxus.ast.node import Identifier, Node
-from eudoxus.dfy.ast.statement import Ensures, Requires
+from eudoxus.dfy.ast.statement import Decreases, Ensures, Requires
 
 
 @dataclass(frozen=True)
@@ -19,3 +19,4 @@ class DfyModule(Node):
     body: s.Block | e.Expression
     requires: List[Requires]
     ensures: List[Ensures]
+    decreases: List[Decreases]

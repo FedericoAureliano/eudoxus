@@ -32,12 +32,14 @@ class DfyRewriter:
                 body,
                 requires,
                 ensures,
+                decreases,
             ):
                 new_params = self.rewrite(params)
                 new_return_type = self.rewrite(return_type)
                 new_body = self.rewrite(body)
                 new_requires = [self.rewrite(r) for r in requires]
                 new_ensures = [self.rewrite(e) for e in ensures]
+                new_decreases = [self.rewrite(d) for d in decreases]
 
                 return DfyModule(
                     position,
@@ -49,6 +51,7 @@ class DfyRewriter:
                     new_body,
                     new_requires,
                     new_ensures,
+                    new_decreases,
                 )
             case e.Selection(position, target, field):
                 new_target = self.rewrite(target)
