@@ -10,6 +10,7 @@ from eudoxus.dfy.ast import expression as dfy_e
 from eudoxus.dfy.ast import statement as dfy_s
 from eudoxus.dfy.ast.list_and_sets import ListType, SetType
 from eudoxus.dfy.ast.params import Param, Params
+from eudoxus.dfy.ast.string import StringType
 from eudoxus.printer.uclid import op2ucl
 
 ANNOTATIONS = True
@@ -34,6 +35,8 @@ def type2dfy(output, type: t.Type):
             output.write("set<")
             type2dfy(output, elem_t)
             output.write(">")
+        case StringType(_):
+            output.write("string")
         case Hole(_):
             output.write("??")
         case _:
@@ -47,16 +50,18 @@ def return_type2dfy(output, return_type: t.Type):
 
 def requires2dfy(output, requires: List[dfy_s.Requires]):
     for r in requires:
-        output.write("requires( ")
-        expr2dfy(output, r.condition)
-        output.write(" );\n")
+        if not isinstance(r.condition, dfy_e.IsInstance):
+            output.write("requires( ")
+            expr2dfy(output, r.condition)
+            output.write(" );\n")
 
 
 def ensures2dfy(output, ensures: dfy_s.Ensures):
     for ens in ensures:
-        output.write("ensures( ")
-        expr2dfy(output, ens.condition)
-        output.write(" );\n")
+        if not isinstance(ens.condition, dfy_e.IsInstance):
+            output.write("ensures( ")
+            expr2dfy(output, ens.condition)
+            output.write(" );\n")
 
 
 def module2dfy(output, module: Module, indent, annotations=True, comments=True):
@@ -299,6 +304,15 @@ def expr2dfy(output, expr: e.Expression):
                     expr2dfy(output, args[0])
                     output.write(" in ")
                     expr2dfy(output, args[1])
+                case dfy_e.Neg(_):
+                    output.write("-")
+                    expr2dfy(output, args[0])
+                case dfy_e.Power(_):
+                    output.write("power(")
+                    expr2dfy(output, args[0])
+                    output.write(", ")
+                    expr2dfy(output, args[1])
+                    output.write(")")
                 case _:
                     raise ValueError(f"Unsupported operator {op}")
         case e.Boolean(_, value) | e.Integer(_, value):

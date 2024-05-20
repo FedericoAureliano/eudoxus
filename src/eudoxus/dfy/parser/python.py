@@ -12,6 +12,7 @@ from eudoxus.dfy.ast.built_in import built_ins
 from eudoxus.dfy.ast.list_and_sets import ListType
 from eudoxus.dfy.ast.module import DfyModule
 from eudoxus.dfy.ast.params import Param, Params
+from eudoxus.dfy.ast.string import StringType
 from eudoxus.parser.python import Parser, pos
 
 
@@ -20,6 +21,23 @@ class DfyParser(Parser):
         super().__init__(src)
         self.ext_functions = set()
         self.variables = []
+
+    def parse_identifier(self, node: TSNode) -> Identifier:
+        """
+        [
+            {self.parse_flat_identifier.__doc__}
+            {self.parse_self_identifier.__doc__}
+        ]
+        """
+
+        match node.type:
+            case "identifier":
+                return self.parse_flat_identifier(node)
+            case "attribute":
+                return self.parse_self_identifier(node)
+
+            case _:
+                return Hole(pos(node))
 
     def parse_simple_type(self, node: TSNode) -> Type:
         """
@@ -31,13 +49,15 @@ class DfyParser(Parser):
             return Boolean(pos(node))
         elif self.text(node) == "float":
             return Float(pos(node))
+        elif self.text(node) == "str":
+            return StringType(pos(node))
         else:
             raise NotImplementedError
 
     def parse_type(self, node: TSNode) -> Type:
         # case where it's a simple type
 
-        if node.children[0].type == "generic_type":
+        if len(node.children) > 0 and node.children[0].type == "generic_type":
             match self.text(node.children[0].children[0]):
                 case "List":
                     return ListType(
@@ -50,7 +70,7 @@ class DfyParser(Parser):
                         self.parse_type(node.children[0].children[1].children[1]),
                     )
                 case _:
-                    raise NotImplementedError
+                    return Hole(pos(node))
 
         return self.parse_simple_type(node.children[0])
 
@@ -102,6 +122,8 @@ class DfyParser(Parser):
         match function.name.lower():
             case "set" if parse_args() == []:
                 return dfy_e.Set(pos(node), None)
+            case "isinstance":
+                return self.parse_isinstance(node)
             case _:
                 arguments = parse_args()
                 name = function.name
@@ -189,6 +211,24 @@ class DfyParser(Parser):
             case _:
                 raise ValueError(f"Unsupported object: {node.sexp()}")
 
+    def parse_isinstance(self, node: TSNode) -> dfy_e.IsInstance:
+        function = node.child_by_field_name("function")
+        assert self.text(function) == "isinstance"
+        expr = node.child_by_field_name("arguments")
+        filtered_expr = self.search(self.parse_expr, expr)
+        if len(filtered_expr) < 2:
+            obj, typ = Hole(pos(expr)), Hole(pos(expr))
+        elif len(filtered_expr) == 2:
+            obj, typ = self.parse_expr(filtered_expr[0]), self.parse_simple_type(
+                filtered_expr[1]
+            )
+
+        else:
+            print(f"Expected at most 1 argument, got {len(filtered_expr)}")
+            obj, typ = Hole(pos(expr)), Hole(pos(expr))
+
+        return dfy_e.IsInstance(pos(node), obj, typ)
+
     def parse_append(self, node: TSNode) -> s.Statement:
         call = node.child(0)
         lst = self.parse_identifier(
@@ -219,6 +259,7 @@ class DfyParser(Parser):
 
         node = node.child(0)
         left = node.child_by_field_name("left")
+
         lhs = self.parse_identifier(left)
         decl = lhs.name not in self.variables and lhs.name != "result"
         if decl:
@@ -307,6 +348,8 @@ class DfyParser(Parser):
             {self.parse_empty_list.__doc__}
             {self.parse_forall_expression.__doc__}
             {self.parse_set_expression.__doc__}
+            {self.parse_unary_expression.__doc__}
+
         ]
         """
         match node.type:
@@ -349,10 +392,26 @@ class DfyParser(Parser):
                 return self.parse_empty_list(node)
             case "set":
                 return self.parse_set_expression(node)
+            case "unary_operator":
+                return self.parse_unary_expression(node)
             case _:
-                raise ValueError(
-                    f"Unsupported object: {node.sexp()} of type {node.type}"
-                )
+                return Hole(pos(node))
+                # raise ValueError(
+                #     f"Unsupported object: {node.sexp()} of type {node.type}"
+                # )
+
+    def parse_unary_expression(self, node: TSNode) -> e.Application:
+        """
+        (unary_operator argument: (_))
+        """
+        if node.child(0).type == "-":
+            return e.Application(
+                pos(node),
+                dfy_e.Neg(pos(node.child(0))),
+                [self.parse_expr(node.child(1))],
+            )
+        else:
+            return Hole(pos(node))
 
     def parse_set_expression(self, node: TSNode) -> dfy_e.Set:
         """
@@ -449,6 +508,7 @@ class DfyParser(Parser):
         true_expr = self.parse_expr(node.child(0))
         condition = self.parse_expr(node.child(2))
         false_expr = self.parse_expr(node.child(4))
+
         return dfy_e.Ite(pos(node), condition, true_expr, false_expr)
 
     def parse_while_statement(self, node: TSNode) -> s.Statement:
@@ -638,7 +698,7 @@ class DfyParser(Parser):
         )
         """
 
-        assert self.text(node.children[0]) == "@dafnypy.verify"
+        # assert self.text(node.children[0]) == "@dafnypy.verify"
         # TODO: this should actually probably be returning None
         function_def = node.children[1]
 
@@ -724,3 +784,29 @@ class DfyParser(Parser):
         else:
             ext_fns = []
         return ext_fns + modules
+
+    def parse_binary_expression(self, node: TSNode) -> e.Application:
+        """
+        (binary_operator
+            left: (_)
+            right: (_))
+        """
+        p = pos(node)
+        left = self.parse_expr(node.child_by_field_name("left"))
+        right = self.parse_expr(node.child_by_field_name("right"))
+        match self.text(node.child_by_field_name("operator")):
+            case "+":
+                return e.Application(p, e.Add(p), [left, right])
+            case "-":
+                return e.Application(p, e.Subtract(p), [left, right])
+            case "*":
+                return e.Application(p, e.Multiply(p), [left, right])
+            case "/":
+                return e.Application(p, e.Divide(p), [left, right])
+            case "**":
+                return e.Application(p, dfy_e.Power(p), [left, right])
+            case _:
+                raise ValueError(
+                    f"Unsupported object: {node.sexp()}, "
+                    + f"{self.text(node.child_by_field_name('operator'))}"
+                )

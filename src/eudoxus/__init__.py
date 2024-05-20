@@ -5,7 +5,7 @@ from pathlib import Path
 import typer
 
 from eudoxus.checker.type import TypeChecker
-from eudoxus.dfy.checker.dafny_checker import DfyTypeChecker
+from eudoxus.dfy.checker.z3opt_dafny_checker import DfyTypeChecker
 from eudoxus.dfy.parser.python import DfyParser
 from eudoxus.dfy.printer.dafny import module2dfy
 from eudoxus.dfy.rewriter.dfy_rewriter import DfyRewriter
@@ -27,13 +27,14 @@ eudoxus = typer.Typer(pretty_exceptions_enable=False, add_completion=False)
 @eudoxus.command()
 def main_(
     src: Path,
-    language: Language = Language.python,
+    language: Language = Language.dafny,
     output: Path = None,
     check: bool = True,
-    src_dsl: Language = Language.python,
+    src_dsl: Language = Language.dafny,
     annotations: bool = True,
     comments: bool = True,
     builtins: bool = True,
+    dump: bool = False,
 ) -> None:
     """
     language is the target language
@@ -54,13 +55,15 @@ def main_(
             return
         output = open(output, "w")
 
-    main(src, language, output, check, src_dsl, annotations, comments, builtins)
+    main(src, language, output, check, src_dsl, annotations, comments, builtins, dump)
 
     if output is not sys.stdout:
         output.close()
 
 
-def main(src, language, output, check, src_dsl, annotations, comments, builtins):
+def main(
+    src, language, output, check, src_dsl, annotations, comments, builtins, dump=False
+):
     with open(src, "rb") as f:
         src = f.read()
 
@@ -68,6 +71,9 @@ def main(src, language, output, check, src_dsl, annotations, comments, builtins)
     checker = TypeChecker if src_dsl != Language.dafny else DfyTypeChecker
 
     modules = parser(src).parse(builtins=builtins)
+    if dump:
+        print(modules)
+        exit()
 
     if check:
         rewrites = checker(src).check(modules)
@@ -90,3 +96,4 @@ def main(src, language, output, check, src_dsl, annotations, comments, builtins)
     if language == Language.dafny:
         for m in modules:
             module2dfy(output, m, 0, annotations=annotations, comments=comments)
+    print("\nSuccessfully translated\n")

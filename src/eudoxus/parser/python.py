@@ -108,8 +108,11 @@ class Parser:
                 return self.parse_flat_identifier(node)
             case "attribute":
                 return self.parse_self_identifier(node)
+
             case _:
-                raise ValueError(f"Unsupported object: {node.sexp()}")
+                raise ValueError(
+                    f"Unsupported object: {node.sexp()}\n{self.text(node)}"
+                )
 
     def type_helper(self, id: Identifier, args: TSNode) -> t.Type:
         p = id.position
@@ -189,7 +192,9 @@ class Parser:
             case "call":
                 return self.parse_app_type(node)
             case _:
-                raise ValueError(f"Unsupported object: {node.sexp()}")
+                raise ValueError(
+                    f"Unsupported object: {node.sexp()}, \n{self.text(node)}"
+                )
 
     def parse_type_declaration(self, node: TSNode) -> s.Type:
         """
@@ -393,7 +398,10 @@ class Parser:
             case "/":
                 return e.Application(p, e.Divide(p), [left, right])
             case _:
-                raise ValueError(f"Unsupported object: {node.sexp()}")
+                raise ValueError(
+                    f"Unsupported object: {node.sexp()},"
+                    + f" {self.text(node.child_by_field_name('operator'))}"
+                )
 
     def parse_integer(self, node: TSNode) -> e.Constant:
         """(integer)"""
@@ -422,6 +430,7 @@ class Parser:
             {self.parse_integer.__doc__}
         ]
         """
+
         match node.type:
             case "identifier":
                 id = self.parse_flat_identifier(node)

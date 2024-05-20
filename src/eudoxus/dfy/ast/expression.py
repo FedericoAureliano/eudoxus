@@ -14,6 +14,22 @@ from eudoxus.dfy.ast.list_and_sets import (  # noqa: F401
 
 
 @dataclass(frozen=True)
+class IsInstance(e.Expression):
+    expr: e.Expression
+    type: e.Type
+
+
+@dataclass(frozen=True)
+class Neg(e.Operator):
+    pass
+
+
+@dataclass(frozen=True)
+class Power(e.Operator):
+    pass
+
+
+@dataclass(frozen=True)
 class Ite(e.Expression):
     condition: e.Expression
     then_expr: e.Expression
