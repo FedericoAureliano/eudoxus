@@ -12,20 +12,21 @@ pip3 install .
 ```
  Usage: eudoxus [OPTIONS] TASK
 
-╭─ Arguments ───────────────────────────────────────────────────────────────────╮
-│ *    task      PATH  [default: None] [required]                               │
-╰───────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ─────────────────────────────────────────────────────────────────────╮
-│ --language                        [python|uclid]  [default: uclid]            │
-│ --output                          PATH            [default: None]             │
-│ --iterations                      INTEGER         [default: 2]                │
-│ --inference     --no-inference                    [default: inference]        │
-│ --remind        --no-remind                       [default: remind]           │
-│ --help                                            Show this message and exit. │
-╰───────────────────────────────────────────────────────────────────────────────╯
+╭─ Arguments ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ *    task      PATH  [default: None] [required]                                                                                      │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ --language                        [python|uclid]                               [default: uclid]                                      │
+│ --model                           [gpt-4-turbo-2024-04-09|gpt-3.5-turbo-0125]  [default: gpt-4-turbo-2024-04-09]                     │
+│ --output                          PATH                                         [default: None]                                       │
+│ --iterations                      INTEGER                                      [default: 2]                                          │
+│ --inference     --no-inference                                                 [default: inference]                                  │
+│ --remind        --no-remind                                                    [default: remind]                                     │
+│ --help                                                                         Show this message and exit.                           │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
 
-Set `iterations` to any value less than 1 to just do repair.
+Set `iterations` to any value less than 1 to just do repair. Use `experiment.sh` to run eudoxus in a loop over all textbook benchmarks.
 
 ## Development
 
