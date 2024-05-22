@@ -1,0 +1,85 @@
+c
+module BCR
+{
+  type state_t = enum { S0, S1 };
+
+  var BCR_state : state_t;
+  input scan : boolean;
+
+  init {
+    BCR_state = S0;
+  }
+
+  next {
+    if (BCR_state == S0 && scan) {
+      BCR_state' = S1;
+    } else if (BCR_state == S1) {
+      BCR_state' = S0;
+    }
+  }
+}
+
+module BP
+{
+  type state_t = enum { S0, S1 };
+
+  var BP_state : state_t;
+  input data_received : boolean;
+  output print_command : boolean;
+
+  init {
+    BP_state = S0;
+    print_command = false;
+  }
+
+  next {
+    if (BP_state == S0 && data_received) {
+      BP_state' = S1;
+      print_command' = true;
+    } else if (BP_state == S1) {
+      BP_state' = S0;
+      print_command' = false;
+    }
+  }
+}
+
+module Printer
+{
+  type state_t = enum { S0, S1 };
+
+  var Printer_state : state_t;
+  input print_code : boolean;
+  output article_printed : boolean;
+
+  init {
+    Printer_state = S0;
+    article_printed = false;
+  }
+
+  next {
+    if (Printer_state == S0 && print_code) {
+      Printer_state' = S1;
+      article_printed' = false;
+    } else if (Printer_state == S1) {
+      Printer_state' = S0;
+      article_printed' = true;
+    }
+  }
+}
+
+module main
+{
+  instance bcr : BCR(BCR_state, scan);
+  instance bp : BP(BP_state, bcr.BCR_state == BCR.S1);
+  instance printer : Printer(Printer_state, bp.print_command);
+
+  control {
+    havoc scan; havoc data_received; havoc print_code;
+    next(bcr);
+    next(bp);
+    next(printer);
+  }
+}
+
+
+This code models the booking system consisting of three processes: BCR, BP, and Printer, each with their respective states and transitions. The main module orchestrates the interactions between these processes by updating their states based on the inputs and outputs.

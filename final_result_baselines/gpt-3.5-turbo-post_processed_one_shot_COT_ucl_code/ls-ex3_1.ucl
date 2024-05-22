@@ -1,0 +1,65 @@
+
+module ArrivalDetector {
+  input arrival: bool;
+}
+
+module DepartureDetector {
+  input departure: bool;
+}
+
+module Counter {
+  var counter: int;
+  var displayUpdate: bool;
+
+  init {
+    counter = 0; // Initial count of cars
+    displayUpdate = false;
+  }
+
+  next {
+    if (arrival) {
+      counter = counter + 1; // Increment count on arrival
+      displayUpdate = true; // Signal display update
+    }
+    if (departure) {
+      counter = counter - 1; // Decrement count on departure
+      displayUpdate = true; // Signal display update
+    }
+  }
+}
+
+module main {
+  instance arrivalDetector: ArrivalDetector;
+  instance departureDetector: DepartureDetector;
+  instance counter: Counter;
+
+  init {
+    // Initialize instances
+    arrivalDetector.arrival = false;
+    departureDetector.departure = false;
+    counter.arrival = arrivalDetector.arrival;
+    counter.departure = departureDetector.departure;
+  }
+
+  next {
+    // Simulate car arrivals and departures
+    arrivalDetector.arrival = nondet();
+    departureDetector.departure = nondet();
+
+    // Update counter inputs
+    counter.arrival = arrivalDetector.arrival;
+    counter.departure = departureDetector.departure;
+
+    // Propagate events
+    next arrivalDetector;
+    next departureDetector;
+    next counter;
+  }
+
+  control {
+    // Bounded model checking control
+    v = unroll(5);
+    check;
+    print_results;
+  }
+}

@@ -1,0 +1,46 @@
+module main {
+  type state_t = enum { IDLE, ACTIVE };
+
+  // State variables
+  var BCR_state : state_t;
+  var BP_state : state_t;
+  var Printer_state : state_t;
+
+  // Initial states
+  init {
+    BCR_state = IDLE;
+    BP_state = IDLE;
+    Printer_state = IDLE;
+  }
+
+  // Transition rules
+  next {
+    // BCR transitions
+    if (BCR_state == IDLE) {
+      BCR_state' = ACTIVE;
+    } else if (BCR_state == ACTIVE) {
+      BCR_state' = IDLE;
+      BP_state' = ACTIVE; // Handshake to BP
+    }
+
+    // BP transitions
+    if (BP_state == ACTIVE) {
+      BP_state' = IDLE;
+      Printer_state' = ACTIVE; // Handshake to Printer
+    }
+
+    // Printer transitions
+    if (Printer_state == ACTIVE) {
+      Printer_state' = IDLE;
+    }
+  }
+
+  // Safety properties
+  invariant no_deadlock : (BCR_state != IDLE || BP_state != IDLE || Printer_state != IDLE) -> (BCR_state != ACTIVE || BP_state != ACTIVE || Printer_state != ACTIVE);
+
+  // Control for simulation
+  control {
+    v = simulate(10);
+    print_trace;
+  }
+}

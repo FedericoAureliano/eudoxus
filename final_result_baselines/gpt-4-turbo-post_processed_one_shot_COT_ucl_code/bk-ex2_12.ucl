@@ -1,0 +1,42 @@
+module vending_machine {
+    type state_t = enum { start, select };
+    var location : state_t;
+    var nsoda, nbeer : int;
+    var sget, bget, refill, coin : boolean;
+
+    const max : int;
+
+    init {
+        location = start;
+        nsoda = 0;
+        nbeer = 0;
+    }
+
+    next {
+        if (location == start) {
+            if (coin) {
+                location' = select;
+            } else if (refill) {
+                nsoda' = max;
+                nbeer' = max;
+                location' = start;
+            }
+        } else if (location == select) {
+            if (nsoda > 0 && sget) {
+                nsoda' = nsoda - 1;
+                location' = start;
+            } else if (nbeer > 0 && bget) {
+                nbeer' = nbeer - 1;
+                location' = start;
+            } else if (nsoda == 0 && nbeer == 0) {
+                location' = start; // ret_coin action
+            }
+        }
+    }
+
+    control {
+        v = unroll(5);
+        check;
+        print_results;
+    }
+}

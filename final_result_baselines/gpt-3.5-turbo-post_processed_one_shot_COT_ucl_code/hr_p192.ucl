@@ -1,0 +1,36 @@
+
+module main
+{
+  type status_t = enum { ready, busy };
+  var request : boolean;
+  var status : status_t;
+
+  init {
+    status = ready;
+  }
+
+  next {
+    if (request) {
+      status' = busy;
+    }
+  }
+
+  property request_true_eventually_status_busy {
+    var req_true : boolean;
+    var status_before : status_t;
+
+    req_true := false;
+    status_before := ready;
+
+    while (!req_true) {
+      if (request && status_before == ready) {
+        req_true := true;
+      }
+      if (status_before == busy) {
+        assert status == busy;
+        break;
+      }
+      status_before := status;
+    }
+  }
+}

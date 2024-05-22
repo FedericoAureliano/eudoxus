@@ -1,0 +1,73 @@
+module ArrivalDetector {
+  output arrival : boolean;
+
+  init {
+    arrival = false;
+  }
+
+  next {
+    // Non-deterministic arrival event generation
+    arrival' = choose { true; false };
+  }
+}
+
+module DepartureDetector {
+  output departure : boolean;
+
+  init {
+    departure = false;
+  }
+
+  next {
+    // Non-deterministic departure event generation
+    departure' = choose { true; false };
+  }
+}
+
+module Counter {
+  input arrival : boolean;
+  input departure : boolean;
+  var counter : integer;
+
+  init {
+    counter = 0; // Initial count of cars
+  }
+
+  next {
+    if (arrival) {
+      counter' = counter + 1;
+    } else if (departure && counter > 0) {
+      counter' = counter - 1;
+    } else {
+      counter' = counter;
+    }
+  }
+}
+
+module main {
+  var arrival_event : boolean;
+  var departure_event : boolean;
+  var car_count : integer;
+
+  instance arrival_detector : ArrivalDetector(arrival : (arrival_event));
+  instance departure_detector : DepartureDetector(departure : (departure_event));
+  instance counter : Counter(arrival : (arrival_event), departure : (departure_event), counter : (car_count));
+
+  init {
+    arrival_event = false;
+    departure_event = false;
+    car_count = 0; // Initial count of cars
+  }
+
+  next {
+    next(arrival_detector);
+    next(departure_detector);
+    next(counter);
+  }
+
+  control {
+    v = unroll(10);
+    check;
+    print_results;
+  }
+}

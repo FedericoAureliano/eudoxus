@@ -1,0 +1,39 @@
+module main {
+    type state_t = enum { RED, GREEN, YELLOW };
+
+    var current_state : state_t;
+    var previous_state : state_t;
+
+    init {
+        current_state = RED;
+        previous_state = RED; // Initial state is RED
+    }
+
+    next {
+        previous_state' = current_state;
+        switch (current_state) {
+            case RED: {
+                current_state' = GREEN;
+            }
+            case GREEN: {
+                current_state' = YELLOW;
+            }
+            case YELLOW: {
+                current_state' = RED;
+            }
+            default: {
+                current_state' = RED; // Fallback to red
+            }
+        }
+    }
+
+    // Safety property: every red phase must be immediately preceded by a yellow phase
+    invariant red_after_yellow : (current_state == RED) => (previous_state == YELLOW);
+
+    control {
+        init;
+        next;
+        check;
+        print_results;
+    }
+}

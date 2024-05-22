@@ -1,0 +1,57 @@
+module main {
+    type state_t = enum { start, select };
+
+    const max : int;
+    var nsoda : int;
+    var nbeer : int;
+    var current_state : state_t;
+
+    init {
+        current_state = start;
+        nsoda = max;
+        nbeer = max;
+    }
+
+    input coin : boolean;
+    input refill : boolean;
+    input sget : boolean;
+    input bget : boolean;
+
+    transition {
+        // Handling coin insertion and moving to select state
+        current_state == start & coin -> {
+            current_state' = select;
+        }
+        // Handling refill in the start state
+        current_state == start & refill -> {
+            nsoda' = max;
+            nbeer' = max;
+        }
+        // Handling getting soda
+        current_state == select & sget & nsoda > 0 -> {
+            nsoda' = nsoda - 1;
+            current_state' = start;
+        }
+        // Handling getting beer
+        current_state == select & bget & nbeer > 0 -> {
+            nbeer' = nbeer - 1;
+            current_state' = start;
+        }
+        // Returning coin if no bottles are left
+        current_state == select & (nsoda == 0 & nbeer == 0) -> {
+            current_state' = start;
+        }
+    }
+
+    invariant safety {
+        // Ensure that nsoda and nbeer do not go below zero
+        nsoda >= 0 & nbeer >= 0;
+    }
+
+    control {
+        // Setup for model checking with basic assertions
+        v = unroll(10);
+        check;
+        print_results;
+    }
+}

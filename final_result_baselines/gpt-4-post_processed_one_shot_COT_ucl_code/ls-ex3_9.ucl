@@ -1,0 +1,58 @@
+module traffic_light {
+  type state_t = enum { RED, GREEN, PENDING, YELLOW };
+
+  input pedestrian : boolean;
+  var current_state : state_t;
+  var count : int;
+
+  var sigR, sigG, sigY : boolean;
+
+  init {
+    current_state = RED;
+    count = 0;
+    sigR = true; sigG = false; sigY = false;
+  }
+
+  next {
+    case
+      // RED State Transition Logic
+      current_state == RED && count == 60 : {
+        current_state' = GREEN; count' = 0;
+      }
+      // GREEN State Transition Logic
+      current_state == GREEN && pedestrian && count >= 60 : {
+        current_state' = YELLOW; count' = 0;
+      }
+      current_state == GREEN && !pedestrian : {
+        count' = count + 1;
+      }
+      current_state == GREEN && pedestrian && count < 60 : {
+        current_state' = PENDING; count' = count + 1;
+      }
+      // PENDING State Transition Logic
+      current_state == PENDING && count < 60 : {
+        count' = count + 1;
+      }
+      current_state == PENDING && count == 60 : {
+        current_state' = YELLOW; count' = 0;
+      }
+      // YELLOW State Transition Logic
+      current_state == YELLOW && count == 5 : {
+        current_state' = RED; count' = 0;
+      }
+      current_state == YELLOW : {
+        count' = count + 1;
+      }
+      // Default case to handle incrementing count in states not explicitly transitioning
+      true : {
+        count' = count + 1;
+      }
+    esac
+  }
+
+  next {
+    sigR = current_state == RED;
+    sigG = current_state == GREEN || current_state == PENDING;
+    sigY = current_state == YELLOW;
+  }
+}

@@ -1,0 +1,48 @@
+module main {
+  type carry_t = enum { None, Goat, Cabbage, Wolf };
+
+  var ferryman : boolean;
+  var goat : boolean;
+  var cabbage : boolean;
+  var wolf : boolean;
+  var carry : carry_t;
+
+  // Initial condition: everyone is on the initial side of the river.
+  init {
+    ferryman = false;
+    goat = false;
+    cabbage = false;
+    wolf = false;
+    carry = None;
+  }
+
+  // Transition rules
+  next {
+    if (ferryman == carry' && (carry' == None || carry' == Goat || carry' == Cabbage || carry' == Wolf)) {
+      ferryman' = !ferryman;
+      if (carry' == Goat) {
+        goat' = !goat;
+      } else if (carry' == Cabbage) {
+        cabbage' = !cabbage;
+      } else if (carry' == Wolf) {
+        wolf' = !wolf;
+      }
+    }
+  }
+
+  // Conflict conditions
+  define ConflictOccurs : (goat == cabbage && ferryman != goat) || (goat == wolf && ferryman != goat);
+
+  // Goal state
+  define GoalState : ferryman && goat && cabbage && wolf;
+
+  // Safety property: It is always possible to reach the goal state without conflict.
+  invariant safe_to_cross : (exists (ferryman : boolean, goat : boolean, cabbage : boolean, wolf : boolean, carry : carry_t) ::
+    (!ConflictOccurs) && GoalState);
+
+  control {
+    v = unroll(10);
+    check;
+    print_results;
+  }
+}

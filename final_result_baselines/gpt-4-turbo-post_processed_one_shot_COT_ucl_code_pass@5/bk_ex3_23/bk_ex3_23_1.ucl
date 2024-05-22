@@ -1,0 +1,36 @@
+module main {
+  // Define the state of the traffic light
+  type light_state_t = enum { RED, GREEN, YELLOW };
+
+  // Current state of the traffic light
+  var current_state : light_state_t;
+
+  // Variable to hold the previous state (for checking transitions)
+  var previous_state : light_state_t;
+
+  // Initialize the traffic light state
+  init {
+    current_state = RED;
+    previous_state = YELLOW; // Initializing to YELLOW to satisfy the initial condition
+  }
+
+  // Define the transition logic
+  next {
+    previous_state' = current_state;
+    switch (current_state) {
+      case RED:    current_state' = GREEN;
+      case GREEN:  current_state' = YELLOW;
+      case YELLOW: current_state' = RED;
+    }
+  }
+
+  // Safety property: every RED state must be preceded by a YELLOW state
+  invariant red_after_yellow : (current_state == RED) -> (previous_state == YELLOW);
+
+  // Control block for model checking
+  control {
+    v = unroll(10);
+    check;
+    print_results;
+  }
+}

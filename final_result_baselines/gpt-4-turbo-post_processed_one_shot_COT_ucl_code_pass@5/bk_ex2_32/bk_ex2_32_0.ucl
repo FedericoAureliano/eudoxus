@@ -1,0 +1,84 @@
+module channel_c {
+    var buffer : [int]boolean;
+    var lost : boolean;
+
+    procedure send(msg : boolean, b : boolean) {
+        if (!lost) {
+            buffer[msg] := b;
+        }
+    }
+
+    procedure receive() returns (msg : boolean, b : boolean) {
+        return (msg, buffer[msg]);
+    }
+}
+
+module channel_d {
+    var buffer : boolean;
+
+    procedure send(b : boolean) {
+        buffer := b;
+    }
+
+    procedure receive() returns (b : boolean) {
+        return buffer;
+    }
+}
+
+module sender {
+    var m : boolean;
+    var b : boolean;
+    var waiting_for_ack : boolean;
+
+    procedure send_msg() {
+        extern c.send(m, b);
+        waiting_for_ack := true;
+    }
+
+    procedure handle_ack() {
+        extern b_ack : boolean = d.receive();
+        if (b_ack == b) {
+            b := !b;
+            m := !m; // Assuming message alternates for simplicity
+            waiting_for_ack := false;
+        }
+    }
+
+    procedure timeout_retransmit() {
+        if (waiting_for_ack) {
+            extern c.send(m, b);
+        }
+    }
+}
+
+module receiver {
+    var expected_b : boolean;
+
+    procedure receive_msg() {
+        extern m_rec : boolean, b_rec : boolean = c.receive();
+        if (b_rec == expected_b) {
+            extern d.send(b_rec);
+            expected_b := !expected_b;
+        }
+    }
+}
+
+module main {
+    instance S : sender;
+    instance R : receiver;
+    instance c : channel_c;
+    instance d : channel_d;
+
+    init {
+        S.b := false;
+        R.expected_b := false;
+        c.lost := false; // Adjust this to simulate message loss
+    }
+
+    next {
+        S.send_msg();
+        R.receive_msg();
+        S.handle_ack();
+        S.timeout_retransmit();
+    }
+}

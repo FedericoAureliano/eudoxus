@@ -1,0 +1,109 @@
+module thermostat
+{
+    var temp : integer;
+    var heatOn : boolean;
+    var time : integer;
+
+    init {
+        // unknown initial temp
+        assume (temp >= 0 && temp <= 100);
+        heatOn = false;
+        time = 0;
+    }
+
+    next {
+        if (heatOn) {
+            if (time >= 30) {
+                if (temp > 20) {
+                    heatOn' = false;
+                    time' = 0;
+                }
+            }
+        } else {
+            if (time >= 120) {
+                if (temp <= 20) {
+                    heatOn' = true;
+                    time' = 0;
+                }
+            }
+        }
+        time' = time + 30;
+    }
+
+    invariant time_step: time % 30 == 0;
+    invariant min_duration: time < 30 || (heatOn && temp <= 20) || (!heatOn && temp > 20);
+
+    // safety properties
+    // if the temperature is above 20 degrees for more than 30 seconds, the heater should be off
+    // if the temperature is 20 degrees or below for more than 120 seconds, the heater should be on
+    property property1: (temp > 20 && heatOn) ==> (time < 30);
+    property property2: (temp <= 20 && !heatOn) ==> (time < 120);
+
+    control
+    {
+        v = bmc(10);
+        check;
+        v.print_cex(temp, heatOn, time);
+    }
+}
+
+// Test suite
+module main {
+    instance t : thermostat();
+
+    // Test 1: Start at 15, then go to 25
+    init {
+        t.temp = 15;
+    }
+    next {
+        next(t);
+        assert t.heatOn == false;
+    }
+
+    // Test 2: Start at 25, then go to 15
+    init {
+        t.temp = 25;
+    }
+    next {
+        next(t);
+        assert t.heatOn == true;
+    }
+
+    // Test 3: Start at 15, then go to 25, then go to 15
+    init {
+        t.temp = 15;
+    }
+    next {
+        next(t);
+        next(t);
+        assert t.heatOn == false;
+    }
+
+    // Test 4: Start at 25, then go to 15, then go to 25
+    init {
+        t.temp = 25;
+    }
+    next {
+        next(t);
+        next(t);
+        assert t.heatOn == true;
+    }
+
+    // Test 5: Start at 15, then go to 15
+    init {
+        t.temp = 15;
+    }
+    next {
+        next(t);
+        assert t.heatOn == false;
+    }
+
+    // Test 6: Start at 25, then go to 25
+    init {
+        t.temp = 25;
+    }
+    next {
+        next(t);
+        assert t.heatOn == true;
+    }
+}

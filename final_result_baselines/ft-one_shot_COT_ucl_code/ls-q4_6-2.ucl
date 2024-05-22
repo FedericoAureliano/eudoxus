@@ -1,0 +1,75 @@
+module warning_system
+{
+    var ignition    : boolean;
+    var buckled     : boolean;
+    var time        : integer;
+    var beeper      : boolean;
+    var warning_light : boolean;
+
+    event warn;
+    event noWarn;
+
+    init {
+        ignition = false;
+        buckled = false;
+        time = 0;
+        beeper = false;
+        warning_light = false;
+    }
+
+    next {
+        if (changed(ignition)) {
+            if (ignition') {
+                if (!buckled) {
+                    emit warn;
+                }
+            }
+        }
+
+        if (warn_triggered) {
+            beeper' = true;
+            warning_light' = true;
+            time' = 0;
+        }
+
+        if (noWarn_triggered) {
+            beeper' = false;
+            warning_light' = false;
+            time' = 0;
+        }
+
+        if (beeper') {
+            time' = time + 1;
+            if (time' == 30) {
+                beeper' = false;
+            }
+        }
+
+        if (buckled') {
+            emit noWarn;
+        }
+
+        if (ignition') {
+            if (ignition' == false) {
+                emit noWarn;
+            }
+        }
+    }
+
+    invariant light_invariant : (warning_light == (!buckled) && ignition);
+    invariant beeper_invariant : (!buckled) ==> (beeper == true);
+    invariant beeper_invariant_2 : (time == 30 || buckled) ==> (beeper == false);
+
+    control {
+        // print_module;
+        // print_next;
+        // print_invariants;
+        v1 = simulate[noWarn];
+        v2 = simulate[warn];
+        v3 = bmc[1];
+        check;
+        // v1.print_trace;
+        // v2.print_trace;
+        v3.print_cex(ignition, buckled, time, beeper, warning_light);
+    }
+}

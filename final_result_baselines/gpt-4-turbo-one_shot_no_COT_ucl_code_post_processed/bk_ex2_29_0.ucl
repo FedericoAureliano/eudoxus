@@ -1,0 +1,94 @@
+module BCR
+{
+  type state_t = enum { S0, S1 };
+  var BCR_state : state_t;
+
+  input trigger_scan : boolean;
+  output send_data : boolean;
+
+  init {
+    BCR_state = S0;
+  }
+
+  next {
+    switch (BCR_state) {
+      case S0:
+        if (trigger_scan) {
+          BCR_state' = S1;
+          send_data' = false;
+        }
+      case S1:
+        BCR_state' = S0;
+        send_data' = true;
+    }
+  }
+}
+
+module BP
+{
+  type state_t = enum { S0, S1 };
+  var BP_state : state_t;
+
+  input receive_data : boolean;
+  output send_to_printer : boolean;
+
+  init {
+    BP_state = S0;
+  }
+
+  next {
+    switch (BP_state) {
+      case S0:
+        if (receive_data) {
+          BP_state' = S1;
+          send_to_printer' = false;
+        }
+      case S1:
+        BP_state' = S0;
+        send_to_printer' = true;
+    }
+  }
+}
+
+module Printer
+{
+  type state_t = enum { S0, S1 };
+  var Printer_state : state_t;
+
+  input receive_print_command : boolean;
+  output print_complete : boolean;
+
+  init {
+    Printer_state = S0;
+  }
+
+  next {
+    switch (Printer_state) {
+      case S0:
+        if (receive_print_command) {
+          Printer_state' = S1;
+          print_complete' = false;
+        }
+      case S1:
+        Printer_state' = S0;
+        print_complete' = true;
+    }
+  }
+}
+
+module main
+{
+  instance bcr : BCR();
+  instance bp : BP();
+  instance printer : Printer();
+
+  init {
+    assume(bcr.trigger_scan == true);
+  }
+
+  next {
+    bp.receive_data = bcr.send_data;
+    printer.receive_print_command = bp.send_to_printer;
+    bcr.trigger_scan = !bcr.send_data;
+  }
+}

@@ -1,0 +1,56 @@
+module main {
+  type mode_t = enum { HEATING, COOLING };
+  var mode : mode_t;
+  var temp : real;
+
+  input current_temp : real;
+  output heatOn : boolean;
+  output heatOff : boolean;
+
+  // Setpoint and hysteresis thresholds
+  const setpoint : real = 20.0;
+  const heating_threshold : real = 18.0;
+  const cooling_threshold : real = 22.0;
+
+  init {
+    mode = COOLING;
+    temp = current_temp;
+    heatOn = false;
+    heatOff = false;
+  }
+
+  next {
+    temp' = current_temp;
+
+    if (mode == HEATING) {
+      if (temp' >= cooling_threshold) {
+        mode' = COOLING;
+        heatOff' = true;
+        heatOn' = false;
+      } else {
+        heatOff' = false;
+        heatOn' = false;
+      }
+    } else { // mode == COOLING
+      if (temp' <= heating_threshold) {
+        mode' = HEATING;
+        heatOn' = true;
+        heatOff' = false;
+      } else {
+        heatOn' = false;
+        heatOff' = false;
+      }
+    }
+  }
+
+  invariant temp_within_bounds :
+    (mode == HEATING -> temp >= heating_threshold) &&
+    (mode == COOLING -> temp <= cooling_threshold);
+
+  control {
+    init;
+    next;
+    check;
+    print_results;
+  }
+}

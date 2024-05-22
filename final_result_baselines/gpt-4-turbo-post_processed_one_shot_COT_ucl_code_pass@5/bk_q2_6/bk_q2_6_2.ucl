@@ -1,0 +1,67 @@
+module main {
+    // Define the capacity of the stack
+    const n : int = 10;
+
+    // Define the stack type as an array of nonnegative integers
+    type stack_t = [int] int;
+
+    // Variables for the stack and the top index
+    var s : stack_t;
+    var top_index : int;
+
+    // Initialize the stack to be empty
+    init {
+        top_index = -1;
+    }
+
+    // Define the push operation
+    procedure push(elem : int)
+        modifies s, top_index
+    {
+        if (top_index < n - 1) {
+            top_index = top_index + 1;
+            s[top_index] = elem;
+        }
+    }
+
+    // Define the pop operation
+    procedure pop()
+        modifies top_index
+    {
+        if (top_index > -1) {
+            top_index = top_index - 1;
+        }
+    }
+
+    // Define the top operation
+    function top() : int {
+        if (top_index > -1) {
+            return s[top_index];
+        } else {
+            return -1; // Return -1 if the stack is empty
+        }
+    }
+
+    // Define next state transitions
+    next {
+        // Non-deterministically choose to push, pop, or do nothing
+        if (*) {
+            var new_elem : int;
+            new_elem = *;
+            assume(new_elem >= 0); // Ensure nonnegative integers
+            call push(new_elem);
+        } else if (*) {
+            call pop();
+        }
+    }
+
+    // Safety properties
+    invariant inv_top_index_bounds : top_index >= -1 && top_index < n;
+
+    // Control block for model checking
+    control {
+        v = unroll(5);
+        check;
+        print_results;
+    }
+}

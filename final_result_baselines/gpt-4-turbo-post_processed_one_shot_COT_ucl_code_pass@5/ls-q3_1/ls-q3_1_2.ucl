@@ -1,0 +1,40 @@
+module main {
+    // Define the threshold as a constant
+    const THRESHOLD : int;
+
+    // Variables to store the current temperature and the event count
+    var temp : int;
+    var count : int;
+
+    // Initialization of variables
+    init {
+        // Assuming an initial temperature, can be set to a specific value or non-determined
+        temp = 15;
+        count = 0;
+    }
+
+    // Transition relation
+    next {
+        // Simulate change in temperature, could be non-deterministic for different scenarios
+        temp' = temp + choose(-3, 3); // Example: temperature can decrease or increase by up to 3 degrees
+        if (temp' > THRESHOLD) {
+            count' = count + 1;
+        } else {
+            count' = count;
+        }
+    }
+
+    // Safety properties to check
+    invariant count_never_decreases : count' >= count;
+    invariant correct_counting : (temp > THRESHOLD) => (count' == count + 1);
+
+    // Control block for model checking
+    control {
+        // Set the threshold value
+        set THRESHOLD = 25;
+        // Run bounded model checking
+        v = unroll(10);
+        check;
+        print_results;
+    }
+}

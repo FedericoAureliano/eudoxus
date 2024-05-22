@@ -1,0 +1,40 @@
+module main {
+    type state_t = enum { start, select };
+    const max : int;
+    var nsoda, nbeer : int;
+    var current_state : state_t;
+
+    init {
+        current_state = start;
+        nsoda = max;
+        nbeer = max;
+    }
+
+    input coin, refill, sget, bget : boolean;
+
+    transition {
+        coin && current_state == start -> {
+            current_state' = select;
+        }
+        refill && current_state == start -> {
+            nsoda' = max;
+            nbeer' = max;
+        }
+        sget && current_state == select && nsoda > 0 -> {
+            nsoda' = nsoda - 1;
+            current_state' = start;
+        }
+        bget && current_state == select && nbeer > 0 -> {
+            nbeer' = nbeer - 1;
+            current_state' = start;
+        }
+        (nsoda == 0 && nbeer == 0) && current_state == select -> {
+            current_state' = start;
+        }
+    }
+
+    invariant {
+        nsoda >= 0 && nsoda <= max;
+        nbeer >= 0 && nbeer <= max;
+    }
+}

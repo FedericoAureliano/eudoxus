@@ -1,0 +1,39 @@
+module main {
+  type state_t = enum { thinking, waiting, eating };
+  var phil1, phil2, phil3, phil4, phil5 : state_t;
+  var chopstick1, chopstick2, chopstick3, chopstick4, chopstick5 : boolean;
+
+  init {
+    phil1 = thinking; phil2 = thinking; phil3 = thinking; phil4 = thinking; phil5 = thinking;
+    chopstick1 = true; chopstick2 = true; chopstick3 = true; chopstick4 = true; chopstick5 = true;
+  }
+
+  next {
+    case
+      // Philosopher 1 transitions
+      (phil1 == thinking) : { phil1' = waiting; }
+      (phil1 == waiting) && chopstick1 && chopstick5 : {
+        phil1' = eating;
+        chopstick1 = false;
+        chopstick5 = false;
+      }
+      (phil1 == eating) : {
+        phil1' = thinking;
+        chopstick1 = true;
+        chopstick5 = true;
+      }
+
+      // Similar transitions for other philosophers
+
+    esac
+  }
+
+  // Deadlock property: check if all philosophers are waiting
+  invariant no_deadlock : !(phil1 == waiting && phil2 == waiting && phil3 == waiting && phil4 == waiting && phil5 == waiting);
+
+  control {
+    v = unroll(10);
+    check;
+    print_results;
+  }
+}

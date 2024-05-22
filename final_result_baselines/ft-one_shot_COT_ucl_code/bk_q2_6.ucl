@@ -1,0 +1,56 @@
+module Stack(n : integer)
+{
+    type stack_t = [integer]integer;
+    type index_t = integer[0, n-1];
+    var s : stack_t;
+    var top_index : index_t;
+
+    init {
+        s = const(0);
+        top_index = -1;
+    }
+
+    transition {
+        push (value : integer)
+            pre (top_index < n - 1);
+            post {
+                top_index' = top_index + 1;
+                s[top_index'] = value;
+            }
+        pop
+            pre (top_index >= 0);
+            post {
+                top_index' = top_index - 1;
+            }
+        top
+            pre (top_index >= 0);
+            post {
+                top_index' = top_index;
+            }
+    }
+
+    // safety properties
+    // stack overflow
+    property (top_index <= n-1);
+    // stack underflow
+    property (top_index >= -1);
+    // pop on empty stack does not change top_index
+    property (top_index == -1 || next(top_index) != -1);
+
+    // invariants
+    invariant (top_index >= -1 && top_index <= n-1);
+    invariant (top_index == -1 || next(top_index) == -1 || next(top_index) == top_index + 1);
+    invariant (top_index == -1 || next(top_index) == -1 || next(top_index) == top_index - 1);
+
+    control
+    {
+        // push until full
+        push_until_full = bmc(1);
+        check;
+        push_until_full.print_cex(s, top_index);
+        // pop until empty
+        pop_until_empty = bmc(1);
+        check;
+        pop_until_empty.print_cex(s, top_index);
+    }
+}

@@ -1,0 +1,82 @@
+
+module main_light
+{
+  type pc_t = enum { G, Y, R };
+
+  var pc : pc_t;
+  input vehicle_detected : boolean;
+  output mG : boolean;
+  output mY : boolean;
+  output mR : boolean;
+
+  init {
+    pc = G;
+    mG = true;
+    mY = false;
+    mR = false;
+  }
+
+  next {
+    if (vehicle_detected) {
+      pc = Y;
+      mG = false;
+      mY = true;
+      mR = false;
+    } else {
+      case
+        pc == G : { pc = Y; mG = false; mY = true; mR = false; }
+        pc == Y : { pc = R; mG = false; mY = false; mR = true; }
+        pc == R : { pc = G; mG = true; mY = false; mR = false; }
+      esac
+    }
+  }
+}
+
+module secondary_light
+{
+  type pc_t = enum { G, Y, R };
+
+  var pc : pc_t;
+  input vehicle_detected : boolean;
+  output sG : boolean;
+  output sY : boolean;
+  output sR : boolean;
+
+  init {
+    pc = R;
+    sG = false;
+    sY = false;
+    sR = true;
+  }
+
+  next {
+    if (vehicle_detected) {
+      pc = G;
+      sG = true;
+      sY = false;
+      sR = false;
+    } else {
+      case
+        pc == G : { pc = Y; sG = false; sY = true; sR = false; }
+        pc == Y : { pc = R; sG = false; sY = false; sR = true; }
+        pc == R : { pc = G; sG = true; sY = false; sR = false; }
+      esac
+    }
+  }
+}
+
+module main
+{
+  var vehicle_detected : boolean;
+  var mG, mY, mR : boolean;
+  var sG, sY, sR : boolean;
+
+  instance main_light_inst : main_light(vehicle_detected, mG, mY, mR);
+  instance secondary_light_inst : secondary_light(vehicle_detected, sG, sY, sR);
+
+  control {
+    v = unroll(10);
+    check;
+    print_results;
+  }
+}

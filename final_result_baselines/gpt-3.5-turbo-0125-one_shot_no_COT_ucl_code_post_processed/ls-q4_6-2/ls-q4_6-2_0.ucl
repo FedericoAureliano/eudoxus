@@ -1,0 +1,84 @@
+java
+module automobile
+{
+  var warn : boolean; // indicates warning light status
+  var nowarn : boolean; // indicates no warning status
+  var time : int; // time elapsed since warning started
+  var ignition : boolean; // indicates ignition status
+  var buckled : boolean; // indicates seat belt buckle status
+
+  init {
+    warn = false;
+    nowarn = true;
+    time = 0;
+    ignition = false;
+    buckled = false;
+  }
+
+  // Event definitions
+  event start_engine = (ignition' == true);
+  event stop_engine = (ignition' == false);
+  event passenger_buckled = (buckled' == true);
+  event passenger_unbuckled = (buckled' == false);
+
+  // Rules
+  rule engine_start_sound_warning {
+    start_engine && !buckled && nowarn ==> {
+      warn' = true;
+      nowarn' = false;
+      time' = 0;
+    }
+  }
+
+  rule engine_start_no_warning {
+    start_engine && buckled && nowarn ==> {
+      warn' = false;
+      nowarn' = true;
+    }
+  }
+
+  rule stop_warning_when_buckled {
+    passenger_buckled && warn ==> {
+      warn' = false;
+      nowarn' = true;
+    }
+  }
+
+  rule start_warning_when_unbuckled {
+    passenger_unbuckled && ignition && nowarn ==> {
+      warn' = true;
+      nowarn' = false;
+      time' = 0;
+    }
+  }
+
+  rule update_time {
+    warn && time < 30 ==> {
+      time' = time + 1;
+    }
+  }
+
+  rule stop_warning_after_30_seconds {
+    warn && time == 30 ==> {
+      warn' = false;
+      nowarn' = true;
+    }
+  }
+
+  rule update_warning_light {
+    warn ==> {
+      warn' = buckled ? false : true;
+    }
+  }
+
+  // System control
+  control {
+    start_engine;
+    passenger_buckled;
+    passenger_unbuckled;
+    stop_engine;
+  }
+}
+
+
+This code models the behavior of the automobile system as described, including the sounding of the beeper, indicating the red warning light, and the conditions for stopping the warning.

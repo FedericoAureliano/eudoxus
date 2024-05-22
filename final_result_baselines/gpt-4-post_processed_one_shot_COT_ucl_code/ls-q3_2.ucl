@@ -1,0 +1,37 @@
+module main {
+  type time_t = int;
+  var temp : int;
+  var heatOn : boolean;
+  var heatOff : boolean;
+  var time : time_t;
+
+  init {
+    temp = 20; // Initial temperature. Can be set to any value for testing.
+    heatOn = temp <= 20;
+    heatOff = !heatOn;
+    time = 0;
+  }
+
+  next {
+    if (time % 30 == 0) {
+      if (heatOn && temp > 20) {
+        heatOn' = false;
+        heatOff' = true;
+        time' = 0;
+      } else if (heatOff && temp <= 20 && time >= 120) {
+        heatOn' = true;
+        heatOff' = false;
+        time' = 0;
+      } else {
+        time' = time + 30;
+      }
+    } else {
+      time' = time + 30; // This ensures the system reacts only every 30 seconds.
+    }
+  }
+
+  // Safety properties or invariants can be added here.
+  invariant heatConsistency: heatOn != heatOff;
+  invariant minimumOnTime: heatOn -> time < 30 -> heatOff' == false;
+  invariant minimumOffTime: heatOff -> time < 120 -> heatOn' == false;
+}

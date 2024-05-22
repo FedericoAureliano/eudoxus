@@ -1,0 +1,66 @@
+module main
+{
+  type state_t = enum { Thinking, Waiting, Eating };
+  type chopstick_t = enum { Available, InUse };
+
+  var phil1, phil2, phil3, phil4, phil5 : state_t;
+  var chopstick1, chopstick2, chopstick3, chopstick4, chopstick5 : chopstick_t;
+
+  init {
+    phil1 = Thinking; phil2 = Thinking; phil3 = Thinking; phil4 = Thinking; phil5 = Thinking;
+    chopstick1 = Available; chopstick2 = Available; chopstick3 = Available; chopstick4 = Available; chopstick5 = Available;
+  }
+
+  // Function to check if a philosopher can start eating
+  function can_eat(p: state_t, left: chopstick_t, right: chopstick_t) : boolean {
+    return p == Waiting && left == Available && right == Available;
+  }
+
+  next {
+    // Philosopher 1
+    if (can_eat(phil1, chopstick5, chopstick1)) {
+      phil1' = Eating;
+      chopstick1' = InUse;
+      chopstick5' = InUse;
+    } else if (phil1 == Eating) {
+      phil1' = Thinking;
+      chopstick1' = Available;
+      chopstick5' = Available;
+    } else {
+      phil1' = phil1;
+    }
+
+    // Similar transitions for phil2, phil3, phil4, phil5
+
+    // Example for Philosopher 2
+    if (can_eat(phil2, chopstick1, chopstick2)) {
+      phil2' = Eating;
+      chopstick1' = InUse;
+      chopstick2' = InUse;
+    } else if (phil2 == Eating) {
+      phil2' = Thinking;
+      chopstick1' = Available;
+      chopstick2' = Available;
+    } else {
+      phil2' = phil2;
+    }
+
+    // Continue for other philosophers
+  }
+
+  // Deadlock detection
+  define deadlock() : boolean {
+    return phil1 == Waiting && phil2 == Waiting && phil3 == Waiting && phil4 == Waiting && phil5 == Waiting;
+  }
+
+  control {
+    v = unroll(10);
+    check;
+    print_results;
+    if (v.is_sat()) {
+      print "Deadlock is possible";
+    } else {
+      print "No deadlock detected";
+    }
+  }
+}

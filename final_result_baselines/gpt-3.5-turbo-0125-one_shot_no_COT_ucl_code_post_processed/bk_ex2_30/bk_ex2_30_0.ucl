@@ -1,0 +1,56 @@
+java
+module TrainGateController {
+    type TrainState = enum { far, near, in };
+    type GateState = enum { up, down };
+    type ControllerState = enum { 0, 1, 2, 3 };
+
+    var train_state : TrainState;
+    var gate_state : GateState;
+    var controller_state : ControllerState;
+
+    init {
+        train_state = TrainState.far;
+        gate_state = GateState.up;
+        controller_state = ControllerState.0;
+    }
+
+    transition {
+        // Train transitions
+        if (controller_state == ControllerState.0) {
+            train_state' = TrainState.far;
+        } else if (controller_state == ControllerState.1) {
+            train_state' = TrainState.near;
+        } else if (controller_state == ControllerState.2) {
+            train_state' = TrainState.in;
+        } else {
+            train_state' = train_state;
+        }
+
+        // Gate transitions
+        if (controller_state == ControllerState.1) {
+            gate_state' = GateState.down;
+        } else if (controller_state == ControllerState.3) {
+            gate_state' = GateState.up;
+        } else {
+            gate_state' = gate_state;
+        }
+
+        // Controller transitions
+        if (train_state == TrainState.near && controller_state == ControllerState.0) {
+            controller_state' = ControllerState.1;
+        } else if (train_state == TrainState.in && controller_state == ControllerState.1) {
+            controller_state' = ControllerState.2;
+        } else if (train_state == TrainState.far && controller_state == ControllerState.2) {
+            controller_state' = ControllerState.3;
+        } else if (train_state == TrainState.far && controller_state == ControllerState.3) {
+            controller_state' = ControllerState.0;
+        } else {
+            controller_state' = controller_state;
+        }
+    }
+
+    invariant gates_closed_when_train_crossing: !(train_state == TrainState.in && gate_state == GateState.up);
+}
+
+
+This Uclid5 model defines the states and transitions for the Train, Gate, and Controller components of the railroad crossing control system. The `invariant` ensures that the gates are always closed when the train is crossing the road.

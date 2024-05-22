@@ -1,0 +1,88 @@
+
+module ArrivalDetector {
+    input arrival : boolean;
+    output event_arrival : boolean;
+
+    init {
+        event_arrival = false;
+    }
+
+    next {
+        event_arrival = arrival;
+    }
+}
+
+module DepartureDetector {
+    input departure : boolean;
+    output event_departure : boolean;
+
+    init {
+        event_departure = false;
+    }
+
+    next {
+        event_departure = departure;
+    }
+}
+
+module Counter {
+    input event_arrival : boolean;
+    input event_departure : boolean;
+    output display_update : int;
+
+    var counter : int;
+
+    init {
+        counter = 0;
+        display_update = counter;
+    }
+
+    next {
+        if (event_arrival) {
+            counter = counter + 1;
+            display_update = counter;
+        } else if (event_departure) {
+            counter = counter - 1;
+            display_update = counter;
+        } else {
+            display_update = counter;
+        }
+    }
+}
+
+module main {
+    instance ad : ArrivalDetector(arrival, event_arrival);
+    instance dd : DepartureDetector(departure, event_departure);
+    instance c : Counter(event_arrival, event_departure, display_update);
+
+    input arrival : boolean;
+    input departure : boolean;
+
+    init {
+        arrival = false;
+        departure = false;
+    }
+
+    next {
+        // Simulate arrival and departure events
+        if (some_condition) {
+            arrival = true;
+        } else {
+            arrival = false;
+        }
+
+        if (some_other_condition) {
+            departure = true;
+        } else {
+            departure = false;
+        }
+
+        // Propagate events to modules
+        next(ad);
+        next(dd);
+        next(c);
+    }
+}
+
+
+In this code, the `ArrivalDetector` module simulates the detection of car arrivals, the `DepartureDetector` module simulates the detection of car departures, and the `Counter` module keeps track of the number of cars in the parking garage and updates the display accordingly. The `main` module orchestrates the interactions between these modules and simulates the arrival and departure events.

@@ -1,0 +1,84 @@
+module VendingMachine
+{
+    var nsoda, nbeer : integer;
+    var location     : { start, select } ;
+    const max        : integer = 2;
+
+    init {
+        nsoda = 0;
+        nbeer = 0;
+        location = start;
+    }
+
+    next {
+        if (location == start && coin) {
+            location := select;
+        } else if (location == start && refill) {
+            nsoda := max;
+            nbeer := max;
+        } else if (location == select && nsoda > 0 && sget) {
+            nsoda := nsoda - 1;
+            location := start;
+        } else if (location == select && nbeer > 0 && bget) {
+            nbeer := nbeer - 1;
+            location := start;
+        } else if (location == select && nsoda == 0 && nbeer == 0 && ret_coin) {
+            location := start;
+        }
+    }
+
+    // Properties
+    property no_negative_soda : nsoda >= 0;
+    property no_negative_beer : nbeer >= 0;
+    property soda_only_if_positive : (nsoda > 0) ==> sget;
+    property beer_only_if_positive : (nbeer > 0) ==> bget;
+
+    // Invariants
+    // invariant no_negative_soda : nsoda >= 0;
+    // invariant no_negative_beer : nbeer >= 0;
+    // invariant soda_only_if_positive : (nsoda > 0) ==> sget;
+    // invariant beer_only_if_positive : (nbeer > 0) ==> bget;
+
+    // Control
+    control
+    {
+        // print_module;
+        v = verify[invgen](scope: module, max_inv_depth: 3);
+        check;
+        // v = verify[invgen];
+        // v = verify;
+        // v = verify[invgen];
+        // v = verify[invgen, trace];
+        // v = verify[invgen, trace, smt2];
+        // v = verify[invgen, trace, smt2, node];
+        // v = verify[invgen, trace, smt2, node, json];
+        // v = verify[invgen, trace, smt2, node, json, print];
+        // v = verify[invgen, trace, smt2, node, json, print, smt2_script];
+        // v = verify[invgen, trace, smt2, node, json, print, smt2_script, json_script];
+        // v = verify[invgen, trace, smt2, node, json, print, smt2_script, json_script, cex];
+        // v = verify[invgen, trace, smt2, node, json, print, smt2_script, json_script, cex, print_cex];
+        // v = verify[invgen, trace, smt2, node, json, print, smt2_script, json_script, cex, print_cex, json_cex];
+        print_results;
+        // v.print_cex(nsoda, nbeer, sget, bget, ret_coin, location);
+    }
+}
+
+// module main
+// {
+//     instance vm : VendingMachine();
+
+//     init {
+//         assume (true);
+//     }
+
+//     next {
+//         next (vm);
+//     }
+
+//     control {
+//         v = verify;
+//         check;
+//         print_results;
+//         v.print_cex(vm.nsoda, vm.nbeer, vm.sget, vm.bget, vm.ret_coin, vm.location);
+//     }
+// }

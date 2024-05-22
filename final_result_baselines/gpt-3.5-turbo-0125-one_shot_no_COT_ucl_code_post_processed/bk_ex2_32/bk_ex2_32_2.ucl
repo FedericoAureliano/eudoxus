@@ -1,0 +1,99 @@
+uclid
+module channel
+{
+    type message_t = struct {
+        m: int; // message
+        b: bool; // control bit
+    };
+
+    var buffer: array[0, 1] message_t; // buffer size is 1
+    var in: int; // input index
+    var out: int; // output index
+
+    procedure send(m: int, b: bool)
+    {
+        assume(in != out); // buffer not full
+        buffer[in].m := m;
+        buffer[in].b := b;
+        in := in + 1;
+    }
+
+    procedure receive(m: int, b: bool)
+    {
+        assume(in != out); // buffer not empty
+        assume(buffer[out].m == m && buffer[out].b == b);
+        out := out + 1;
+    }
+}
+
+module sender
+{
+    var m: int;
+    var b: bool;
+
+    procedure send(channel c, channel d)
+    {
+        c.send(m, b);
+        d.receive(m, b);
+    }
+
+    procedure retransmit(channel c, channel d)
+    {
+        c.send(m, b);
+    }
+
+    procedure timeout(channel c, channel d)
+    {
+        retransmit(c, d);
+    }
+}
+
+module receiver
+{
+    var m: int;
+    var b: bool;
+
+    procedure receive(channel c, channel d)
+    {
+        c.receive(m, b);
+        d.send(m, b);
+    }
+
+    procedure acknowledge(channel c, channel d)
+    {
+        c.send(m, b);
+    }
+}
+
+module main
+{
+    var c: channel;
+    var d: channel;
+    var S: sender;
+    var R: receiver;
+
+    init {
+        c.in := 0;
+        c.out := 0;
+        d.in := 0;
+        d.out := 0;
+        S.m := 0;
+        S.b := true;
+        R.m := 0;
+        R.b := true;
+    }
+
+    control
+    {
+        havoc S.m; havoc S.b; havoc R.m; havoc R.b; // initial values for sender and receiver
+        S.send(c, d); // sender sends message
+        R.receive(c, d); // receiver receives message
+        R.acknowledge(c, d); // receiver acknowledges
+        S.send(c, d); // sender sends new message
+    }
+}
+
+
+This model defines submodules for the channel, sender, and receiver components of the system. The `channel` module represents the communication channels `c` and `d`, with functions for sending and receiving messages. The `sender` module defines procedures for sending messages, retransmitting in case of timeouts, and handling timeouts. The `receiver` module defines procedures for receiving messages and sending acknowledgments.
+
+The `main` module initializes the channels and sender/receiver components and controls the flow of messages between the sender and receiver.

@@ -1,0 +1,92 @@
+// We model a simple parallel program where three processes P1, P2, and P3 are executing in parallel.
+// Each process has a shared variable x, and each process executes a sequence of operations
+// consisting of LOAD, INC, and STORE.
+
+module main {
+    type state_t = enum { start, load, inc, store };
+    var x  : integer;
+    var pc1, pc2, pc3 : state_t;
+
+    function LOAD (x : integer) : integer {
+        return x;
+    }
+
+    function INC (x : integer) : integer {
+        return x + 1;
+    }
+
+    function STORE (x : integer) : integer {
+        return x;
+    }
+
+    init {
+        x = 0;
+        pc1 = start;
+        pc2 = start;
+        pc3 = start;
+    }
+
+    next {
+        if (pc1 == start) {
+            pc1 = load;
+        } else {
+            if (pc1 == load) {
+                pc1 = inc;
+            } else {
+                if (pc1 == inc) {
+                    pc1 = store;
+                } else {
+                    call (x'') = LOAD (x);
+                    call (x')  = INC (x'');
+                    call (x'') = STORE (x');
+                }
+            }
+        }
+
+        if (pc2 == start) {
+            pc2 = load;
+        } else {
+            if (pc2 == load) {
+                pc2 = inc;
+            } else {
+                if (pc2 == inc) {
+                    pc2 = store;
+                } else {
+                    call (x'') = LOAD (x);
+                    call (x')  = INC (x'');
+                    call (x'') = STORE (x');
+                }
+            }
+        }
+
+        if (pc3 == start) {
+            pc3 = load;
+        } else {
+            if (pc3 == load) {
+                pc3 = inc;
+            } else {
+                if (pc3 == inc) {
+                    pc3 = store;
+                } else {
+                    call (x'') = LOAD (x);
+                    call (x')  = INC (x'');
+                    call (x'') = STORE (x');
+                }
+            }
+        }
+    }
+
+    property p3_inc {
+        pc3 == inc;
+    }
+
+    control {
+        // print_module;
+        // print_next;
+        // print_init;
+        // print_property(p3_inc);
+        v = bmc(4);
+        check;
+        v.print_cex;
+    }
+}

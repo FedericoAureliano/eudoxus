@@ -1,0 +1,75 @@
+// Model of the dining philosophers problem.
+module dining_philosophers
+{
+    // Define philosopher states.
+    type phil_state_t  = enum { thinking, waiting, eating };
+    // Define chopstick states.
+    type chopstick_state_t = enum { available, in_use };
+
+    // Define philosopher variables.
+    var phil1, phil2, phil3, phil4, phil5 : phil_state_t;
+    // Define chopstick variables.
+    var chopstick1, chopstick2, chopstick3, chopstick4, chopstick5 : chopstick_state_t;
+
+    init {
+        phil1, phil2, phil3, phil4, phil5 = thinking, thinking, thinking, thinking, thinking;
+        chopstick1, chopstick2, chopstick3, chopstick4, chopstick5 = available, available, available, available, available;
+    }
+
+    next {
+        // A philosopher goes from thinking to waiting if he decides to eat.
+        if (nondet()) {
+            if (phil1 == thinking) { phil1' = waiting; }
+            if (phil2 == thinking) { phil2' = waiting; }
+            if (phil3 == thinking) { phil3' = waiting; }
+            if (phil4 == thinking) { phil4' = waiting; }
+            if (phil5 == thinking) { phil5' = waiting; }
+        }
+        // A philosopher goes from waiting to eating if both chopsticks are available.
+        if (nondet()) {
+            if (phil1 == waiting && chopstick5 == available && chopstick1 == available) {
+                phil1' = eating;
+                chopstick5', chopstick1' = in_use, in_use;
+            }
+            if (phil2 == waiting && chopstick1 == available && chopstick2 == available) {
+                phil2' = eating;
+                chopstick1', chopstick2' = in_use, in_use;
+            }
+            if (phil3 == waiting && chopstick2 == available && chopstick3 == available) {
+                phil3' = eating;
+                chopstick2', chopstick3' = in_use, in_use;
+            }
+            if (phil4 == waiting && chopstick3 == available && chopstick4 == available) {
+                phil4' = eating;
+                chopstick3', chopstick4' = in_use, in_use;
+            }
+            if (phil5 == waiting && chopstick4 == available && chopstick5 == available) {
+                phil5' = eating;
+                chopstick4', chopstick5' = in_use, in_use;
+            }
+        }
+        // A philosopher goes from eating to thinking.
+        if (nondet()) {
+            if (phil1 == eating) { phil1' = thinking; chopstick5', chopstick1' = available, available; }
+            if (phil2 == eating) { phil2' = thinking; chopstick1', chopstick2' = available, available; }
+            if (phil3 == eating) { phil3' = thinking; chopstick2', chopstick3' = available, available; }
+            if (phil4 == eating) { phil4' = thinking; chopstick3', chopstick4' = available, available; }
+            if (phil5 == eating) { phil5' = thinking; chopstick4', chopstick5' = available, available; }
+        }
+    }
+
+    // Safety property: deadlock is possible.
+    // Each philosopher is waiting for the chopstick held by the philosopher on his right.
+    property deadlock_possible :
+        (phil1 == waiting && phil2 == waiting) &&
+        (phil2 == waiting && phil3 == waiting) &&
+        (phil3 == waiting && phil4 == waiting) &&
+        (phil4 == waiting && phil5 == waiting) &&
+        (phil5 == waiting && phil1 == waiting);
+
+    control {
+        v1 = bmc(1);
+        check;
+        v1.print_cex(phil1, phil2, phil3, phil4, phil5);
+    }
+}

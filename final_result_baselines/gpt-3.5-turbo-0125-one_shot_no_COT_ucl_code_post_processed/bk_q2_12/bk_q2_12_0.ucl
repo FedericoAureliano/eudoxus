@@ -1,0 +1,65 @@
+c
+module leaderElection(n : int)
+{
+    type process_id_t = 1..n; // Unique process identifier
+    type message_t = 0..n; // Message can be an identifier or 0 for initial message
+
+    type channel_t = record {
+        sender : process_id_t;
+        receiver : process_id_t;
+        message : message_t;
+    };
+
+    var channels : array process_id_t of channel_t;
+
+    procedure send(sender : process_id_t, receiver : process_id_t, message : message_t)
+      modifies channels;
+    {
+        channels[sender].sender := sender;
+        channels[sender].receiver := receiver;
+        channels[sender].message := message;
+    }
+
+    procedure receive(receiver : process_id_t)
+      returns (message : message_t)
+      modifies channels;
+    {
+        message := channels[receiver].message;
+    }
+
+    process main()
+    {
+        var id : process_id_t;
+        id := 1; // Start with process 1
+
+        send(id, (id mod n) + 1, id); // Initial message
+
+        while (true) {
+            var m : message_t;
+            m := receive(id);
+
+            if (m == id) {
+                break; // Stop if received own id
+            }
+
+            if (m > id) {
+                send(id, (id mod n) + 1, m); // Forward message to next process
+            }
+        }
+    }
+
+    process p1()
+    {
+        main();
+    }
+
+    process p2()
+    {
+        main();
+    }
+
+    // Add more processes p3, p4, ... pn as needed
+}
+
+
+This Uclid5 code models the leader election protocol for n processes in a ring topology. Each process sends its identifier, receives messages, and forwards messages to the next process until the process with the highest identifier is elected as the leader.

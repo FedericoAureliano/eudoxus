@@ -1,0 +1,73 @@
+ uclid
+module trafficLights {
+    type phase_t = enum { R, G, Y };
+
+    var mG, mY, mR : boolean;
+    var sG, sY, sR : boolean;
+
+    var mainPhase : phase_t;
+    var secondaryPhase : phase_t;
+    var vehicleDetected : boolean;
+
+    init {
+        mG = false; mY = false; mR = true;
+        sG = false; sY = false; sR = true;
+        mainPhase = phase_t.R;
+        secondaryPhase = phase_t.R;
+        vehicleDetected = false;
+    }
+
+    procedure mainLightCycle()
+        modifies mainPhase, mG, mY, mR;
+    {
+        if (!vehicleDetected) {
+            mainPhase = phase_t.G;
+            mG = true; mY = false; mR = false;
+            wait { mainPhase == phase_t.G; } 180;
+            mainPhase = phase_t.Y;
+            mG = false; mY = true; mR = false;
+            wait { mainPhase == phase_t.Y; } 5;
+            mainPhase = phase_t.R;
+            mG = false; mY = false; mR = true;
+            wait { mainPhase == phase_t.R; } 55;
+        } else {
+            mainPhase = phase_t.Y;
+            mG = false; mY = true; mR = false;
+            wait { mainPhase == phase_t.Y; } 5;
+            mainPhase = phase_t.R;
+            mG = false; mY = false; mR = true;
+        }
+    }
+
+    procedure secondaryLightCycle()
+        modifies secondaryPhase, sG, sY, sR;
+    {
+        if (!vehicleDetected) {
+            secondaryPhase = phase_t.R;
+            sG = false; sY = false; sR = true;
+            wait { secondaryPhase == phase_t.R; } 185;
+            secondaryPhase = phase_t.G;
+            sG = true; sY = false; sR = false;
+            wait { secondaryPhase == phase_t.G; } 50;
+            secondaryPhase = phase_t.Y;
+            sG = false; sY = true; sR = false;
+            wait { secondaryPhase == phase_t.Y; } 5;
+        }
+    }
+
+    control {
+        // Main light cycle
+        mainLightCycle();
+        // Secondary light cycle
+        secondaryLightCycle();
+
+        // Safety requirement
+        assert !(mG && (sG || sY)); // Main light green and secondary light not red
+        assert !(sG && (mG || mY)); // Secondary light green and main light not red
+        assert !(mY && (sG || sY)); // Main light yellow and secondary light not red
+        assert !(sY && (mG || mY)); // Secondary light yellow and main light not red
+    }
+}
+
+
+This code models the traffic lights system with the specified outputs and the described behavior. The system controls the main and secondary lights according to the specified cycles and safety requirements.

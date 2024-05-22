@@ -1,0 +1,278 @@
+system :: You're an expert in writing uclid5 models.You will be given a docstring and asked to write a model. Remember uclid5 is a state machine language and has it's own specific syntax.
+====================
+user :: Write a uclid5 model for the following description:
+    This UCLID5 model simulates a process interaction environment to evaluate confidentiality properties through non-interference simulations, inspired by an example in Chapter 17 on Security from "Introduction to Embedded Systems" by Lee & Seshia. The model consists of two types of process modules (`process1` and `process2`) and a main module that orchestrates the interaction between instances of these processes.
+
+    Process Modules:
+    1. `process1`: This module captures a simplified process that reflects non-deterministic behavior based on public input. It uses an enumerated type `pc_t` with a single state `A`. It has:
+        - Inputs:
+        * `s`: A boolean representing a secret input.
+        * `x`: A boolean representing a public input.
+        - Output:
+        * `z`: A boolean public output that toggles based on the inverse of input `x`.
+        - Behavior:
+        * The process starts in state `A` and outputs `z` as `false` initially.
+        * In subsequent cycles, the output `z` becomes the negation of `x`.
+
+    2. `process2`: This module is a more complex process with an internal state machine described using state enum `pc_t` with states `B` and `C`. It demonstrates state-dependent output behavior.
+        - Inputs are the same as in `process1`.
+        - Output and state transitions:
+        * The process starts in state `B` with the output `z` as `false`.
+        * Based on the input combination (state, `s`, and `x`), the process transitions between states `B` and `C`, toggling the output `z`.
+        * The transitions are specifically:
+            - From `B` to `C` (output `z` is set to `true`) when `s` is true and `x` is false.
+            - From `C` back to `B` (output `z` is reset to `false`) under the same input conditions.
+
+    Main Module:
+    - Sets up instances of `process2` (`p21` and `p22`) to interact under controlled input conditions.
+    - Inputs `x1`, `x2` (public), and `s1`, `s2` (secret) are used for driving the process instances.
+    - Controls non-determinism by initially assuming both `x1` and `x2` are equal, and it maintains this assumption in all subsequent states.
+    - Evaluates confidentiality by asserting the invariant `same_output_z`, ensuring that outputs `z1` and `z2` of both process instances are always equal, thereby checking for consistent behavior across different runs with potentially varying secret inputs.
+
+    Control:
+    - The control block is used to perform bounded model checking and to produce counterexamples. It specifies that up to 5 unrolling should be checked.
+    - The `print_cex` function is used for displaying counterexamples for the states of inputs and outputs along with the internal state of `process2` instances (`p21` and `p22`).
+
+    This model is particularly useful for demonstrating the effects of secret data manipulations on the outputs, which can be analyzed to study security vulnerability or proof of non-interference in systems.
+
+====================
+assistant :: module process1
+    {
+    type pc_t = enum { A };
+
+    var pc : pc_t;
+    input s : boolean; // secret input
+    input x : boolean; // public input
+    output z: boolean; // public output
+
+    init {
+        pc = A;
+        z = false;
+    }
+
+    next {
+        z' = !x;
+    }
+
+    }
+
+    module process2
+    {
+    type pc_t = enum { B, C };
+
+    var pc : pc_t;
+    input s : boolean; // secret input
+    input x : boolean; // public input
+    output z: boolean; // public output
+
+    procedure next_state()
+        modifies z;
+        modifies pc;
+    {
+        case
+        (pc == B) && s && !x : { pc = C; z = true; }
+        (pc == C) && s && !x : { pc = B; z = false; }
+        esac
+    }
+
+    init {
+        pc = B;
+        z = false;
+    }
+
+    next {
+        call next_state();
+    }
+    }
+
+
+    module main
+    {
+    type t1pc_t = process1.pc_t;
+    type t2pc_t = process2.pc_t;
+
+    var x1,x2 : boolean;
+    var s1,s2 : boolean;
+    var z1,z2 : boolean;
+
+    /*
+    instance p11 : process1(z: (z1), s : (s1), x : (x1));
+    instance p12 : process1(z: (z2), s : (s2), x : (x2));
+    */
+
+    /*
+    */
+    instance p21 : process2(z: (z1), s : (s1), x : (x1));
+    instance p22 : process2(z: (z2), s : (s2), x : (x2));
+
+    init {
+        havoc x1; havoc x2;
+        havoc s1; havoc s2;
+        assume(x1 == x2);
+    }
+
+    next {
+        havoc x1; havoc x2;
+        havoc s1; havoc s2;
+        assume(x1' == x2');
+        // next(p11); next(p12);
+        next(p21); next(p22);
+    }
+
+    invariant same_output_z : (z1 == z2);
+
+
+    control {
+        // *** BASIC ASSERTIONS/INVARIANT
+    /*
+    */
+        v = unroll(5);
+        check;
+        print_results;
+        //v.print_cex(x1,x2,s1,s2,z1,z2,p11.pc,p12.pc);
+        v.print_cex(x1,x2,s1,s2,z1,z2,p21.pc,p22.pc);
+
+    /*
+        // *** INDUCTION
+        v = induction(1);
+        check;
+        print_results;
+        v.print_cex(x1,x2,s1,s2,z1,z2,p11.pc,p12.pc);
+    */
+    }
+    }
+====================
+user :: Write a uclid5 model for the following description:
+To model the described automobile feature in UCLID5, we will need to define the behavior of the system based on the state of the engine, seat belt sensors, and a timer. Below is an outline for the UCLID5 model:
+
+--OUTLINE--
+
+### Model Overview:
+The model simulates the behavior of a warning system in a car that uses sensors to detect if passengers have not buckled their seat belts once the engine is started. The system includes a beeper and a red warning light, which are activated under specific conditions and deactivated accordingly.
+
+### Definitions and Variables:
+1. **State Variables:**
+   - `ignition`: Boolean variable indicating whether the engine is turned on (`true`) or off (`false`).
+   - `buckled`: Boolean variable indicating whether the seat belt is buckled (`true`) or not (`false`).
+   - `time`: Integer variable representing the time in seconds since the warning was activated.
+   - `beeper`: Boolean variable indicating whether the beeper is active (`true`) or not (`false`).
+   - `warning_light`: Boolean variable indicating whether the warning light is active (`true`) or not (`false`).
+
+2. **Events:**
+   - `warn`: Event triggered when the ignition is turned on and there is at least one unbuckled seat belt, or when a passenger sits in a seat and does not buckle up.
+   - `noWarn`: Event triggered when all passengers have buckled up, a passenger leaves a seat, or the ignition is turned off.
+
+### Initialization:
+- Set `ignition` to `false`, `buckled` to `false`, `time` to `0`, `beeper` to `false`, and `warning_light` to `false`.
+
+### Transitions:
+1. **Ignition Turned On (`ignition` becomes `true`):**
+   - Check seat belts:
+     - If `buckled` is `false`, trigger `warn`.
+     - Else, do nothing.
+
+2. **Warn Event (`warn`):**
+   - Activate `beeper` and `warning_light`.
+   - Reset `time` to `0`.
+
+3. **NoWarn Event (`noWarn`):**
+   - Deactivate `beeper` and `warning_light`.
+   - Reset `time` to `0`.
+
+4. **Timer Increment:**
+   - If `beeper` is `true`, increment `time` by 1 each second.
+   - If `time` reaches 30 seconds, deactivate `beeper`.
+
+5. **Seat Belt Buckled (`buckled` becomes `true`):**
+   - Trigger `noWarn`.
+
+6. **Ignition Turned Off (`ignition` becomes `false`):**
+   - Trigger `noWarn`.
+
+### Invariants:
+- The `warning_light` should be `true` if and only if `buckled` is `false` and `ignition` is `true`.
+- The `beeper` should be `false` if `time` is 30 seconds or `buckled` is `true`.
+
+### Control Block:
+- The model should allow for simulation and bounded model checking to verify the correctness of the warning system behavior.
+- Potential scenarios to test include turning the ignition on with unbuckled seat belts, buckling the seat belts after the warning has started, and turning the ignition off.
+
+This outline provides a structured approach to model the described automobile feature in UCLID5, focusing on the interactions and dependencies between the system's components and their states.
+====================
+assistant :: module warning_system
+{
+    var ignition    : boolean;
+    var buckled     : boolean;
+    var time        : integer;
+    var beeper      : boolean;
+    var warning_light : boolean;
+
+    event warn;
+    event noWarn;
+
+    init {
+        ignition = false;
+        buckled = false;
+        time = 0;
+        beeper = false;
+        warning_light = false;
+    }
+
+    next {
+        if (changed(ignition)) {
+            if (ignition') {
+                if (!buckled) {
+                    emit warn;
+                }
+            }
+        }
+
+        if (warn_triggered) {
+            beeper' = true;
+            warning_light' = true;
+            time' = 0;
+        }
+
+        if (noWarn_triggered) {
+            beeper' = false;
+            warning_light' = false;
+            time' = 0;
+        }
+
+        if (beeper') {
+            time' = time + 1;
+            if (time' == 30) {
+                beeper' = false;
+            }
+        }
+
+        if (buckled') {
+            emit noWarn;
+        }
+
+        if (ignition') {
+            if (ignition' == false) {
+                emit noWarn;
+            }
+        }
+    }
+
+    invariant light_invariant : (warning_light == (!buckled) && ignition);
+    invariant beeper_invariant : (!buckled) ==> (beeper == true);
+    invariant beeper_invariant_2 : (time == 30 || buckled) ==> (beeper == false);
+
+    control {
+        // print_module;
+        // print_next;
+        // print_invariants;
+        v1 = simulate[noWarn];
+        v2 = simulate[warn];
+        v3 = bmc[1];
+        check;
+        // v1.print_trace;
+        // v2.print_trace;
+        v3.print_cex(ignition, buckled, time, beeper, warning_light);
+    }
+}
+
+====================

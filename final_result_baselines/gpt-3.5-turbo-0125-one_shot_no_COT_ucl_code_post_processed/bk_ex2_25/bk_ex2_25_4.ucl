@@ -1,0 +1,56 @@
+uclid
+module process
+{
+  type location_t = enum { wait1, crit1, wait2, crit2 };
+  var b1 : boolean;
+  var b2 : boolean;
+  var x : 1..2;
+  var loc1 : location_t;
+  var loc2 : location_t;
+
+  init {
+    b1 = false;
+    b2 = false;
+    x = 1;
+    loc1 = wait1;
+    loc2 = wait2;
+  }
+
+  transition {
+    if (loc1 == wait1 && (x == 1 || !b2)) {
+      b1' = true;
+      x' = 2;
+      loc1' = crit1;
+    } else if (loc1 == crit1) {
+      b1' = false;
+      loc1' = wait1;
+    }
+
+    if (loc2 == wait2 && (x == 2 || !b1)) {
+      b2' = true;
+      x' = 1;
+      loc2' = crit2;
+    } else if (loc2 == crit2) {
+      b2' = false;
+      loc2' = wait2;
+    }
+  }
+}
+
+module main {
+  instance p1 : process;
+  instance p2 : process;
+
+  init {
+    havoc p1.b1; havoc p1.b2; havoc p1.x; havoc p1.loc1;
+    havoc p2.b1; havoc p2.b2; havoc p2.x; havoc p2.loc2;
+  }
+
+  next {
+    next(p1);
+    next(p2);
+  }
+}
+
+
+This code models the processes P1 and P2 with the shared variables b1, b2, and x, as well as their respective locations. The transition rules ensure that the processes follow the described behavior of waiting and entering the critical section based on the value of x and the status of the other process.

@@ -1,0 +1,53 @@
+module main {
+  type train_state_t = enum { FAR, NEAR, IN };
+  type gate_state_t = enum { UP, DOWN };
+  type controller_state_t = enum { S0, S1, S2, S3 };
+
+  var train_state : train_state_t;
+  var gate_state : gate_state_t;
+  var controller_state : controller_state_t;
+
+  init {
+    train_state = FAR;
+    gate_state = UP;
+    controller_state = S0;
+  }
+
+  // Train state transitions
+  next(train_state) :=
+    switch (train_state) {
+      FAR: if (*) { NEAR } else { FAR };
+      NEAR: IN;
+      IN: FAR;
+      default: FAR;
+    };
+
+  // Gate state transitions
+  next(gate_state) :=
+    switch (controller_state) {
+      S0: UP;
+      S1: UP;
+      S2: DOWN;
+      S3: DOWN;
+      default: gate_state;
+    };
+
+  // Controller state transitions
+  next(controller_state) :=
+    switch (controller_state) {
+      S0: if (train_state == NEAR) { S1 } else { S0 };
+      S1: if (gate_state == DOWN) { S2 } else { S1 };
+      S2: if (train_state == IN) { S3 } else { S2 };
+      S3: if (train_state == FAR && gate_state == UP) { S0 } else { S3 };
+      default: controller_state;
+    };
+
+  // Safety property: The gate must be down when the train is in the crossing
+  invariant safety_requirement : !(train_state == IN && gate_state != DOWN);
+
+  control {
+    init;
+    check;
+    print_results;
+  }
+}

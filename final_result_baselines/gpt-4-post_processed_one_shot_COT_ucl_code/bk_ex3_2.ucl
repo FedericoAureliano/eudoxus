@@ -1,0 +1,50 @@
+
+module dining_philosophers
+{
+  type state_t = enum { THINKING, WAITING, EATING };
+  type chopstick_t = boolean; // true if available, false if in use
+
+  var phil1, phil2, phil3, phil4, phil5 : state_t;
+  var chopstick1, chopstick2, chopstick3, chopstick4, chopstick5 : chopstick_t;
+
+  init {
+    phil1 = phil2 = phil3 = phil4 = phil5 = THINKING;
+    chopstick1 = chopstick2 = chopstick3 = chopstick4 = chopstick5 = true;
+  }
+
+  next {
+    // Example transition for phil1
+    case
+      phil1 == THINKING && chopstick1 && chopstick5 : {
+        phil1' = WAITING;
+      }
+      phil1 == WAITING && chopstick1 && chopstick5 : {
+        phil1' = EATING;
+        chopstick1' = false;
+        chopstick5' = false;
+      }
+      phil1 == EATING : {
+        phil1' = THINKING;
+        chopstick1' = true;
+        chopstick5' = true;
+      }
+    esac
+
+    // Similar transitions for phil2, phil3, phil4, phil5
+    // Ensure to correctly model the use of adjacent chopsticks
+  }
+
+  // Property to check for deadlock
+  invariant no_deadlock : !(phil1 == WAITING && phil2 == WAITING && phil3 == WAITING && phil4 == WAITING && phil5 == WAITING);
+
+  control {
+    v = unroll(10);
+    check;
+    print_results;
+    if (! no_deadlock) {
+      print "Deadlock detected.";
+    } else {
+      print "No deadlock within bounds.";
+    }
+  }
+}

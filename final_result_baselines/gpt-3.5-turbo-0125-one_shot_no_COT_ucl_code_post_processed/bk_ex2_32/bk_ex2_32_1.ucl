@@ -1,0 +1,104 @@
+c
+module channel {
+    var data : int;
+    var ack : int;
+
+    init {
+        data = 0;
+        ack = 0;
+    }
+
+    procedure send(d : int)
+        modifies data;
+    {
+        data' = d;
+    }
+
+    procedure receive()
+        modifies ack;
+    {
+        ack' = data;
+    }
+}
+
+module sender {
+    var m : int;
+    var b : int;
+
+    init {
+        m = 0;
+        b = 0;
+    }
+
+    procedure send_message()
+        modifies m, b;
+    {
+        call channel.send(m);
+        call channel.receive();
+        if (channel.ack == b) {
+            b' = !b;
+        }
+    }
+
+    procedure retransmit_message()
+        modifies m, b;
+    {
+        call channel.send(m);
+        call channel.receive();
+        if (channel.ack == b) {
+            b' = !b;
+        }
+    }
+
+    procedure timeout_retransmit()
+        modifies m, b;
+    {
+        call retransmit_message();
+    }
+}
+
+module receiver {
+    var m : int;
+    var b : int;
+
+    init {
+        m = 0;
+        b = 0;
+    }
+
+    procedure receive_message()
+        modifies m, b;
+    {
+        call channel.receive();
+        call channel.send(b);
+        b' = channel.data;
+    }
+}
+
+module main {
+    var c : channel;
+    var d : channel;
+    var S : sender;
+    var R : receiver;
+
+    init {
+        assume(true); // Initial assumption placeholder
+    }
+
+    next {
+        call S.send_message();
+        call R.receive_message();
+        if (c.data == S.m && d.data == R.m) {
+            assume(true); // Placeholder for successful transmission
+        } else {
+            call S.timeout_retransmit();
+            call R.receive_message();
+            if (c.data == S.m && d.data == R.m) {
+                assume(true); // Placeholder for successful retransmission
+            }
+        }
+    }
+}
+
+
+This model captures the interaction between the sender `S` and receiver `R` over channels `c` and `d`. The sender sends messages with control bits to the receiver, which acknowledges the receipt and responds accordingly. In case of message loss or timeout, the sender retransmits the message.

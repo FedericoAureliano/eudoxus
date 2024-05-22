@@ -1,0 +1,68 @@
+
+module Sender(input m: int, input b: bool, output c: int)
+{
+  var timeout: bool;
+  var sent: bool;
+  var last_b: bool;
+
+  init {
+    timeout := false;
+    sent := false;
+    last_b := b;
+  }
+
+  next {
+    if (!sent || timeout) {
+      c := m;
+      sent := true;
+      timeout := false;
+    } else {
+      c := 0;
+    }
+
+    if (timeout) {
+      c := m;
+    }
+
+    if (c == 0) {
+      timeout := true;
+    }
+  }
+}
+
+module Receiver(input d: int, output m: int, output b: bool)
+{
+  init {
+    m := 0;
+    b := false;
+  }
+
+  next {
+    if (d != 0) {
+      m := d;
+      b := !b;
+    }
+  }
+}
+
+module main()
+{
+  var c: int;
+  var d: int;
+  var m: int;
+  var b: bool;
+
+  instance S: Sender(m, b, c);
+  instance R: Receiver(d, m, b);
+
+  init {
+    c := 0;
+    d := 0;
+    m := 0;
+    b := false;
+  }
+
+  next {
+    d := c;
+  }
+}

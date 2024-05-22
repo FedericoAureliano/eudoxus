@@ -1,0 +1,55 @@
+module main {
+  type State = enum { start, select };
+  const max : int;
+
+  var nsoda : int;
+  var nbeer : int;
+  var state : State;
+
+  init {
+    state = start;
+    nsoda = 0;
+    nbeer = 0;
+  }
+
+  input coin : boolean;
+  input refill : boolean;
+  input sget : boolean;
+  input bget : boolean;
+  input ret_coin : boolean;
+
+  transition {
+    start -> select {
+      guard: coin;
+    }
+    start -> start {
+      guard: refill;
+      update: {
+        nsoda := max;
+        nbeer := max;
+      }
+    }
+    select -> start {
+      guard: sget && nsoda > 0;
+      update: {
+        nsoda := nsoda - 1;
+      }
+    }
+    select -> start {
+      guard: bget && nbeer > 0;
+      update: {
+        nbeer := nbeer - 1;
+      }
+    }
+    select -> start {
+      guard: ret_coin && nsoda == 0 && nbeer == 0;
+    }
+  }
+
+  invariant nsoda >= 0 && nbeer >= 0;
+
+  control {
+    check;
+    print_results;
+  }
+}

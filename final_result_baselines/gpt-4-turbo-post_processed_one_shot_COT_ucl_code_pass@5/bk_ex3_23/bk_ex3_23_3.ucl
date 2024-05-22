@@ -1,0 +1,29 @@
+module main {
+    type phase_t = enum { RED, GREEN, YELLOW };
+
+    var current_phase : phase_t;
+    var previous_phase : phase_t; // Auxiliary variable to track the previous phase
+
+    init {
+        current_phase = RED; // Start with the RED phase
+        previous_phase = YELLOW; // To satisfy the safety property at startup
+    }
+
+    next {
+        previous_phase' = current_phase;
+        switch (current_phase) {
+            case GREEN: current_phase' = YELLOW;
+            case YELLOW: current_phase' = RED;
+            case RED: current_phase' = GREEN;
+        }
+    }
+
+    // Safety property: every red phase must be immediately preceded by a yellow phase
+    invariant safety_property : (current_phase == RED) -> (previous_phase == YELLOW);
+}
+
+control {
+    v = unroll(10); // Check for 10 transitions
+    check;
+    print_results;
+}

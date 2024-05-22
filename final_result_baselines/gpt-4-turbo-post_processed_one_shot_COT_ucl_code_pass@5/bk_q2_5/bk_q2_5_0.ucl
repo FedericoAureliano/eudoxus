@@ -1,0 +1,51 @@
+module main {
+  type state_t = enum { l0, l1, l2, l3, l4, l5 };
+
+  var s : int;
+  var y0 : bool;
+  var y1 : bool;
+  var pc0 : state_t;
+  var pc1 : state_t;
+
+  init {
+    s = 1;
+    y0 = false;
+    y1 = false;
+    pc0 = l0;
+    pc1 = l0;
+  }
+
+  // Process P0
+  next(pc0) {
+    case
+      pc0 == l0 : l1;
+      pc0 == l1 : l2;
+      pc0 == l2 : { y0 = true; s = 0; l3; }
+      pc0 == l3 : if ((y1 == false) || (s != 0)) l4 else l3;
+      pc0 == l4 : l5;
+      pc0 == l5 : { y0 = false; l0; }
+      true : pc0;
+    esac
+  }
+
+  // Process P1
+  next(pc1) {
+    case
+      pc1 == l0 : l1;
+      pc1 == l1 : l2;
+      pc1 == l2 : { y1 = true; s = 1; l3; }
+      pc1 == l3 : if ((y0 == false) || (s != 1)) l4 else l3;
+      pc1 == l4 : l5;
+      pc1 == l5 : { y1 = false; l0; }
+      true : pc1;
+    esac
+  }
+
+  // Mutual Exclusion Property
+  invariant mutual_exclusion : !(pc0 == l4 && pc1 == l4);
+
+  // Starvation Freedom Property
+  // Assuming a fair scheduler, we check that each process eventually leaves l3
+  invariant starvation_freedom_p0 : always_eventually (pc0 != l3);
+  invariant starvation_freedom_p1 : always_eventually (pc1 != l3);
+}

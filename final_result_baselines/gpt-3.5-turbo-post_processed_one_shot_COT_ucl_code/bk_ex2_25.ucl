@@ -1,0 +1,73 @@
+
+module process1
+{
+  var b1 : boolean;
+  var b2 : boolean;
+  var x : 1..2;
+
+  init {
+    b1 = false;
+    b2 = false;
+    x = 1;
+  }
+
+  wait1 {
+    b1 = true;
+    x = 2;
+    wait x == 1 || !b2;
+    crit1;
+    b1 = false;
+  }
+
+  crit1 {
+    // Critical section of process 1
+  }
+}
+
+module process2
+{
+  var b1 : boolean;
+  var b2 : boolean;
+  var x : 1..2;
+
+  init {
+    b1 = false;
+    b2 = false;
+    x = 1;
+  }
+
+  wait2 {
+    b2 = true;
+    x = 1;
+    wait x == 2 || !b1;
+    crit2;
+    b2 = false;
+  }
+
+  crit2 {
+    // Critical section of process 2
+  }
+}
+
+module main
+{
+  instance p1 : process1;
+  instance p2 : process2;
+
+  init {
+    p1.init;
+    p2.init;
+  }
+
+  next {
+    if p1.b1 && p1.x == 2 {
+      p1.wait1;
+    }
+    else if p2.b2 && p2.x == 1 {
+      p2.wait2;
+    }
+    else {
+      // No process in the wait state
+    }
+  }
+}

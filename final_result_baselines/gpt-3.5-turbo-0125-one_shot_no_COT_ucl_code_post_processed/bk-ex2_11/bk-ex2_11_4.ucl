@@ -1,0 +1,51 @@
+c
+module sequential_circuit
+{
+  var x : boolean; // input variable
+  var y : boolean; // output variable
+  var r : boolean; // register
+
+  init {
+    r = false; // initial valuation of r is 0
+  }
+
+  next {
+    var next_r : boolean;
+    next_r = x || r; // circuit function for next value of r
+
+    r := next_r; // update r
+
+    y := !(x ^ r); // output variable calculation
+  }
+}
+
+module main
+{
+  var s1, s2 : boolean; // initial states
+  var aux : boolean; // auxiliary variable for LTL property
+
+  instance sc : sequential_circuit(x, y, r);
+
+  init {
+    s1 = false; // initial state S1: x=0, r=0
+    s2 = true; // initial state S2: x=1, r=0
+  }
+
+  next {
+    if (s1) {
+      sc.x := false; // set x=0
+      aux := sc.y; // store the value of y
+    } else {
+      sc.x := true; // set x=1
+    }
+
+    next(sc); // transition in the sequential circuit
+  }
+
+  ltl infinitely_set_y {
+    []<>(aux); // check that the output bit y is set infinitely often
+  }
+}
+
+
+This code models the behavior of the sequential circuit with the given inputs and outputs, specifies the initial states, transitions, and LTL property to check that the output bit y is set infinitely often.

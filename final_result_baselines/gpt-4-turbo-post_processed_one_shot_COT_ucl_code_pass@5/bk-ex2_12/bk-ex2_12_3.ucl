@@ -1,0 +1,45 @@
+module main {
+  type state_t = enum { start, select };
+
+  const max : int;
+
+  var nsoda : int;
+  var nbeer : int;
+  var current_state : state_t;
+
+  input coin, refill, sget, bget, ret_coin : boolean;
+
+  init {
+    nsoda = 0;
+    nbeer = 0;
+    current_state = start;
+  }
+
+  next {
+    // Handle coin insertion
+    if (current_state == start && coin) {
+      current_state' = select;
+    }
+    // Handle refill
+    else if (current_state == start && refill) {
+      nsoda' = max;
+      nbeer' = max;
+    }
+    // Handle getting soda
+    else if (current_state == select && sget && nsoda > 0) {
+      nsoda' = nsoda - 1;
+      current_state' = start;
+    }
+    // Handle getting beer
+    else if (current_state == select && bget && nbeer > 0) {
+      nbeer' = nbeer - 1;
+      current_state' = start;
+    }
+    // Handle returning coin
+    else if (current_state == select && ret_coin && nsoda == 0 && nbeer == 0) {
+      current_state' = start;
+    }
+  }
+
+  invariant no_negative_bottles : (nsoda >= 0 && nbeer >= 0);
+}

@@ -1,0 +1,77 @@
+
+module traffic_light1
+{
+  type state_t1 = enum { red1, green1 };
+
+  var state1 : state_t1;
+  input switch1 : boolean;
+  output state1_out : state_t1;
+
+  init {
+    state1 = red1;
+  }
+
+  next {
+    if (state1 == red1 && switch1) {
+      state1_out = green1;
+    } else {
+      state1_out = state1;
+    }
+  }
+}
+
+module traffic_light2
+{
+  type state_t2 = enum { red2, green2 };
+
+  var state2 : state_t2;
+  input switch2 : boolean;
+  output state2_out : state_t2;
+
+  init {
+    state2 = red2;
+  }
+
+  next {
+    if (state2 == red2 && switch2) {
+      state2_out = green2;
+    } else {
+      state2_out = state2;
+    }
+  }
+}
+
+module main
+{
+  type t1_state_t = traffic_light1.state_t1;
+  type t2_state_t = traffic_light2.state_t2;
+
+  var switch1 : boolean;
+  var switch2 : boolean;
+  var state1 : t1_state_t;
+  var state2 : t2_state_t;
+
+  instance tl1 : traffic_light1(state1_out : state1, switch1 : switch1);
+  instance tl2 : traffic_light2(state2_out : state2, switch2 : switch2);
+
+  init {
+    switch1 = false;
+    switch2 = false;
+    state1 = red1;
+    state2 = red2;
+  }
+
+  next {
+    if (state1 == red1 && state2 == red2) {
+      // Non-deterministic choice between which light turns green first
+      if (choose {0,1}) {
+        switch1 = true;
+      } else {
+        switch2 = true;
+      }
+    }
+
+    next(tl1);
+    next(tl2);
+  }
+}

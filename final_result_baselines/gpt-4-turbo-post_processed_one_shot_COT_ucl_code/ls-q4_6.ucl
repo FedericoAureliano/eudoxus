@@ -1,0 +1,47 @@
+module main {
+    // State variables
+    var light_on : boolean;
+    var door_open : boolean;
+    var time : int;
+
+    // Initialize state
+    init {
+        light_on = false;
+        door_open = false;
+        time = 0;
+    }
+
+    // Transition rules
+    next {
+        if (door_open) {
+            light_on' = true;
+            time' = 0;
+        } else {
+            if (time < 30) {
+                time' = time + 1;
+            } else {
+                light_on' = false;
+            }
+        }
+    }
+
+    // Input changes simulation
+    input door_open_input : boolean;
+
+    // Apply input changes
+    next {
+        door_open' = door_open_input;
+    }
+
+    // Safety properties
+    invariant light_on_when_door_opened : door_open -> light_on;
+    invariant light_stays_on_for_30_seconds : (!door_open && time < 30) -> light_on;
+    invariant light_turns_off_after_30_seconds : (!door_open && time >= 30) -> !light_on;
+
+    // Control for simulation and checking
+    control {
+        v = unroll(40); // simulate for enough cycles to test the light behavior
+        check;
+        print_results;
+    }
+}

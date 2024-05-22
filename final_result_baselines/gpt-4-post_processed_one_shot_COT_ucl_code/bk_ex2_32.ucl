@@ -1,0 +1,93 @@
+// Define modules for Sender (S), Receiver (R), Channel c, and Channel d.
+
+module ChannelC
+{
+    // Channel c is unreliable; messages can be lost.
+    // For simplicity, we model this as a nondeterministic choice to either deliver or lose the message.
+    var buffer: [boolean]boolean; // Maps control bit to message presence.
+    input m : boolean; // Message
+    input b : boolean; // Control bit
+
+    procedure send(m : boolean, b : boolean)
+    {
+        if (*) { // Nondeterministic choice
+            buffer[b] = true;
+        }
+    }
+
+    procedure receive(b : boolean) returns (m : boolean)
+    {
+        if (buffer[b]) {
+            return true; // Message was delivered.
+        } else {
+            return false; // Message was lost.
+        }
+    }
+
+    init {
+        buffer[false] = false;
+        buffer[true] = false;
+    }
+}
+
+module ChannelD
+{
+    // Channel d is perfect; acknowledgments are always delivered.
+    var ack : boolean; // Acknowledgment control bit
+
+    procedure sendAck(b : boolean)
+    {
+        ack = b;
+    }
+
+    procedure getAck() returns (b : boolean)
+    {
+        return ack;
+    }
+
+    init {
+        ack = false;
+    }
+}
+
+module Sender
+{
+    var m : boolean; // Message
+    var b : boolean; // Control bit
+    var waitingForAck : boolean;
+
+    procedure send(m : boolean, b : boolean)
+    {
+        // Implementation of sending logic, including retransmission on timeout.
+    }
+
+    procedure receiveAck(b : boolean)
+    {
+        // Acknowledgment handling.
+    }
+
+    init {
+        b = false;
+        waitingForAck = false;
+    }
+}
+
+module Receiver
+{
+    procedure receive(m : boolean, b : boolean)
+    {
+        // Implementation of receiving logic.
+    }
+
+    procedure sendAck(b : boolean)
+    {
+        // Acknowledgment sending logic.
+    }
+}
+
+// Main module to orchestrate the communication protocol.
+module Main
+{
+    // Instances of Sender, Receiver, ChannelC, and ChannelD.
+    // Logic to simulate communication, including message transmission, acknowledgment, and retransmission.
+}

@@ -1,0 +1,60 @@
+module main {
+    // Define the state variables
+    var warn : boolean;     // Indicates if there is a warning due to unbuckled seat belts
+    var nowarn : boolean;   // Indicates if there is no warning (seat belts are buckled or no passengers)
+    var time : integer;     // Timer to track the beeper sounding duration
+    var ignition : boolean; // Indicates if the ignition is on
+    var buckled : boolean;  // Indicates if the seat belts are buckled
+
+    // Initial state setup
+    init {
+        warn = false;
+        nowarn = true;
+        time = 0;
+        ignition = false;
+        buckled = true;
+    }
+
+    // Transition rules
+    next {
+        // Manage ignition state
+        if (*) { ignition' = !ignition; }
+        else { ignition' = ignition; }
+
+        // Manage buckled state based on passenger actions and ignition
+        if (*) { buckled' = !buckled; }
+        else { buckled' = buckled; }
+
+        // Warning logic based on seat belt and ignition state
+        if (ignition && !buckled) {
+            warn' = true;
+            nowarn' = false;
+        } else {
+            warn' = false;
+            nowarn' = true;
+        }
+
+        // Timer logic for beeper
+        if (warn && time < 30) {
+            time' = time + 1;
+        } else {
+            time' = 0; // Reset timer when no warning or time expires
+        }
+    }
+
+    // Safety properties to verify
+    invariant safety_property_1 : (warn -> !buckled);
+    invariant safety_property_2 : (nowarn -> buckled);
+    invariant safety_property_3 : (time <= 30);
+
+    // Liveness properties to verify
+    invariant liveness_property_1 : (time == 30 -> !warn);
+    invariant liveness_property_2 : (!ignition -> !warn);
+
+    // Control block to run the verification
+    control {
+        v = unroll(35);
+        check;
+        print_results;
+    }
+}

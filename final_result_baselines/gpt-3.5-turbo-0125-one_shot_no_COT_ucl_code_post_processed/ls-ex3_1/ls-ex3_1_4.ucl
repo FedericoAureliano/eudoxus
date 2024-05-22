@@ -1,0 +1,62 @@
+
+module ArrivalDetector
+{
+  input arrival : boolean; // event when a car arrives
+}
+
+module DepartureDetector
+{
+  input departure : boolean; // event when a car departs
+}
+
+module Counter
+{
+  input arrival : boolean;
+  input departure : boolean;
+  output counter : int;
+
+  var count : int; // running count of cars in the garage
+
+  init {
+    count = 0; // initial count of cars in the garage
+    counter = count;
+  }
+
+  next {
+    if (arrival) {
+      count = count + 1; // increment count on car arrival
+    }
+    if (departure) {
+      count = count - 1; // decrement count on car departure
+    }
+    counter = count;
+  }
+}
+
+module main
+{
+  var arrival : boolean;
+  var departure : boolean;
+  var counter : int;
+
+  instance arrivalDetector : ArrivalDetector(arrival);
+  instance departureDetector : DepartureDetector(departure);
+  instance carCounter : Counter(arrival, departure, counter);
+
+  init {
+    arrival = false;
+    departure = false;
+  }
+
+  next {
+    // Simulate arrival and departure events
+    arrival = nondet();
+    departure = nondet();
+
+    // Update the counter based on arrival and departure events
+    next(carCounter);
+  }
+}
+
+
+This code models the system with three modules: ArrivalDetector, DepartureDetector, and Counter. The main module orchestrates interactions between instances of these modules to simulate the arrival and departure events and update the counter accordingly.

@@ -1,0 +1,44 @@
+uclid
+module thermostat
+{
+    var temp : real; // input temperature
+    var heatOn : boolean; // output indicating heater should be turned on
+    var heatOff : boolean; // output indicating heater should be turned off
+
+    type state_t = enum { HEATING, COOLING };
+
+    var state : state_t;
+    const setpoint : real = 20.0; // target temperature
+    const upperBound : real = 22.0; // upper bound for hysteresis
+    const lowerBound : real = 18.0; // lower bound for hysteresis
+
+    init {
+        state = COOLING; // initial state
+        heatOn = false;
+        heatOff = false;
+    }
+
+    procedure update_outputs()
+    {
+        if (state == HEATING && temp >= upperBound) {
+            heatOn = false;
+            heatOff = true;
+        } else if (state == COOLING && temp <= lowerBound) {
+            heatOn = true;
+            heatOff = false;
+        } else {
+            heatOn = false;
+            heatOff = false;
+        }
+    }
+
+    next {
+        havoc temp;
+        havoc state;
+        update_outputs();
+    }
+}
+
+
+
+This code models a thermostat with hysteresis that regulates temperature around a setpoint of 20 degrees Celsius. The thermostat has two outputs, `heatOn` and `heatOff`, which indicate when the heater should be turned on or off based on the current temperature and the hysteresis bounds.

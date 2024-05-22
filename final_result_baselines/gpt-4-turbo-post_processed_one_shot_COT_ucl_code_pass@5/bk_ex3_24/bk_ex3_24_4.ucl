@@ -1,0 +1,43 @@
+module main {
+    // State variables
+    var coins : int;
+    var dispensed_drinks : int;
+
+    // Inputs
+    input insert_coin : boolean;
+    input request_drink : boolean;
+
+    // Initialization of state variables
+    init {
+        coins = 0;
+        dispensed_drinks = 0;
+    }
+
+    // Transition rules
+    next {
+        if (insert_coin) {
+            coins' = coins + 1;
+        } else {
+            coins' = coins;
+        }
+
+        if (request_drink && coins > dispensed_drinks) {
+            dispensed_drinks' = dispensed_drinks + 1;
+        } else {
+            dispensed_drinks' = dispensed_drinks;
+        }
+    }
+
+    // Safety property
+    invariant sufficient_coins : coins >= dispensed_drinks;
+
+    // Control block for model checking
+    control {
+        v = unroll(10);
+        check;
+        print_results;
+        if (!v.sufficient_coins) {
+            print_cex(coins, dispensed_drinks);
+        }
+    }
+}

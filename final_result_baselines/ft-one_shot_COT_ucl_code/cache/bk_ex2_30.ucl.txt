@@ -1,0 +1,294 @@
+system :: You're an expert in writing uclid5 models.You will be given a docstring and asked to write a model. Remember uclid5 is a state machine language and has it's own specific syntax.
+====================
+user :: Write a uclid5 model for the following description:
+    This UCLID5 model simulates a process interaction environment to evaluate confidentiality properties through non-interference simulations, inspired by an example in Chapter 17 on Security from "Introduction to Embedded Systems" by Lee & Seshia. The model consists of two types of process modules (`process1` and `process2`) and a main module that orchestrates the interaction between instances of these processes.
+
+    Process Modules:
+    1. `process1`: This module captures a simplified process that reflects non-deterministic behavior based on public input. It uses an enumerated type `pc_t` with a single state `A`. It has:
+        - Inputs:
+        * `s`: A boolean representing a secret input.
+        * `x`: A boolean representing a public input.
+        - Output:
+        * `z`: A boolean public output that toggles based on the inverse of input `x`.
+        - Behavior:
+        * The process starts in state `A` and outputs `z` as `false` initially.
+        * In subsequent cycles, the output `z` becomes the negation of `x`.
+
+    2. `process2`: This module is a more complex process with an internal state machine described using state enum `pc_t` with states `B` and `C`. It demonstrates state-dependent output behavior.
+        - Inputs are the same as in `process1`.
+        - Output and state transitions:
+        * The process starts in state `B` with the output `z` as `false`.
+        * Based on the input combination (state, `s`, and `x`), the process transitions between states `B` and `C`, toggling the output `z`.
+        * The transitions are specifically:
+            - From `B` to `C` (output `z` is set to `true`) when `s` is true and `x` is false.
+            - From `C` back to `B` (output `z` is reset to `false`) under the same input conditions.
+
+    Main Module:
+    - Sets up instances of `process2` (`p21` and `p22`) to interact under controlled input conditions.
+    - Inputs `x1`, `x2` (public), and `s1`, `s2` (secret) are used for driving the process instances.
+    - Controls non-determinism by initially assuming both `x1` and `x2` are equal, and it maintains this assumption in all subsequent states.
+    - Evaluates confidentiality by asserting the invariant `same_output_z`, ensuring that outputs `z1` and `z2` of both process instances are always equal, thereby checking for consistent behavior across different runs with potentially varying secret inputs.
+
+    Control:
+    - The control block is used to perform bounded model checking and to produce counterexamples. It specifies that up to 5 unrolling should be checked.
+    - The `print_cex` function is used for displaying counterexamples for the states of inputs and outputs along with the internal state of `process2` instances (`p21` and `p22`).
+
+    This model is particularly useful for demonstrating the effects of secret data manipulations on the outputs, which can be analyzed to study security vulnerability or proof of non-interference in systems.
+
+====================
+assistant :: module process1
+    {
+    type pc_t = enum { A };
+
+    var pc : pc_t;
+    input s : boolean; // secret input
+    input x : boolean; // public input
+    output z: boolean; // public output
+
+    init {
+        pc = A;
+        z = false;
+    }
+
+    next {
+        z' = !x;
+    }
+
+    }
+
+    module process2
+    {
+    type pc_t = enum { B, C };
+
+    var pc : pc_t;
+    input s : boolean; // secret input
+    input x : boolean; // public input
+    output z: boolean; // public output
+
+    procedure next_state()
+        modifies z;
+        modifies pc;
+    {
+        case
+        (pc == B) && s && !x : { pc = C; z = true; }
+        (pc == C) && s && !x : { pc = B; z = false; }
+        esac
+    }
+
+    init {
+        pc = B;
+        z = false;
+    }
+
+    next {
+        call next_state();
+    }
+    }
+
+
+    module main
+    {
+    type t1pc_t = process1.pc_t;
+    type t2pc_t = process2.pc_t;
+
+    var x1,x2 : boolean;
+    var s1,s2 : boolean;
+    var z1,z2 : boolean;
+
+    /*
+    instance p11 : process1(z: (z1), s : (s1), x : (x1));
+    instance p12 : process1(z: (z2), s : (s2), x : (x2));
+    */
+
+    /*
+    */
+    instance p21 : process2(z: (z1), s : (s1), x : (x1));
+    instance p22 : process2(z: (z2), s : (s2), x : (x2));
+
+    init {
+        havoc x1; havoc x2;
+        havoc s1; havoc s2;
+        assume(x1 == x2);
+    }
+
+    next {
+        havoc x1; havoc x2;
+        havoc s1; havoc s2;
+        assume(x1' == x2');
+        // next(p11); next(p12);
+        next(p21); next(p22);
+    }
+
+    invariant same_output_z : (z1 == z2);
+
+
+    control {
+        // *** BASIC ASSERTIONS/INVARIANT
+    /*
+    */
+        v = unroll(5);
+        check;
+        print_results;
+        //v.print_cex(x1,x2,s1,s2,z1,z2,p11.pc,p12.pc);
+        v.print_cex(x1,x2,s1,s2,z1,z2,p21.pc,p22.pc);
+
+    /*
+        // *** INDUCTION
+        v = induction(1);
+        check;
+        print_results;
+        v.print_cex(x1,x2,s1,s2,z1,z2,p11.pc,p12.pc);
+    */
+    }
+    }
+====================
+user :: Write a uclid5 model for the following description:
+To create a UCLID5 model for a railroad crossing control system, we need to define the system's components and their interactions clearly. Here’s an outline of how this model could be structured:
+
+--OUTLINE--
+
+### 1. Types and State Variables
+First, define the enumerated types for the states of each component:
+```uclid
+type train_state_t = { far, near, in };
+type gate_state_t = { up, down };
+type controller_state_t = { s0, s1, s2, s3 };
+```
+
+Declare the state variables:
+```uclid
+var train_state : train_state_t;
+var gate_state : gate_state_t;
+var controller_state : controller_state_t;
+```
+
+### 2. Initial State
+Define the initial state of the system:
+```uclid
+init {
+    train_state = far;
+    gate_state = up;
+    controller_state = s0;
+}
+```
+
+### 3. Transition Relations
+Specify how the states transition based on the interaction between Train, Gate, and Controller:
+```uclid
+next(train_state) :=
+    case
+        train_state == far -> if (*) then near else far;
+        train_state == near -> in;
+        train_state == in -> far;
+        true -> train_state;
+    esac;
+
+next(gate_state) :=
+    case
+        controller_state == s1 -> down;
+        controller_state == s3 -> up;
+        true -> gate_state;
+    esac;
+
+next(controller_state) :=
+    case
+        controller_state == s0 && train_state == near -> s1;
+        controller_state == s1 && gate_state == down -> s2;
+        controller_state == s2 && train_state == in -> s3;
+        controller_state == s3 && gate_state == up -> s0;
+        true -> controller_state;
+    esac;
+```
+
+### 4. Safety Properties
+Define the safety property to ensure the gate is always down when the train is crossing:
+```uclid
+invariant safety_property : !(train_state == in && gate_state == up);
+```
+
+### 5. Control Logic
+Add control logic to manage transitions and interactions:
+- **Train** signals its approach and exit.
+- **Controller** reacts to the Train's signals by changing its state and commands the Gate to lower or raise.
+- **Gate** changes its state based on the commands from the Controller.
+
+### 6. Model Checking
+Specify the model checking parameters and properties to verify:
+```uclid
+control {
+    check;
+    print_cex;
+}
+```
+
+This outline defines a UCLID5 model for a railroad crossing control system, focusing on the interaction between the Train, Gate, and Controller to ensure safety properties are maintained. Each component's behavior is modeled through state transitions, and the system's safety is verified through invariant checks.
+====================
+assistant :: /* A simple railroad crossing system. */
+
+/* Train module. */
+module train {
+    type train_state_t = enum { far, near, in };
+    var state : train_state_t;
+    input want_far : boolean;
+
+    next {
+        state' =
+            if (want_far) {
+                if (state == near) then far else state;
+            } else {
+                if (state == in) then near else in;
+            };
+    }
+}
+
+/* Gate module. */
+module gate {
+    type gate_state_t = enum { up, down };
+    var state : gate_state_t;
+    input command : gate_state_t;
+
+    next {
+        state' = command;
+    }
+}
+
+/* Controller module. */
+module controller {
+    type controller_state_t = enum { s0, s1, s2, s3 };
+    var state : controller_state_t;
+    input train_near : boolean;
+    input gate_down : boolean;
+
+    next {
+        state' =
+            if (state == s0 && train_near) { s1; }
+            else if (state == s1 && gate_down) { s2; }
+            else if (state == s2) {
+                if (gate_down && train_near) then s3 else s2;
+            }
+            else if (state == s3) {
+                if (!gate_down) then s0 else s3;
+            }
+            else { state };
+    }
+}
+
+/* System module. */
+module main {
+    instance t : train(want_far : (controller.train_near));
+    instance g : gate(command : (controller.command));
+    instance c : controller(train_near : (t.state == near), gate_down : (g.state == down));
+
+    next {
+        next(t);
+        next(g);
+        next(c);
+    }
+
+    control {
+        check;
+        print_cex;
+    }
+}
+
+====================

@@ -1,0 +1,100 @@
+uclid
+module dining_philosophers {
+  const N : int = 5;
+
+  type philosopher_t : enum { THINKING, HUNGRY, EATING };
+  type chopstick_t : enum { FREE, TAKEN };
+
+  var phil1, phil2, phil3, phil4, phil5 : philosopher_t;
+  var chopstick1, chopstick2, chopstick3, chopstick4, chopstick5 : chopstick_t;
+
+  procedure take_chopsticks(i : int)
+    modifies chopstick1, chopstick2, chopstick3, chopstick4, chopstick5,
+    modifies phil1, phil2, phil3, phil4, phil5;
+  {
+    if i == 1 {
+      chopstick1 = TAKEN;
+      chopstick2 = TAKEN;
+      phil1 = EATING;
+    } else if i == 2 {
+      chopstick2 = TAKEN;
+      chopstick3 = TAKEN;
+      phil2 = EATING;
+    } else if i == 3 {
+      chopstick3 = TAKEN;
+      chopstick4 = TAKEN;
+      phil3 = EATING;
+    } else if i == 4 {
+      chopstick4 = TAKEN;
+      chopstick5 = TAKEN;
+      phil4 = EATING;
+    } else {
+      chopstick5 = TAKEN;
+      chopstick1 = TAKEN;
+      phil5 = EATING;
+    }
+  }
+
+  procedure release_chopsticks(i : int)
+    modifies chopstick1, chopstick2, chopstick3, chopstick4, chopstick5,
+    modifies phil1, phil2, phil3, phil4, phil5;
+  {
+    if i == 1 {
+      chopstick1 = FREE;
+      chopstick2 = FREE;
+      phil1 = THINKING;
+    } else if i == 2 {
+      chopstick2 = FREE;
+      chopstick3 = FREE;
+      phil2 = THINKING;
+    } else if i == 3 {
+      chopstick3 = FREE;
+      chopstick4 = FREE;
+      phil3 = THINKING;
+    } else if i == 4 {
+      chopstick4 = FREE;
+      chopstick5 = FREE;
+      phil4 = THINKING;
+    } else {
+      chopstick5 = FREE;
+      chopstick1 = FREE;
+      phil5 = THINKING;
+    }
+  }
+
+  procedure philosopher(i : int)
+    modifies chopstick1, chopstick2, chopstick3, chopstick4, chopstick5,
+    modifies phil1, phil2, phil3, phil4, phil5;
+  {
+    while (true) {
+      phil1 = HUNGRY;
+      take_chopsticks(i);
+      release_chopsticks(i);
+    }
+  }
+
+  process main() {
+    chopstick1 = FREE;
+    chopstick2 = FREE;
+    chopstick3 = FREE;
+    chopstick4 = FREE;
+    chopstick5 = FREE;
+    phil1 = THINKING;
+    phil2 = THINKING;
+    phil3 = THINKING;
+    phil4 = THINKING;
+    phil5 = THINKING;
+
+    call philosopher(1);
+    call philosopher(2);
+    call philosopher(3);
+    call philosopher(4);
+    call philosopher(5);
+  }
+
+  property deadlock_possible {
+    exists i: 1 <= i <= N :: phil(i) == HUNGRY &&
+      (chopstick(i) == TAKEN || chopstick((i % N) + 1) == TAKEN);
+  }
+
+}

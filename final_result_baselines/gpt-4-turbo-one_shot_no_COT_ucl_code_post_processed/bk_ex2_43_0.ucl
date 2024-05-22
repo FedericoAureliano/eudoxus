@@ -1,0 +1,61 @@
+module C1 {
+    var r1 : boolean;
+    output y1 : boolean;
+
+    init {
+        r1 = false; // Initial value of r1 can be set as needed
+        y1 = false; // Initial value of y1
+    }
+
+    next {
+        r1' = !r1;
+        y1' = r1;
+    }
+}
+
+module C2 {
+    input x2 : boolean;
+    var r2 : boolean;
+    output y2 : boolean;
+
+    init {
+        r2 = false; // Initial value of r2 can be set as needed
+        y2 = false; // Initial value of y2
+    }
+
+    next {
+        r2' = x2' | r2;
+        y2' = x2' | r2;
+    }
+}
+
+module main {
+    var x2 : boolean;
+    var r1 : boolean;
+    var r2 : boolean;
+    var y1 : boolean;
+    var y2 : boolean;
+
+    instance c1 : C1(r1: r1, y1: y1);
+    instance c2 : C2(x2: x2, r2: r2, y2: y2);
+
+    init {
+        x2 = false; // Initial value of x2 can be set as needed
+        r1 = false; // Initial value of r1
+        r2 = false; // Initial value of r2
+        y1 = false; // Initial value of y1
+        y2 = false; // Initial value of y2
+    }
+
+    next {
+        x2' = nondet_bool(); // x2 can be any boolean value
+        next(c1);
+        next(c2);
+    }
+}
+
+control {
+    v = unroll(10);
+    check;
+    print_results;
+}

@@ -1,0 +1,59 @@
+uclid
+module C1
+{
+  var r1 : boolean;
+  output y1 : boolean;
+
+  next {
+    y1' = r1;
+    r1' = !r1;
+  }
+}
+
+module C2
+{
+  input x2 : boolean;
+  var r2 : boolean;
+  output y2 : boolean;
+
+  next {
+    y2' = x2 || r2;
+    r2' = x2 || r2;
+  }
+}
+
+module main
+{
+  var y1, y2 : boolean;
+  var r1, r2 : boolean;
+  var x2 : boolean;
+
+  instance c1 : C1(y1, r1);
+  instance c2 : C2(x2, y2, r2);
+
+  init {
+    r1 = nondet();
+    r2 = nondet();
+  }
+
+  next {
+    c1.r1 = r1;
+    c2.r2 = r2;
+    c2.x2 = nondet();
+    next(c1);
+    next(c2);
+    y1 = c1.y1;
+    y2 = c2.y2;
+    r1 = c1.r1;
+    r2 = c2.r2;
+  }
+
+  control {
+    havoc r1; havoc r2; havoc x2;
+    next;
+    check;
+  }
+}
+
+
+This code defines two modules `C1` and `C2` representing the circuits described in the problem statement. The `main` module synchronously composes these two circuits by instantiating them and coordinating their behavior. The control section includes initialization, transition rules for the circuits, and a check statement to verify the model.

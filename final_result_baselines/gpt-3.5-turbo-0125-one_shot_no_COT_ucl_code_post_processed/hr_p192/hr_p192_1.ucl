@@ -1,0 +1,60 @@
+uclid
+module program {
+    type status_t = enum { ready, busy };
+    var request : boolean;
+    var status : status_t;
+
+    init {
+        status = ready;
+    }
+
+    next {
+        if (request) {
+            status' = busy;
+        } else {
+            // status remains unchanged if request is false
+            status' = status;
+        }
+    }
+}
+
+module main {
+    var aux_request : boolean;
+    var aux_status : program.status_t;
+
+    process p {
+        var request : boolean;
+        var status : program.status_t;
+
+        init {
+            request = aux_request;
+            status = aux_status;
+        }
+
+        next {
+            request' = request;
+            status' = status;
+            next program;
+        }
+
+        invariant {
+            if (request) {
+                eventually(status == program.status_t.busy);
+            }
+        }
+    }
+
+    init {
+        aux_request = nondet_bool();
+        aux_status = program.status_t.ready;
+    }
+
+    next {
+        aux_request' = aux_request;
+        aux_status' = aux_status;
+        next p;
+    }
+}
+
+
+In this code, the `program` module models the program with variables `request` and `status`, following the described behavior. The `main` module creates a process `p` that checks the property that if `request` is true, eventually `status` becomes `busy`. The property is specified using the `eventually` operator.

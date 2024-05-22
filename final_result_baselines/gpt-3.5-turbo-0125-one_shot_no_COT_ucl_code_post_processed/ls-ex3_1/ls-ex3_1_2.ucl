@@ -1,0 +1,86 @@
+java
+module ArrivalDetector {
+    input arrival: bool;
+    output event_arrival: bool;
+
+    init {
+        event_arrival = false;
+    }
+
+    next {
+        event_arrival' = arrival;
+    }
+}
+
+module DepartureDetector {
+    input departure: bool;
+    output event_departure: bool;
+
+    init {
+        event_departure = false;
+    }
+
+    next {
+        event_departure' = departure;
+    }
+}
+
+module Counter {
+    input event_arrival: bool;
+    input event_departure: bool;
+    input initial_count: int;
+    output count: int;
+    output update_display: bool;
+
+    var current_count: int;
+
+    init {
+        current_count = initial_count;
+        count = initial_count;
+        update_display = false;
+    }
+
+    next {
+        if (event_arrival) {
+            current_count' = current_count + 1;
+            update_display' = true;
+        } else if (event_departure) {
+            current_count' = current_count - 1;
+            update_display' = true;
+        } else {
+            current_count' = current_count;
+            update_display' = false;
+        }
+        count' = current_count;
+    }
+}
+
+module Main {
+    var arrival: bool;
+    var departure: bool;
+    var initial_count: int;
+
+    instance arrival_detector: ArrivalDetector(arrival, event_arrival);
+    instance departure_detector: DepartureDetector(departure, event_departure);
+    instance counter: Counter(event_arrival, event_departure, initial_count, count, update_display);
+
+    init {
+        arrival = false;
+        departure = false;
+        initial_count = 0;
+    }
+
+    next {
+        havoc arrival;
+        havoc departure;
+        havoc initial_count;
+        next arrival_detector;
+        next departure_detector;
+        next counter;
+    }
+
+    invariant non_negative_count: counter.current_count >= 0;
+}
+
+
+This code models the system with three modules: `ArrivalDetector`, `DepartureDetector`, and `Counter`. The `Main` module orchestrates the interactions between these modules. The `Counter` module keeps track of the count of cars in the garage and updates the display when the count changes. The `ArrivalDetector` and `DepartureDetector` modules simulate the arrival and departure events.

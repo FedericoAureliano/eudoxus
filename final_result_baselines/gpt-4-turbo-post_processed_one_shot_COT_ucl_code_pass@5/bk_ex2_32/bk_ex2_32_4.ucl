@@ -1,0 +1,105 @@
+module sender {
+    var m : int;
+    var b : bool;
+    var waiting_for_ack : bool;
+
+    input ack_received : bool;
+    input timeout : bool;
+
+    init {
+        m = 0;
+        b = false;
+        waiting_for_ack = false;
+    }
+
+    next {
+        if (!waiting_for_ack) {
+            // Send new message
+            m' = m + 1;
+            b' = !b;
+            waiting_for_ack' = true;
+        } else if (ack_received) {
+            // Ack received, prepare next message
+            m' = m + 1;
+            b' = !b;
+            waiting_for_ack' = false;
+        } else if (timeout) {
+            // Timeout, retransmit
+            m' = m;
+            b' = b;
+            waiting_for_ack' = true;
+        }
+    }
+}
+
+module receiver {
+    input m : int;
+    input b : bool;
+
+    output ack : bool;
+
+    init {
+        ack = false;
+    }
+
+    next {
+        ack' = b; // Send ack with received control bit
+    }
+}
+
+module channel_c {
+    type msg_type = (int, bool);
+    var buffer : [int]msg_type;
+    var head : int;
+    var tail : int;
+
+    input m : int;
+    input b : bool;
+    input loss_probability : real;
+
+    init {
+        head = 0;
+        tail = 0;
+    }
+
+    next {
+        if (rand_real() > loss_probability) {
+            buffer[tail] = (m, b);
+            tail' = tail + 1;
+        }
+    }
+}
+
+module channel_d {
+    type msg_type = bool;
+    var buffer : [int]msg_type;
+    var head : int;
+    var tail : int;
+
+    input ack : bool;
+
+    init {
+        head = 0;
+        tail = 0;
+    }
+
+    next {
+        buffer[tail] = ack;
+        tail' = tail + 1;
+    }
+}
+
+module main {
+    instance S : sender;
+    instance R : receiver;
+    instance c : channel_c;
+    instance d : channel_d;
+
+    init {
+        // Initialize the system
+    }
+
+    next {
+        // Define system transitions
+    }
+}

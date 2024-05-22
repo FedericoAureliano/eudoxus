@@ -1,0 +1,63 @@
+module thermostat
+{
+    type state_t = enum { Heating, Cooling };
+
+    var currentState : state_t;
+    input temp : real;
+    output heatOn : boolean;
+    output heatOff : boolean;
+
+    // Setpoint thresholds
+    const setpoint : real = 20.0;
+    const upperThreshold : real = 22.0;
+    const lowerThreshold : real = 18.0;
+
+    init {
+        currentState = Cooling;
+        heatOn = false;
+        heatOff = false;
+    }
+
+    next {
+        if (currentState == Cooling) {
+            if (temp <= lowerThreshold) {
+                currentState' = Heating;
+                heatOn' = true;
+                heatOff' = false;
+            } else {
+                heatOn' = false;
+                heatOff' = false;
+            }
+        } else if (currentState == Heating) {
+            if (temp >= upperThreshold) {
+                currentState' = Cooling;
+                heatOff' = true;
+                heatOn' = false;
+            } else {
+                heatOn' = false;
+                heatOff' = false;
+            }
+        }
+    }
+}
+
+module main
+{
+    var temp : real;
+    instance thermo : thermostat(temp : (temp));
+
+    init {
+        temp = 20.0;
+    }
+
+    next {
+        // Simulate temperature changes
+        havoc temp;
+    }
+
+    control {
+        v = unroll(10);
+        check;
+        print_results;
+    }
+}

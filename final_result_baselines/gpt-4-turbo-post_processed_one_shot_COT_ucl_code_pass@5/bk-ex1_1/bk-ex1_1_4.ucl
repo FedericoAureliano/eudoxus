@@ -1,0 +1,58 @@
+module main {
+    // Shared variable
+    var x : integer;
+
+    // Process Inc
+    procedure Inc() {
+        while (true) {
+            if (x < 200) {
+                x := x + 1;
+            }
+        }
+    }
+
+    // Process Dec
+    procedure Dec() {
+        while (true) {
+            if (x > 0) {
+                x := x - 1;
+            }
+        }
+    }
+
+    // Process Reset
+    procedure Reset() {
+        while (true) {
+            if (x == 200) {
+                x := 0;
+            }
+        }
+    }
+
+    // Initial state
+    init {
+        x = *; // Arbitrary initial value
+        assume(x >= 0 && x <= 200); // Initial assumption for safety
+    }
+
+    // Next state relations (modeling concurrency)
+    next {
+        choice {
+            call Inc();
+        } or {
+            call Dec();
+        } or {
+            call Reset();
+        }
+    }
+
+    // Safety property (invariant)
+    invariant x_range : (x >= 0 && x <= 200);
+
+    // Control for model checking
+    control {
+        v = unroll(10);
+        check;
+        print_results;
+    }
+}

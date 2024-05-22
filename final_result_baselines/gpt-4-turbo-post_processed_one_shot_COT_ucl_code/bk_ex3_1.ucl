@@ -1,0 +1,64 @@
+module traffic_light {
+  type state_t = enum { green, red };
+  var color : state_t;
+
+  init {
+    color = red; // assume both start at red for simplification
+  }
+
+  // Action A: TL1 goes green, TL2 goes red
+  procedure action_A()
+    modifies color;
+  {
+    if (color == red) {
+      color = green;
+    } else {
+      color = red;
+    }
+  }
+
+  // Action B: TL1 goes red, TL2 goes green
+  procedure action_B()
+    modifies color;
+  {
+    if (color == green) {
+      color = red;
+    } else {
+      color = green;
+    }
+  }
+
+  next {
+    if (*) {
+      call action_A();
+    } else {
+      call action_B();
+    }
+  }
+}
+
+module main {
+  var traffic_light1 : traffic_light.state_t;
+  var traffic_light2 : traffic_light.state_t;
+
+  instance tl1 : traffic_light(color: traffic_light1);
+  instance tl2 : traffic_light(color: traffic_light2);
+
+  init {
+    traffic_light1 = red;
+    traffic_light2 = red;
+  }
+
+  next {
+    next(tl1);
+    next(tl2);
+  }
+
+  invariant no_deadlock : !(traffic_light1 == red && traffic_light2 == red);
+
+  control {
+    v = unroll(10);
+    check;
+    print_results;
+  }
+}

@@ -1,0 +1,69 @@
+plaintext
+module sender {
+    var st : boolean; // state of sender
+    var message1 : {data : int, control_bit : boolean};
+    input ack : boolean;
+
+    init {
+        st = false;
+        message1.control_bit = false;
+    }
+
+    next {
+        if (st == ack) {
+            message1.control_bit = !message1.control_bit;
+            st = !st;
+        }
+    }
+}
+
+module receiver {
+    var st : boolean; // state of receiver
+    var message2 : {data : int, control_bit : boolean};
+    output ack : boolean;
+
+    init {
+        st = false;
+        ack = false;
+    }
+
+    next {
+        if (message2.control_bit == st) {
+            ack = st;
+            st = !st;
+        }
+    }
+}
+
+module message_channel {
+    var message1 : {data : int, control_bit : boolean};
+    output message2 : {data : int, control_bit : boolean};
+
+    next {
+        // Non-deterministic behavior to simulate loss or duplication
+        havoc message2;
+    }
+}
+
+module ack_channel {
+    var ack : boolean;
+    output received_ack : boolean;
+
+    next {
+        // Non-deterministic behavior to simulate loss or duplication
+        havoc received_ack;
+    }
+}
+
+module main {
+    instance sender1 : sender();
+    instance receiver1 : receiver();
+    instance msg_channel : message_channel(message1: sender1.message1, message2: receiver1.message2);
+    instance ack_channel : ack_channel(ack: receiver1.ack, received_ack: sender1.ack);
+
+    control {
+        v = unroll(10);
+        check;
+        print_results;
+    }
+}

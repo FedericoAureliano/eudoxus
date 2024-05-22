@@ -1,0 +1,75 @@
+module main {
+    // Constants
+    const GREEN_MAIN_DURATION : int = 180;
+    const YELLOW_DURATION : int = 5;
+    const RED_MAIN_DURATION : int = 55;
+    const GREEN_SECONDARY_DURATION : int = 50;
+    const RED_SECONDARY_DURATION : int = 185;
+
+    // State variables
+    var mG, mY, mR : boolean;
+    var sG, sY, sR : boolean;
+    var timer : int;
+    var vehicle_detected : boolean;
+
+    // Traffic light phase
+    type phase_t = enum { MainGreen, MainYellow, SecondaryGreen, SecondaryYellow };
+    var current_phase : phase_t;
+
+    // Initial state
+    init {
+        mG = true; mY = false; mR = false;
+        sG = false; sY = false; sR = true;
+        timer = 0;
+        vehicle_detected = false;
+        current_phase = phase_t.MainGreen;
+    }
+
+    // State transitions
+    next {
+        if (current_phase == phase_t.MainGreen) {
+            if (vehicle_detected) {
+                // Vehicle detected, switch to MainYellow
+                current_phase' = phase_t.MainYellow;
+                mG' = false; mY' = true; mR' = false;
+                sG' = false; sY' = false; sR' = true;
+                timer' = 0;
+            } else if (timer >= GREEN_MAIN_DURATION) {
+                // Normal transition to MainYellow
+                current_phase' = phase_t.MainYellow;
+                mG' = false; mY' = true; mR' = false;
+                sG' = false; sY' = false; sR' = true;
+                timer' = 0;
+            }
+        } else if (current_phase == phase_t.MainYellow) {
+            if (timer >= YELLOW_DURATION) {
+                // Transition to SecondaryGreen
+                current_phase' = phase_t.SecondaryGreen;
+                mG' = false; mY' = false; mR' = true;
+                sG' = true; sY' = false; sR' = false;
+                timer' = 0;
+            }
+        } else if (current_phase == phase_t.SecondaryGreen) {
+            if (timer >= GREEN_SECONDARY_DURATION) {
+                // Transition to SecondaryYellow
+                current_phase' = phase_t.SecondaryYellow;
+                mG' = false; mY' = false; mR' = true;
+                sG' = false; sY' = true; sR' = false;
+                timer' = 0;
+            }
+        } else if (current_phase == phase_t.SecondaryYellow) {
+            if (timer >= YELLOW_DURATION) {
+                // Transition back to MainGreen
+                current_phase' = phase_t.MainGreen;
+                mG' = true; mY' = false; mR' = false;
+                sG' = false; sY' = false; sR' = true;
+                timer' = 0;
+            }
+        }
+        timer' = timer + 1;
+    }
+
+    // Safety requirement
+    invariant mutual_exclusion : (mG || mY) -> (sR);
+    invariant mutual_exclusion_reverse : (sG || sY) -> (mR);
+}

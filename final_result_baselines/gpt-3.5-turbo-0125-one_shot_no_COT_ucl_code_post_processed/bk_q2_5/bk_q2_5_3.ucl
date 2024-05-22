@@ -1,0 +1,56 @@
+c
+module mutual_exclusion_protocol
+{
+    var s : 0..1; // shared variable
+    var y0, y1 : boolean; // local variables for each process
+
+    process P0()
+    {
+        while (true) {
+            // Noncritical section
+            y0 := 1;
+            s := 0;
+            wait (!((y1 == 0) || (s != 0)));
+            // Critical section
+            y0 := 0;
+        }
+    }
+
+    process P1()
+    {
+        while (true) {
+            // Noncritical section
+            y1 := 1;
+            s := 1;
+            wait (!((y0 == 0) || (s != 1)));
+            // Critical section
+            y1 := 0;
+        }
+    }
+
+    system
+    {
+        var p0 : P0;
+        var p1 : P1;
+
+        // Parallel composition of P0 and P1
+        run p0 || p1;
+
+        // Property: Mutual Exclusion
+        property mutual_exclusion_property {
+            forall i: 0..1 {
+                (p0.s == i && p1.s == i) -> (p0.y0 == 0 || p1.y1 == 0);
+            }
+        }
+
+        // Property: Starvation Freedom
+        property starvation_freedom_property {
+            forall i: 0..1 {
+                (p0.s == i && p1.s == i) -> (p0.y0 == 0 || p1.y1 == 0);
+            }
+        }
+    }
+}
+
+
+In this code, the `mutual_exclusion_protocol` module models the mutual exclusion protocol for two processes P0 and P1. The processes have noncritical sections, critical sections, and follow the given protocol for mutual exclusion. The `system` block contains the parallel composition of P0 and P1, along with properties to check for mutual exclusion and starvation freedom.

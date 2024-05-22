@@ -1,0 +1,270 @@
+system :: You are an expert in program verification (hoare logic style). You are an expert user of UCLID5 which is a state transition modeling language. You will be given a description of a task and asked to write code.
+====================
+user :: Please write code in Uclid5 to model the following description:
+
+  This UCLID5 model, inspired by Lee & Seshia's "Introduction to Embedded Systems," simulates interactions between processes to evaluate confidentiality through non-interference simulations. It features two modules, `process1` and `process2`, each handling inputs and outputs differently based on internal states and external inputs. `process1` uses a simple state and toggles its output based on the negation of a public input, while `process2` incorporates a more complex state transition system that toggles outputs based on both secret and public inputs. The main module orchestrates interactions between instances of these processes under controlled conditions, ensuring that the output remains consistent across different runs despite variations in secret inputs. This setup is used for bounded model checking to analyze potential security vulnerabilities or to demonstrate non-interference, with functionalities to unroll process behaviors up to five times and print counterexamples for detailed analysis.
+
+
+====================
+assistant :: Certainly!
+  ```
+
+  /*
+  * Based on an example from Lee & Seshia, "Introduction to Embedded Systems", Chapter 17 on Security
+  */
+  module process1
+  {
+    type pc_t = enum { A };
+
+    var pc : pc_t;
+    input s : boolean; // secret input
+    input x : boolean; // public input
+    output z: boolean; // public output
+
+    init {
+      pc = A;
+      z = false;
+    }
+
+    next {
+      z' = !x;
+    }
+
+  }
+
+  module process2
+  {
+    type pc_t = enum { B, C };
+
+    var pc : pc_t;
+    input s : boolean; // secret input
+    input x : boolean; // public input
+    output z: boolean; // public output
+
+    procedure next_state()
+      modifies z;
+      modifies pc;
+    {
+      case
+        (pc == B) && s && !x : { pc = C; z = true; }
+        (pc == C) && s && !x : { pc = B; z = false; }
+      esac
+    }
+
+    init {
+      pc = B;
+      z = false;
+    }
+
+    next {
+      call next_state();
+    }
+  }
+
+
+  module main
+  {
+    type t1pc_t = process1.pc_t;
+    type t2pc_t = process2.pc_t;
+
+    var x1,x2 : boolean;
+    var s1,s2 : boolean;
+    var z1,z2 : boolean;
+
+  /*
+    instance p11 : process1(z: (z1), s : (s1), x : (x1));
+    instance p12 : process1(z: (z2), s : (s2), x : (x2));
+  */
+
+  /*
+  */
+    instance p21 : process2(z: (z1), s : (s1), x : (x1));
+    instance p22 : process2(z: (z2), s : (s2), x : (x2));
+
+    init {
+      havoc x1; havoc x2;
+      havoc s1; havoc s2;
+      assume(x1 == x2);
+    }
+
+    next {
+      havoc x1; havoc x2;
+      havoc s1; havoc s2;
+      assume(x1' == x2');
+      // next(p11); next(p12);
+      next(p21); next(p22);
+    }
+
+    invariant same_output_z : (z1 == z2);
+
+
+    control {
+      // *** BASIC ASSERTIONS/INVARIANT
+  /*
+  */
+      v = unroll(5);
+      check;
+      print_results;
+      //v.print_cex(x1,x2,s1,s2,z1,z2,p11.pc,p12.pc);
+      v.print_cex(x1,x2,s1,s2,z1,z2,p21.pc,p22.pc);
+
+  /*
+      // *** INDUCTION
+      v = induction(1);
+      check;
+      print_results;
+      v.print_cex(x1,x2,s1,s2,z1,z2,p11.pc,p12.pc);
+  */
+    }
+  }
+
+  ```
+
+====================
+user :: Please write code in Uclid5 to model the following description:
+  The alternating bit protocol (ABP) is a protocol for transmitting messages along a 'lossy line,' i.e., a line which may lose or duplicate messages. The protocol guarantees that, providing the line doesn't lose infinitely many messages, communication between the sender and the receiver will be successful. (We allow the line to lose or duplicate messages, but it may not corrupt messages; however, there is no way of guaranteeing successful transmission along a line which can corrupt.)
+
+The ABP works as follows. There are four entities, or agents: the sender, the receiver, the message channel and the acknowledgement channel. The sender transmits the first part of the message together with the 'control' bit 0. If, and when, the receiver receives a message with the control bit 0, it sends 0 along the acknowledgement channel. When the sender receives this acknowledgement, it sends the next packet with the control bit 1. If and when the receiver receives this, it acknowledges by sending a 1 on the acknowledgement channel. By alternating the control bit, both receiver and sender can guard against duplicating messages and losing messages (i.e., they ignore messages that have the unexpected control bit).
+If the sender doesn't get the expected acknowledgement, it continually re-sends the message, until the acknowledgement arrives. If the receiver doesn't get a message with the expected control bit, it continually resends the previous acknowledgement.
+
+Write a model for the alternating bit protocol. Write a set of properties that check that your model behaves as described above.
+
+Use the variable names st, message1, message2 and ack.
+
+====================
+assistant :: Sure! Here is the Uclid5 code that models the Alternating Bit Protocol (ABP) as described:
+
+```uclid
+module abp {
+    const DATA_SIZE : int = 2;
+    type control_t = enum { C0, C1 };
+    type state_t = enum { WAIT_FOR_0, WAIT_FOR_1 };
+
+    var st : state_t;
+    var message1 : int[DATA_SIZE];
+    var message2 : int[DATA_SIZE];
+    var ack : control_t;
+
+    // Sender module
+    module sender {
+        input send : bool;
+        output message : int[DATA_SIZE];
+        output control : control_t;
+
+        init {
+            message = message1;
+            control = C0;
+        }
+
+        next {
+            if (send) {
+                if (st == WAIT_FOR_0) {
+                    control' = C0;
+                } else {
+                    control' = C1;
+                }
+            }
+        }
+    }
+
+    // Receiver module
+    module receiver {
+        input receive : bool;
+        input control : control_t;
+        input message : int[DATA_SIZE];
+        output ack : control_t;
+
+        init {
+            ack = C0;
+        }
+
+        next {
+            if (receive) {
+                if (control == C0 && st == WAIT_FOR_0) {
+                    ack' = C0;
+                } else if (control == C1 && st == WAIT_FOR_1) {
+                    ack' = C1;
+                }
+            }
+        }
+    }
+
+    // Message Channel
+    module message_channel {
+        input send : bool;
+        input message : int[DATA_SIZE];
+        output receive : bool;
+        output message : int[DATA_SIZE];
+
+        init {
+            receive = false;
+        }
+
+        next {
+            if (send) {
+                message' = message;
+                receive' = true;
+            }
+        }
+    }
+
+    // Acknowledgement Channel
+    module ack_channel {
+        input send : bool;
+        input ack : control_t;
+        output receive : bool;
+        output ack : control_t;
+
+        init {
+            receive = false;
+            ack = C0;
+        }
+
+        next {
+            if (send) {
+                ack' = ack;
+                receive' = true;
+            }
+        }
+    }
+
+    // Main module orchestrating interactions between sender, receiver, message channel, and acknowledgement channel
+    module main {
+        var s_send, r_receive, m_send, a_send : bool;
+
+        instance s : sender(send: s_send);
+        instance r : receiver(receive: r_receive, control: s.control, message: s.message);
+        instance m : message_channel(send: m_send, message: s.message);
+        instance a : ack_channel(send: a_send, ack: r.ack);
+
+        init {
+            s_send = true;
+            r_receive = true;
+            m_send = false;
+            a_send = false;
+            st = WAIT_FOR_0;
+        }
+
+        next {
+            s_send' = !r_receive;
+            r_receive' = !s_send;
+            m_send' = s_send;
+            a_send' = r_receive;
+
+            if (r_receive) {
+                if (r.control == C0) {
+                    st' = WAIT_FOR_1;
+                } else {
+                    st' = WAIT_FOR_0;
+                }
+            }
+        }
+
+        invariant no_corruption : forall i: [0:DATA_SIZE-1] :: m.message[i] == s.message[i];
+        invariant ack_matches_control : a.ack == r.control;
+    }
+}
+```
+
+This model simulates the interactions between the sender, receiver, message channel, and acknowledgement channel in the Alternating Bit Protocol. It includes modules for each of these entities and a main module that orchestrates their interactions. The properties `no_corruption` and `ack_matches_control` are used to check that the model behaves as described in the problem statement.
+====================

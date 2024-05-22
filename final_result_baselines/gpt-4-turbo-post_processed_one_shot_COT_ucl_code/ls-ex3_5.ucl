@@ -1,0 +1,51 @@
+module thermostat_hysteresis
+{
+  type state_t = enum { Heating, Cooling };
+  var current_state : state_t;
+  input temp : real;
+  output heatOn : boolean;
+  output heatOff : boolean;
+
+  init {
+    current_state = Cooling; // Start in Cooling state
+    heatOn = false;
+    heatOff = false;
+  }
+
+  next {
+    case
+      (current_state == Cooling) && (temp <= 18.0) : {
+        current_state' = Heating;
+        heatOn' = true;
+        heatOff' = false;
+      }
+      (current_state == Heating) && (temp >= 22.0) : {
+        current_state' = Cooling;
+        heatOn' = false;
+        heatOff' = true;
+      }
+      default : {
+        heatOn' = false;
+        heatOff' = false;
+      }
+    esac
+  }
+}
+
+module main
+{
+  instance t : thermostat_hysteresis;
+
+  init {
+    t.temp = 20.0; // Initial temperature
+  }
+
+  next {
+    // Simulate temperature changes
+    if (t.current_state == Heating) {
+      t.temp' = t.temp + 0.5;
+    } else {
+      t.temp' = t.temp - 0.5;
+    }
+  }
+}

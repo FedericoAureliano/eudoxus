@@ -1,0 +1,85 @@
+uclid
+module ferryman_puzzle {
+
+    type location_t = enum { LEFT, RIGHT }; // Enum for representing locations
+
+    var ferryman : location_t; // Location of the ferryman
+    var goat : location_t; // Location of the goat
+    var cabbage : location_t; // Location of the cabbage
+    var wolf : location_t; // Location of the wolf
+    var carry : enum { NOTHING, GOAT, CABBAGE, WOLF }; // What is being carried in the ferry
+
+    // Initial state
+    init {
+        ferryman = LEFT;
+        goat = LEFT;
+        cabbage = LEFT;
+        wolf = LEFT;
+        carry = NOTHING;
+    }
+
+    // Define the goal state where all goods are on the other side
+    function goal_state() : boolean {
+        return (ferryman == RIGHT) && (goat == RIGHT) && (cabbage == RIGHT) && (wolf == RIGHT);
+    }
+
+    // Define a property to check if the goal state is reachable without any conflicts
+    property goal_reachable_without_conflicts() {
+        // The goat and cabbage should not be left alone on the same side
+        assert !((goat == cabbage) && (goat != ferryman));
+        // The goat and wolf should not be left alone on the same side
+        assert !((goat == wolf) && (goat != ferryman));
+        // Check if the goal state is reachable
+        assert goal_state();
+    }
+
+    // Define the state transition rules
+    // The ferryman can carry at most one item across the river
+    procedure cross_river(item : enum { GOAT, CABBAGE, WOLF }) {
+        require {
+            // Conditions for crossing with the goat
+            if (item == GOAT) {
+                assert goat == ferryman;
+            }
+            // Conditions for crossing with the cabbage
+            if (item == CABBAGE) {
+                assert cabbage == ferryman;
+            }
+            // Conditions for crossing with the wolf
+            if (item == WOLF) {
+                assert wolf == ferryman;
+            }
+        }
+        modify {
+            // Move the ferryman to the other side
+            ferryman' = (ferryman == LEFT) ? RIGHT : LEFT;
+            // Move the item across the river
+            if (item == GOAT) {
+                goat' = ferryman;
+            } else if (item == CABBAGE) {
+                cabbage' = ferryman;
+            } else if (item == WOLF) {
+                wolf' = ferryman;
+            }
+            // Update what is being carried in the ferry
+            carry' = item;
+        }
+    }
+
+    // Define the main control flow for crossing the river
+    control {
+        // Initial crossing with the goat
+        cross_river(GOAT);
+        // Second crossing with the cabbage
+        cross_river(CABBAGE);
+        // Third crossing with the wolf
+        cross_river(WOLF);
+        // Final crossing back with the goat
+        cross_river(GOAT);
+        // Check the property to see if the goal state is reachable without conflicts
+        goal_reachable_without_conflicts();
+    }
+}
+
+
+This Uclid5 model defines the ferryman puzzle scenario with the ferryman, goat, cabbage, and wolf, and ensures that the goal state is reachable without any conflicts occurring.

@@ -1,0 +1,72 @@
+module process1 {
+  input b2 : boolean;
+  input x : int;
+  output b1 : boolean;
+  output x1 : int;
+
+  init {
+    b1 = false;
+    x1 = x;
+  }
+
+  next {
+    if (b1) {
+      b1' = false;
+      x1' = x;
+    } else {
+      b1' = true;
+      x1' = 2;
+    }
+  }
+}
+
+module process2 {
+  input b1 : boolean;
+  input x : int;
+  output b2 : boolean;
+  output x2 : int;
+
+  init {
+    b2 = false;
+    x2 = x;
+  }
+
+  next {
+    if (b2) {
+      b2' = false;
+      x2' = x;
+    } else {
+      b2' = true;
+      x2' = 1;
+    }
+  }
+}
+
+module main {
+  var b1, b2 : boolean;
+  var x : int;
+
+  instance p1 : process1(b2, x);
+  instance p2 : process2(b1, x);
+
+  init {
+    b1 = false;
+    b2 = false;
+    x = nondet_int();
+    assume(x == 1 || x == 2);
+  }
+
+  next {
+    b1 = p1.b1;
+    b2 = p2.b2;
+    x = (x == 1) ? p2.x2 : p1.x1;
+  }
+
+  invariant no_simultaneous_critical_section : !(b1 && b2);
+
+  control {
+    v = unroll(10);
+    check;
+    print_results;
+  }
+}

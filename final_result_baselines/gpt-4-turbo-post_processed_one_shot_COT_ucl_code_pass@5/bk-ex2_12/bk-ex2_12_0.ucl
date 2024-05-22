@@ -1,0 +1,42 @@
+module main {
+    type state_t = enum { start, select };
+    var current_state : state_t;
+    var nsoda : int;
+    var nbeer : int;
+    const max : int;
+
+    // Actions
+    var coin, sget, bget, refill, ret_coin : boolean;
+
+    init {
+        current_state = start;
+        nsoda = max;
+        nbeer = max;
+    }
+
+    next {
+        if (current_state == start) {
+            if (coin) {
+                current_state' = select;
+            } else if (refill) {
+                nsoda' = max;
+                nbeer' = max;
+            }
+        } else if (current_state == select) {
+            if (nsoda > 0 && sget) {
+                nsoda' = nsoda - 1;
+                current_state' = start;
+            } else if (nbeer > 0 && bget) {
+                nbeer' = nbeer - 1;
+                current_state' = start;
+            } else if (nsoda == 0 && nbeer == 0 && ret_coin) {
+                current_state' = start;
+            }
+        }
+    }
+
+    // Guards for enabling actions
+    invariant enable_sget : (current_state == select && nsoda > 0) -> sget;
+    invariant enable_bget : (current_state == select && nbeer > 0) -> bget;
+    invariant enable_ret_coin : (current_state == select && nsoda == 0 && nbeer == 0) -> ret_coin;
+}

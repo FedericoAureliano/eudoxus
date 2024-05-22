@@ -1,0 +1,63 @@
+c
+module thermostat {
+    var temp : int; // temperature in degrees Celsius
+    var heatOn : bool; // heater state: on (true) or off (false)
+    var heatOff : bool; // heater state: on (true) or off (false)
+    var time : int; // time in seconds
+
+    init {
+        temp = 15; // initial temperature
+        heatOn = false; // initial heater state
+        heatOff = true; // initial heater state
+        time = 0; // initial time
+    }
+
+    transition {
+        // Turn on heater if temperature is less than or equal to 20 degrees
+        if (temp <= 20) {
+            heatOn' = true;
+            heatOff' = false;
+            time' = time + 30; // Set timer for 30 seconds
+        }
+        // Turn off heater if temperature is greater than 20 degrees
+        else if (temp > 20) {
+            heatOn' = false;
+            heatOff' = true;
+            time' = time + 120; // Set timer for 2 minutes
+        }
+
+        // Reset heater states based on time elapsed
+        if (heatOn && time >= 30) {
+            heatOn' = false;
+            heatOff' = true;
+            time' = 0; // Reset time
+        } else if (heatOff && time >= 120) {
+            heatOn' = false;
+            heatOff' = false;
+            time' = 0; // Reset time
+        }
+
+        // Update temperature (for demonstration purposes)
+        temp' = temp + 1; // Increase temperature by 1 degree every transition
+    }
+}
+
+module main {
+    instance t : thermostat;
+
+    init {
+        // Initial conditions for the thermostat
+        t.temp = 15;
+        t.heatOn = false;
+        t.heatOff = true;
+        t.time = 0;
+    }
+
+    next {
+        // Transition the thermostat model
+        next(t);
+    }
+}
+
+
+This Uclid5 model simulates the behavior of a thermostat controlling a heater according to the specified requirements. The model initializes the temperature, heater states, and time, and then transitions based on the temperature conditions and time elapsed. The heater is turned on/off based on the temperature thresholds and time constraints, ensuring that it reacts exactly once every 30 seconds.

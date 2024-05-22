@@ -1,0 +1,71 @@
+c
+module Train {
+  type state_t = enum { far, near, in };
+  var train_state : state_t;
+
+  init {
+    train_state = far;
+  }
+
+  next {
+    case
+      train_state == far : train_state' = near;
+      train_state == near : train_state' = in;
+      train_state == in : train_state' = far;
+    esac
+  }
+}
+
+module Gate {
+  type state_t = enum { up, down };
+  var gate_state : state_t;
+
+  init {
+    gate_state = up;
+  }
+
+  next {
+    case
+      gate_state == up && controller_state == 1 : gate_state' = down;
+      gate_state == down && controller_state == 3 : gate_state' = up;
+    esac
+  }
+}
+
+module Controller {
+  type state_t = enum { s0, s1, s2, s3 };
+  var controller_state : state_t;
+
+  init {
+    controller_state = s0;
+  }
+
+  next {
+    case
+      controller_state == s0 && train_state == near : controller_state' = s1;
+      controller_state == s1 && gate_state == down : controller_state' = s2;
+      controller_state == s2 && train_state == in : controller_state' = s3;
+      controller_state == s3 && gate_state == up : controller_state' = s0;
+    esac
+  }
+}
+
+module main {
+  instance t : Train;
+  instance g : Gate;
+  instance c : Controller;
+
+  init {
+    t.train_state = far;
+    g.gate_state = up;
+    c.controller_state = s0;
+  }
+
+  next {
+    t.next;
+    g.next;
+    c.next;
+  }
+
+  invariant safety_requirement : !(t.train_state == in && g.gate_state == up);
+}

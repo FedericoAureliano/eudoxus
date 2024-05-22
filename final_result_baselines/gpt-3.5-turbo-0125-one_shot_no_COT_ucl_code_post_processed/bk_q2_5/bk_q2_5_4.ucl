@@ -1,0 +1,49 @@
+uclid
+module process
+{
+  var s : 0..1; // shared variable
+  var y : array [0..1] of boolean; // local variables for each process
+
+  init {
+    s = 1;
+    y[0] = false;
+    y[1] = false;
+  }
+
+  procedure process_pi(i : 0..1)
+  {
+    while (true) {
+      // Noncritical section
+      // Entry section
+      y[i] = true;
+      s = i;
+      // Wait until the other process is not in its entry section or the shared variable is not i
+      wait(!(y[1-i] || s != i));
+      // Critical section
+      // Exit section
+      y[i] = false;
+    }
+  }
+}
+
+module main
+{
+  instance p0 : process.process_pi(0);
+  instance p1 : process.process_pi(1);
+
+  invariant mutual_exclusion {
+    !(p0.y[0] && p1.y[0]) && !(p0.y[1] && p1.y[1]);
+  }
+
+  invariant starvation_freedom {
+    always ((p0.y[0] || p0.y[1]) && (p1.y[0] || p1.y[1])) -> eventually (!p0.y[0] && !p0.y[1] && !p1.y[0] && !p1.y[1]);
+  }
+
+  control {
+    run p0.process_pi(0);
+    run p1.process_pi(1);
+  }
+}
+
+
+This code models the mutual exclusion protocol for two processes, ensures mutual exclusion by checking that both processes cannot be in their critical sections simultaneously, and ensures starvation freedom by checking that eventually, both processes exit their critical sections.

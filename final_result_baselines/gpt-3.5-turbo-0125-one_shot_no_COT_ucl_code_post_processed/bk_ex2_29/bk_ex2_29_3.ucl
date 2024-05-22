@@ -1,0 +1,90 @@
+c
+module BCR
+{
+    type state_t = enum { 0, 1 };
+
+    var BCR_state : state_t;
+    input scan : boolean; // bar code scanning signal
+
+    init {
+        BCR_state = 0;
+    }
+
+    next {
+        if (BCR_state == 0 && scan) {
+            BCR_state' = 1;
+        } else if (BCR_state == 1) {
+            BCR_state' = 0;
+        }
+    }
+}
+
+module BP
+{
+    type state_t = enum { 0, 1 };
+
+    var BP_state : state_t;
+    input data_received : boolean; // signal indicating data received from BCR
+    output print_command : boolean; // signal to send print command to Printer
+
+    init {
+        BP_state = 0;
+    }
+
+    next {
+        if (BP_state == 0 && data_received) {
+            BP_state' = 1;
+            print_command' = true;
+        } else if (BP_state == 1) {
+            BP_state' = 0;
+            print_command' = false;
+        }
+    }
+}
+
+module Printer
+{
+    type state_t = enum { 0, 1 };
+
+    var Printer_state : state_t;
+    input print_code : boolean; // signal to print article
+    output article_printed : boolean; // signal indicating article printed
+
+    init {
+        Printer_state = 0;
+    }
+
+    next {
+        if (Printer_state == 0 && print_code) {
+            Printer_state' = 1;
+            article_printed' = false;
+        } else if (Printer_state == 1) {
+            Printer_state' = 0;
+            article_printed' = true;
+        }
+    }
+}
+
+module main
+{
+    var BCR_state, BP_state, Printer_state : int;
+
+    instance bcr : BCR(BCR_state, scan);
+    instance bp : BP(BP_state, data_received, print_command);
+    instance printer : Printer(Printer_state, print_code, article_printed);
+
+    init {
+        BCR_state = 0;
+        BP_state = 0;
+        Printer_state = 0;
+    }
+
+    next {
+        next(bcr);
+        next(bp);
+        next(printer);
+    }
+}
+
+
+This Uclid5 code models the interactions between the bar code reader (BCR), the booking program (BP), and the printer in the supermarket booking system. The states and transitions for each module are defined as per the description provided.

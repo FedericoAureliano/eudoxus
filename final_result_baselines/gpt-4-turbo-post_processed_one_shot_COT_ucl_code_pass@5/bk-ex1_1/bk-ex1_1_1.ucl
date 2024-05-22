@@ -1,0 +1,52 @@
+module main {
+    // Define the shared variable
+    var x : integer;
+
+    // Define the initial condition for the shared variable
+    init {
+        x = *; // Non-deterministic initial value
+    }
+
+    // Define the processes
+    // Process Inc
+    procedure Inc() {
+        if (x < 200) {
+            x := x + 1;
+        }
+    }
+
+    // Process Dec
+    procedure Dec() {
+        if (x > 0) {
+            x := x - 1;
+        }
+    }
+
+    // Process Reset
+    procedure Reset() {
+        if (x == 200) {
+            x := 0;
+        }
+    }
+
+    // Define the next state based on non-deterministic choice of processes
+    next {
+        choice {
+            call Inc();
+        } or {
+            call Dec();
+        } or {
+            call Reset();
+        }
+    }
+
+    // Define the safety invariant
+    invariant x_range : x >= 0 && x <= 200;
+
+    // Control block for model checking
+    control {
+        v = unroll(10);
+        check;
+        print_results;
+    }
+}

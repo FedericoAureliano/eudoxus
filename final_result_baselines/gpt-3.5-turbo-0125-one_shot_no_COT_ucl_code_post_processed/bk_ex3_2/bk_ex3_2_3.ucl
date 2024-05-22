@@ -1,0 +1,60 @@
+uclid
+module dining_philosophers {
+    type philosopher_t : enum { THINKING, HUNGRY, EATING };
+    type chopstick_t : enum { FREE, TAKEN };
+
+    var phil1, phil2, phil3, phil4, phil5 : philosopher_t;
+    var chopstick1, chopstick2, chopstick3, chopstick4, chopstick5 : chopstick_t;
+
+    procedure take_chopsticks(i : int)
+        requires phil(i) == HUNGRY && chop(i) == FREE && chop((i+1)%5) == FREE;
+        modifies chopstick(i), chopstick((i+1)%5), phil(i);
+    {
+        chopstick(i) := TAKEN;
+        chopstick((i+1)%5) := TAKEN;
+        phil(i) := EATING;
+    }
+
+    procedure release_chopsticks(i : int)
+        requires phil(i) == EATING;
+        modifies chopstick(i), chopstick((i+1)%5), phil(i);
+    {
+        chopstick(i) := FREE;
+        chopstick((i+1)%5) := FREE;
+        phil(i) := THINKING;
+    }
+
+    procedure philosopher(i : int)
+    {
+        while (true) {
+            if (phil(i) == THINKING) {
+                if (chop(i) == FREE && chop((i+1)%5) == FREE) {
+                    take_chopsticks(i);
+                } else {
+                    phil(i) := HUNGRY;
+                }
+            } else if (phil(i) == HUNGRY) {
+                if (chop(i) == FREE && chop((i+1)%5) == FREE) {
+                    take_chopsticks(i);
+                }
+            } else if (phil(i) == EATING) {
+                release_chopsticks(i);
+            }
+        }
+    }
+
+    process philosopher(0);
+    process philosopher(1);
+    process philosopher(2);
+    process philosopher(3);
+    process philosopher(4);
+
+    property deadlock_possible {
+        exists i: int :: phil(i) == HUNGRY && chop(i) == TAKEN && chop((i+1)%5) == TAKEN;
+    }
+}
+
+
+This code models the dining philosophers problem with five philosophers and chopsticks. The philosophers alternate between thinking, being hungry, and eating. The `take_chopsticks` and `release_chopsticks` procedures handle the logic of picking up and releasing chopsticks. The `philosopher` process simulates the behavior of each philosopher.
+
+The property `deadlock_possible` checks if there exists a philosopher who is hungry and both neighboring chopsticks are taken, which would indicate a deadlock situation.

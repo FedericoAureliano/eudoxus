@@ -1,0 +1,57 @@
+// Module for Circuit C1
+module C1 {
+  var y1 : boolean;
+  var r1 : boolean;
+
+  init {
+    y1 = false; // Initial condition for output y1
+    r1 = false; // Initial condition for register r1
+  }
+
+  next {
+    y1' = r1;
+    r1' = !r1;
+  }
+}
+
+// Module for Circuit C2
+module C2 {
+  input x2 : boolean;
+  var y2 : boolean;
+  var r2 : boolean;
+
+  init {
+    y2 = false; // Initial condition for output y2
+    r2 = false; // Initial condition for register r2
+  }
+
+  next {
+    y2' = x2' | r2;
+    r2' = x2' | r2;
+  }
+}
+
+// Main module for synchronous composition
+module main {
+  var x2 : boolean;
+  instance c1 : C1;
+  instance c2 : C2(x2);
+
+  init {
+    x2 = false; // Initial condition for input x2
+    c1.init;
+    c2.init;
+  }
+
+  next {
+    x2' = !x2; // Example transition for x2
+    c1.next;
+    c2.next;
+  }
+
+  control {
+    v = unroll(5);
+    check;
+    print_results;
+  }
+}

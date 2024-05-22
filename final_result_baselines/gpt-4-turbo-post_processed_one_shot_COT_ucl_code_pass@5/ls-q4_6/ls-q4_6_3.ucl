@@ -1,0 +1,46 @@
+module main {
+    // Define variables
+    var light_on : boolean;
+    var door_open : boolean;
+    var time : int;
+
+    // Initialize variables
+    init {
+        light_on = false;
+        door_open = false;
+        time = 0;
+    }
+
+    // Define input to simulate door actions
+    input door_action : boolean;
+
+    // Define the next state based on current state and inputs
+    next {
+        // If any door is opened, turn on the light and reset the timer to 30
+        if (door_action) {
+            light_on' = true;
+            door_open' = true;
+            time' = 30;
+        } else {
+            // If doors are closed, check the timer
+            door_open' = false;
+            if (time > 0) {
+                // Decrement the timer if the light is still on
+                time' = time - 1;
+            } else {
+                // Turn off the light once the timer reaches 0
+                light_on' = false;
+            }
+        }
+    }
+
+    // Assertions to ensure the light behaves correctly
+    invariant light_on_iff_door_open_or_timer_active : light_on == (door_open || time > 0);
+
+    control {
+        // Unroll the transition system multiple times to simulate different scenarios
+        v = unroll(40);
+        check;
+        print_results;
+    }
+}

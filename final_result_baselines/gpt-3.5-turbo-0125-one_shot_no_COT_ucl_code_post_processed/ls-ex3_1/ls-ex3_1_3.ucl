@@ -1,0 +1,85 @@
+uclid
+module ArrivalDetector {
+    input arrival : bool;
+    output event_arrival : bool;
+
+    init {
+        event_arrival = false;
+    }
+
+    next {
+        if (arrival) {
+            event_arrival' = true;
+        } else {
+            event_arrival' = event_arrival;
+        }
+    }
+}
+
+module DepartureDetector {
+    input departure : bool;
+    output event_departure : bool;
+
+    init {
+        event_departure = false;
+    }
+
+    next {
+        if (departure) {
+            event_departure' = true;
+        } else {
+            event_departure' = event_departure;
+        }
+    }
+}
+
+module Counter {
+    input event_arrival : bool;
+    input event_departure : bool;
+    output display_update : bool;
+
+    var counter : int;
+
+    init {
+        counter = 0;
+        display_update = false;
+    }
+
+    next {
+        if (event_arrival) {
+            counter' = counter + 1;
+            display_update' = true;
+        } else if (event_departure) {
+            counter' = counter - 1;
+            display_update' = true;
+        } else {
+            counter' = counter;
+            display_update' = false;
+        }
+    }
+}
+
+module main {
+    var arrival : bool;
+    var departure : bool;
+    var event_arrival : bool;
+    var event_departure : bool;
+    var display_update : bool;
+
+    instance arrivalDetector : ArrivalDetector(arrival, event_arrival);
+    instance departureDetector : DepartureDetector(departure, event_departure);
+    instance counter : Counter(event_arrival, event_departure, display_update);
+
+    init {
+        arrival = false;
+        departure = false;
+    }
+
+    next {
+        havoc arrival;
+        havoc departure;
+        next(arrivalDetector);
+        next(departureDetector);
+        next(counter);
+    }
+}

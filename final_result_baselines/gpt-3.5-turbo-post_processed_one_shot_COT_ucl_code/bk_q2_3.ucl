@@ -1,0 +1,109 @@
+
+module TrafficLight
+{
+  type light_state = enum { Green, Yellow, Red, Amber };
+
+  var state : light_state;
+  input set_green : boolean;
+  input set_yellow : boolean;
+  input set_red : boolean;
+  input set_amber : boolean;
+  output green : boolean;
+  output yellow : boolean;
+  output red : boolean;
+  output amber : boolean;
+
+  init {
+    state = Green;
+    green = true;
+    yellow = false;
+    red = false;
+    amber = false;
+  }
+
+  next {
+    if (set_green) {
+      state = Green;
+      green = true;
+      yellow = false;
+      red = false;
+      amber = false;
+    } else if (set_yellow) {
+      state = Yellow;
+      green = false;
+      yellow = true;
+      red = false;
+      amber = false;
+    } else if (set_red) {
+      state = Red;
+      green = false;
+      yellow = false;
+      red = true;
+      amber = false;
+    } else if (set_amber) {
+      state = Amber;
+      green = false;
+      yellow = false;
+      red = false;
+      amber = true;
+    }
+  }
+}
+
+module Controller
+{
+  var L1, L2, L3, L4 : TrafficLight;
+  var switch_order : array [0, 1, 2, 3];
+  var current_index : int;
+
+  init {
+    switch_order = [0, 2, 1, 3]; // L1, L3, L2, L4
+    current_index = 0;
+  }
+
+  next {
+    if (current_index == 0) {
+      L1.set_green = true;
+      L3.set_green = true;
+    } else if (current_index == 1) {
+      L2.set_green = true;
+    } else if (current_index == 2) {
+      L1.set_green = false;
+      L3.set_green = false;
+      L2.set_green = false;
+      L4.set_green = true;
+    } else if (current_index == 3) {
+      L4.set_green = false;
+      current_index = -1;
+    }
+    current_index = current_index + 1;
+  }
+}
+
+module main
+{
+  var L1, L2, L3, L4 : TrafficLight;
+  var C : Controller;
+
+  init {
+    L1 = new TrafficLight;
+    L2 = new TrafficLight;
+    L3 = new TrafficLight;
+    L4 = new TrafficLight;
+    C = new Controller;
+
+    // Initial setup of traffic lights
+    L1.set_red = true;
+    L2.set_red = true;
+    L3.set_red = true;
+    L4.set_red = true;
+  }
+
+  next {
+    next(C);
+    next(L1);
+    next(L2);
+    next(L3);
+    next(L4);
+  }
+}

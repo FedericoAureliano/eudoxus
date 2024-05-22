@@ -1,0 +1,41 @@
+module main {
+  // Define the threshold as a constant.
+  const THRESHOLD : int = 25;
+
+  // Variables for temperature and count of threshold exceedance events.
+  var temp : int;
+  var count : int;
+
+  // Initialization of variables.
+  init {
+    temp = 20; // initial temperature
+    count = 0;  // initial count
+  }
+
+  // Transition relation describing how the system evolves.
+  next {
+    // Non-deterministic change in temperature.
+    temp' = choose {
+      temp + 1, // temperature can increase by 1
+      temp - 1, // temperature can decrease by 1
+      temp      // temperature can remain the same
+    };
+
+    // Increment count if the temperature exceeds the threshold.
+    if (temp' > THRESHOLD) {
+      count' = count + 1;
+    } else {
+      count' = count;
+    }
+  }
+
+  // Safety property to check correctness.
+  invariant count_correctness : (temp > THRESHOLD) -> (count > 0);
+
+  // Control block for model checking.
+  control {
+    v = unroll(10); // Unroll the transition system 10 times.
+    check;          // Check all properties.
+    print_results;  // Print the results of the checks.
+  }
+}

@@ -1,0 +1,55 @@
+uclid
+module traffic_light_systems {
+  var traffic_light1 : boolean; // true for green, false for red
+  var traffic_light2 : boolean; // true for green, false for red
+
+  var green1 : boolean;
+  var red1 : boolean;
+  var green2 : boolean;
+  var red2 : boolean;
+
+  process traffic_light_1 {
+    var pc : enum { RED, GREEN };
+
+    init {
+      pc = RED;
+      traffic_light1 = false; // red
+      green1 = false;
+      red1 = true;
+    }
+
+    transition {
+      case
+        pc == RED && traffic_light2 && traffic_light1 : { pc = GREEN; traffic_light1 = true; green1 = true; red1 = false; }
+        pc == GREEN && traffic_light2 && !traffic_light1 : { pc = RED; traffic_light1 = false; green1 = false; red1 = true; }
+      esac
+    }
+  }
+
+  process traffic_light_2 {
+    var pc : enum { RED, GREEN };
+
+    init {
+      pc = GREEN;
+      traffic_light2 = true; // green
+      green2 = true;
+      red2 = false;
+    }
+
+    transition {
+      case
+        pc == RED && traffic_light1 && !traffic_light2 : { pc = GREEN; traffic_light2 = true; green2 = true; red2 = false; }
+        pc == GREEN && !traffic_light1 && !traffic_light2 : { pc = RED; traffic_light2 = false; green2 = false; red2 = true; }
+      esac
+    }
+  }
+
+  invariant no_deadlock : !(traffic_light_1.pc == traffic_light_2.pc && traffic_light_1.traffic_light1 == traffic_light_2.traffic_light2);
+
+  control {
+    unroll;
+    check {
+      report no_deadlock;
+    }
+  }
+}

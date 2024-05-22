@@ -1,0 +1,95 @@
+uclid
+module Train
+{
+  type train_state_t = enum { far, near, in };
+  var train_state : train_state_t;
+
+  input train_approaching : boolean;
+  input train_crossed : boolean;
+
+  init {
+    train_state = far;
+  }
+
+  next {
+    if (train_state == far && train_approaching) {
+      train_state' = near;
+    } else if (train_state == near && train_crossed) {
+      train_state' = in;
+    } else if (train_state == in) {
+      train_state' = far;
+    } else {
+      train_state' = train_state;
+    }
+  }
+}
+
+module Gate
+{
+  type gate_state_t = enum { up, down };
+  var gate_state : gate_state_t;
+
+  init {
+    gate_state = up;
+  }
+
+  next {
+    if (gate_state == up) {
+      gate_state' = down;
+    } else {
+      gate_state' = up;
+    }
+  }
+}
+
+module Controller
+{
+  type controller_state_t = enum { 0, 1, 2, 3 };
+  var controller_state : controller_state_t;
+
+  input train_approaching : boolean;
+  input train_crossed : boolean;
+
+  init {
+    controller_state = 0;
+  }
+
+  next {
+    if (controller_state == 0 && train_approaching) {
+      controller_state' = 1;
+    } else if (controller_state == 1) {
+      controller_state' = 2;
+    } else if (controller_state == 2 && train_crossed) {
+      controller_state' = 3;
+    } else if (controller_state == 3) {
+      controller_state' = 0;
+    } else {
+      controller_state' = controller_state;
+    }
+  }
+}
+
+module RailroadCrossingSystem
+{
+  instance train : Train;
+  instance gate : Gate;
+  instance controller : Controller;
+
+  init {
+    train.train_state = Train.far;
+    gate.gate_state = Gate.up;
+    controller.controller_state = Controller.0;
+  }
+
+  next {
+    train.train_approaching = nondet();
+    train.train_crossed = nondet();
+    controller.train_approaching = train.train_approaching;
+    controller.train_crossed = train.train_crossed;
+  }
+
+  invariant gates_closed_when_train_crossing : (controller.controller_state == Controller.2) -> (gate.gate_state == Gate.down);
+}
+
+
+This Uclid5 code models the system with the Train, Gate, and Controller components as described. The `RailroadCrossingSystem` module orchestrates the interactions between these components and enforces the invariant that the gates are always closed when the train is crossing the road.

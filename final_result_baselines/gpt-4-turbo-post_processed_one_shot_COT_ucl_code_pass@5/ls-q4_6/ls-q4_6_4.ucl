@@ -1,0 +1,45 @@
+
+module main {
+  type time_t = [0..31]; // Represents time from 0 to 30 seconds, with 31 as a cap to stop incrementing
+
+  var light_on : boolean;
+  var door_open : boolean;
+  var time : time_t;
+
+  init {
+    light_on = false;
+    door_open = false;
+    time = 0;
+  }
+
+  input door_open_input : boolean;
+
+  next {
+    if (door_open_input) {
+      light_on' = true;
+      time' = 0;
+    } else {
+      if (time < 30) {
+        time' = time + 1;
+      } else {
+        time' = time;
+      }
+
+      if (time < 30) {
+        light_on' = true;
+      } else {
+        light_on' = false;
+      }
+    }
+
+    door_open' = door_open_input;
+  }
+
+  invariant light_safety : !(time > 30 && light_on);
+
+  control {
+    v = unroll(60);
+    check;
+    print_results;
+  }
+}

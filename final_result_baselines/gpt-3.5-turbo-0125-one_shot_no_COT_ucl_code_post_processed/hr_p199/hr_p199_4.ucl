@@ -1,0 +1,96 @@
+
+module ferryman_puzzle
+{
+    type side_t = enum { LEFT, RIGHT };
+    type item_t = enum { FERRYMAN, GOAT, CABBAGE, WOLF, NONE };
+
+    var ferryman : side_t;
+    var goat : side_t;
+    var cabbage : side_t;
+    var wolf : side_t;
+    var carry : item_t;
+
+    init {
+        ferryman = LEFT;
+        goat = LEFT;
+        cabbage = LEFT;
+        wolf = LEFT;
+        carry = NONE;
+    }
+
+    procedure cross_ferry(item : item_t)
+        modifies ferryman;
+        modifies goat;
+        modifies cabbage;
+        modifies wolf;
+        modifies carry;
+    {
+        assume(ferryman == LEFT);
+        assume(item != NONE);
+
+        ferryman' = RIGHT;
+        carry' = item;
+
+        if (item == GOAT) {
+            goat' = RIGHT;
+        } else if (item == CABBAGE) {
+            cabbage' = RIGHT;
+        } else if (item == WOLF) {
+            wolf' = RIGHT;
+        }
+    }
+
+    procedure return_ferry(item : item_t)
+        modifies ferryman;
+        modifies goat;
+        modifies cabbage;
+        modifies wolf;
+        modifies carry;
+    {
+        assume(ferryman == RIGHT);
+        assume(item != NONE);
+
+        ferryman' = LEFT;
+        carry' = NONE;
+
+        if (item == GOAT) {
+            goat' = LEFT;
+        } else if (item == CABBAGE) {
+            cabbage' = LEFT;
+        } else if (item == WOLF) {
+            wolf' = LEFT;
+        }
+    }
+
+    next {
+        // Rules for moving items across the river
+        if (ferryman == LEFT) {
+            if (goat == LEFT && cabbage == LEFT && carry == NONE) {
+                cross_ferry(GOAT);
+            } else if (goat == LEFT && wolf == LEFT && carry == NONE) {
+                cross_ferry(GOAT);
+            } else if (cabbage == LEFT && wolf == LEFT && carry == NONE) {
+                cross_ferry(CABBAGE);
+            }
+        } else if (ferryman == RIGHT) {
+            if (carry != NONE) {
+                return_ferry(carry);
+            }
+        }
+    }
+
+    // Goal state where all items are on the other side
+    invariant goal_state_reached : goat == RIGHT && cabbage == RIGHT && wolf == RIGHT;
+
+    // Property to check if the goal state is reachable without conflicts
+    property no_conflicts {
+        always {
+            !(goat == LEFT && cabbage == LEFT && ferryman == RIGHT) &&
+            !(goat == LEFT && wolf == LEFT && ferryman == RIGHT) &&
+            !(cabbage == LEFT && wolf == LEFT && ferryman == RIGHT)
+        }
+    }
+}
+
+
+This Uclid5 model represents the ferryman puzzle scenario and defines the rules for moving the items across the river. It also includes an invariant for the goal state where all items are on the other side of the river and a property to check if the goal state is reachable without any conflicts occurring.

@@ -1,0 +1,58 @@
+/*
+Ferryman, Goat, Cabbage, Wolf problem in UCLID5
+*/
+
+module main
+{
+    // State variables.
+    var ferryman : {left, right};
+    var goat     : {left, right};
+    var cabbage  : {left, right};
+    var wolf     : {left, right};
+    var carry    : {none, goat, cabbage, wolf};
+
+    // Initial state.
+    init {
+        ferryman = left;
+        goat     = left;
+        cabbage  = left;
+        wolf     = left;
+        carry    = none;
+    }
+
+    // Transition relation.
+    next {
+        // ferryman moves to the other side.
+        case
+          (carry == none) : {
+            ferryman' = if (ferryman == left) then right else left;
+          }
+          (carry != none) : {
+            ferryman' = if (ferryman == left) then right else left;
+            // the carried object moves also.
+            goat'     = if (carry == goat)     then ferryman' else goat;
+            cabbage'  = if (carry == cabbage)  then ferryman' else cabbage;
+            wolf'     = if (carry == wolf)     then ferryman' else wolf;
+          }
+        esac
+    }
+
+    // Safety conditions.
+    always {
+        // the goat cannot be left alone with the cabbage or the wolf.
+        assert (ferryman != goat) -> ((goat != cabbage) && (goat != wolf));
+    }
+
+    // Goal state.
+    // The goal is to transport the goat, cabbage, and wolf to the right side.
+    // The ferryman must also be on the right side.
+    property p1 : (ferryman = right && goat = right && cabbage = right && wolf = right);
+
+    // Proof obligation.
+    control {
+        // print_module;
+        v = bmc[proof=true, depth=5];
+        check;
+        v.print_cex;
+    }
+}

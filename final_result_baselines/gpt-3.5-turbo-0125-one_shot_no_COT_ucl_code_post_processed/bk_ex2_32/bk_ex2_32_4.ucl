@@ -1,0 +1,77 @@
+uclid
+module SenderReceiverSystem {
+  module Sender {
+    var m : int; // message
+    var b : bool; // control bit
+
+    input send : bool; // signal to send message
+    output c : int; // channel c
+
+    init {
+      m = 0;
+      b = false;
+      c = 0;
+    }
+
+    next {
+      if (send) {
+        c' = m;
+      }
+    }
+  }
+
+  module Receiver {
+    var m : int; // received message
+    var b : bool; // received control bit
+    var ack : bool; // acknowledgement
+
+    input d : int; // channel d
+    output receive : bool; // signal to receive message
+
+    init {
+      m = 0;
+      b = false;
+      ack = false;
+      receive = false;
+    }
+
+    next {
+      if (receive) {
+        m' = d;
+        b' = !b;
+        ack' = b;
+      }
+    }
+  }
+
+  var c : int; // buffer for channel c
+  var d : int; // buffer for channel d
+
+  instance s : Sender(send, c);
+  instance r : Receiver(d, receive);
+
+  init {
+    c = 0;
+    d = 0;
+  }
+
+  next {
+    if (s.send) {
+      d' = s.c;
+    }
+
+    if (r.receive) {
+      c' = r.m;
+    }
+  }
+
+  // Retransmission logic
+  if (s.send && !r.receive) {
+    s.send' = true;
+  } else {
+    s.send' = false;
+  }
+}
+
+
+This model captures the behavior of the sender, receiver, and the main system module that coordinates their interactions. The sender sends messages with control bits, and the receiver acknowledges the receipt of messages. If the receiver does not receive the message, the sender will retransmit.

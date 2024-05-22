@@ -1,0 +1,38 @@
+module main {
+    type pc_t = enum { wait1, crit1, wait2, crit2 };
+    var x : 1..2;
+    var b1, b2 : boolean;
+
+    procedure P1()
+    {
+        loop {
+            b1 = true;
+            x = 2;
+            wait (x == 1 || !b2);
+            do crit1;
+            b1 = false;
+        }
+    }
+
+    procedure P2()
+    {
+        loop {
+            b2 = true;
+            x = 1;
+            wait (x == 2 || !b1);
+            do crit2;
+            b2 = false;
+        }
+    }
+
+    init {
+        b1 = false;
+        b2 = false;
+        x = 1;
+    }
+
+    next {
+        P1();
+        P2();
+    }
+}

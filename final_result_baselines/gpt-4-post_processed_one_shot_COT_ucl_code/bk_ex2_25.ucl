@@ -1,0 +1,56 @@
+module process_scheduler {
+    type location_t = enum { IDLE, WAIT, CRIT };
+    var b1, b2 : boolean;
+    var x : {1, 2};
+
+    // Process 1 behavior
+    procedure P1()
+    modifies b1, x;
+    {
+        b1 := true;
+        x := 2;
+        while (x != 1 && b2) {
+            // wait
+        }
+        // Critical Section
+        b1 := false;
+    }
+
+    // Process 2 behavior
+    procedure P2()
+    modifies b2, x;
+    {
+        b2 := true;
+        x := 1;
+        while (x != 2 && b1) {
+            // wait
+        }
+        // Critical Section
+        b2 := false;
+    }
+
+    // Main control loop for interleaving P1 and P2 actions
+    init {
+        b1 = false;
+        b2 = false;
+        x = 1; // Arbitrary initial choice
+    }
+
+    next {
+        choice {
+            call P1();
+        }
+        or {
+            call P2();
+        }
+    }
+
+    // Safety property: Mutual exclusion
+    invariant mutual_exclusion : !(b1 && b2);
+
+    control {
+        v = unroll(10);
+        check;
+        print_results;
+    }
+}

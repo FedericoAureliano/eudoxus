@@ -1,0 +1,51 @@
+
+module dome_light
+{
+  var light_on : boolean;
+  input door_open : boolean;
+  input time : int;
+  output light_on : boolean;
+
+  init {
+    light_on = false;
+  }
+
+  next {
+    if (door_open) {
+      light_on' = true; // Dome light turns on when any door is opened
+    } else {
+      if (time < 30) {
+        light_on' = true; // Dome light stays on for 30 seconds after all doors are closed
+      } else {
+        light_on' = false; // Dome light turns off after 30 seconds
+      }
+    }
+  }
+}
+
+module main
+{
+  var door_open : boolean;
+  var time : int;
+  var light_on : boolean;
+
+  instance dl : dome_light(light_on, door_open, time);
+
+  init {
+    door_open = false; // Initially all doors are closed
+    time = 0; // Initial time is 0 seconds
+  }
+
+  next {
+    // Simulate door opening and closing events
+    door_open' = nondet;
+    if (door_open) {
+      time' = 0; // Reset time when a door is opened
+    } else {
+      time' = time + 1; // Increment time when all doors are closed
+    }
+
+    // Update dome light behavior based on inputs
+    next(dl);
+  }
+}

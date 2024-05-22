@@ -1,0 +1,57 @@
+uclid
+module circuit1 {
+    var r1 : boolean;
+    output y1 : boolean;
+
+    init {
+        r1 = false;
+        y1 = false;
+    }
+
+    next {
+        y1' = r1;
+        r1' = !r1;
+    }
+}
+
+module circuit2 {
+    input x2 : boolean;
+    var r2 : boolean;
+    output y2 : boolean;
+
+    init {
+        r2 = false;
+        y2 = false;
+    }
+
+    next {
+        y2' = x2 | r2;
+        r2' = x2 | r2;
+    }
+}
+
+module main {
+    var x2 : boolean;
+    var y1, y2 : boolean;
+    var r1, r2 : boolean;
+
+    instance c1 : circuit1(y1, r1);
+    instance c2 : circuit2(x2, y2, r2);
+
+    init {
+        x2 = false;
+    }
+
+    next {
+        havoc x2;
+        next(c1);
+        next(c2);
+    }
+}
+
+
+In this model, `circuit1` represents the first circuit C1 without input variables and with output variable `y1` and register `r1`. The control functions for the transitions of `y1` and `r1` are defined accordingly.
+
+`circuit2` represents the second circuit C2 with input variable `x2`, output variable `y2`, and register variable `r2`. The control functions for the transitions of `y2` and `r2` are specified based on the given description.
+
+The `main` module orchestrates the synchronous composition of the two circuits C1 and C2, where the input `x2` is controlled in each step, and the transitions of both circuits are executed accordingly.

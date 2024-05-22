@@ -1,0 +1,44 @@
+module traffic_light {
+  type state_t = enum { Red, Green };
+  var light_state : state_t;
+
+  init {
+    light_state = Red;
+  }
+
+  next {
+    light_state' = case
+      light_state == Red : Green;
+      light_state == Green : Red;
+      true : light_state;
+    esac;
+  }
+}
+
+module main {
+  var red1, green1, red2, green2 : boolean;
+
+  instance light1 : traffic_light();
+  instance light2 : traffic_light();
+
+  init {
+    red1 = true; green1 = false; // Initial state of light1
+    red2 = true; green2 = false; // Initial state of light2
+  }
+
+  next {
+    // Update the state of the first traffic light
+    red1' = light1.light_state' == Red;
+    green1' = light1.light_state' == Green;
+
+    // Update the state of the second traffic light
+    red2' = light2.light_state' == Red;
+    green2' = light2.light_state' == Green;
+  }
+
+  invariant no_conflict1 : !(red1 && green1);
+  invariant no_conflict2 : !(red2 && green2);
+
+  invariant mutual_exclusivity1 : red1 || green1;
+  invariant mutual_exclusivity2 : red2 || green2;
+}

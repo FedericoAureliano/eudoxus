@@ -1,0 +1,71 @@
+uclid
+module traffic_light1 {
+  type state_t = enum { RED, GREEN };
+
+  var state : state_t;
+  output traffic_light1 : state_t;
+
+  init {
+    state = RED;
+    traffic_light1 = state;
+  }
+
+  next {
+    if (state == RED) {
+      traffic_light1' = GREEN;
+    } else {
+      traffic_light1' = RED;
+    }
+  }
+}
+
+module traffic_light2 {
+  type state_t = enum { RED, GREEN };
+
+  var state : state_t;
+  output traffic_light2 : state_t;
+
+  init {
+    state = GREEN;
+    traffic_light2 = state;
+  }
+
+  next {
+    if (state == RED) {
+      traffic_light2' = GREEN;
+    } else {
+      traffic_light2' = RED;
+    }
+  }
+}
+
+module main {
+  var green1, red1 : boolean;
+  var green2, red2 : boolean;
+
+  instance tl1 : traffic_light1(traffic_light1);
+  instance tl2 : traffic_light2(traffic_light2);
+
+  init {
+    assume(tl1.traffic_light1 == RED && tl2.traffic_light2 == GREEN);
+    green1 = (tl1.traffic_light1 == GREEN);
+    red1 = (tl1.traffic_light1 == RED);
+    green2 = (tl2.traffic_light2 == GREEN);
+    red2 = (tl2.traffic_light2 == RED);
+  }
+
+  next {
+    next(tl1);
+    next(tl2);
+
+    green1 = (tl1.traffic_light1 == GREEN);
+    red1 = (tl1.traffic_light1 == RED);
+    green2 = (tl2.traffic_light2 == GREEN);
+    red2 = (tl2.traffic_light2 == RED);
+  }
+
+  invariant no_deadlock : !(red1 && red2 && green1 && green2);
+}
+
+
+This code models the behavior of two traffic lights at an intersection and checks for the possibility of a deadlock where both lights are red and green simultaneously.

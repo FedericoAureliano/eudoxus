@@ -1,0 +1,49 @@
+
+module railroad_crossing_system
+{
+  type train_state_t = enum { far, near, in };
+  type gate_state_t = enum { up, down };
+  type controller_state_t = enum { 0, 1, 2, 3 };
+
+  var train_state : train_state_t;
+  var gate_state : gate_state_t;
+  var controller_state : controller_state_t;
+
+  init {
+    train_state = far;
+    gate_state = up;
+    controller_state = 0;
+  }
+
+  transition {
+    // Train approaching
+    if (train_state == far) {
+      train_state := near;
+      controller_state := 1;
+    }
+
+    // Gate lowering
+    if (controller_state == 1) {
+      gate_state := down;
+      controller_state := 2;
+    }
+
+    // Train at the crossing
+    if (train_state == near && controller_state == 2) {
+      train_state := in;
+    }
+
+    // Train exiting the crossing
+    if (train_state == in) {
+      controller_state := 3;
+    }
+
+    // Gate raising
+    if (controller_state == 3) {
+      gate_state := up;
+      controller_state := 0;
+    }
+  }
+
+  invariant gates_closed_when_train_crossing: (train_state == in) => (gate_state == down);
+}

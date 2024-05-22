@@ -1,0 +1,55 @@
+uclid
+module heaterSystem {
+  var temp : int; // temperature in degrees Celsius
+  var heatOn : boolean; // heater state - on (true) or off (false)
+  var heatOff : boolean; // heater state - off (true) or on (false)
+  var time : int; // time elapsed in seconds
+
+  init {
+    assume(temp <= 20); // Initial temperature condition
+    heatOn = true; // Initial state - heater is on
+    heatOff = false;
+    time = 0; // Initial time
+  }
+
+  transition {
+    // Transition to turn off the heater after at least 30 seconds
+    if (heatOn && time >= 30) {
+      heatOn' = false;
+      heatOff' = true;
+    }
+    // Transition to turn on the heater if temperature is less than or equal to 20 degrees
+    else if (heatOff && temp <= 20 && time >= 120) {
+      heatOn' = true;
+      heatOff' = false;
+    }
+    // Transition to reset time when heater state changes
+    else if ((heatOn && !heatOn') || (heatOff && !heatOff')) {
+      time' = 0;
+    }
+    // Increment time
+    else {
+      time' = time + 1;
+    }
+  }
+
+  transition {
+    // Ensure only one transition occurs every 30 seconds
+    time' = time;
+    heatOn' = heatOn;
+    heatOff' = heatOff;
+    temp' = temp;
+  }
+
+  invariant {
+    // Invariant to ensure heater state changes as per the rules
+    if (heatOn) {
+      time >= 30;
+    } else if (heatOff) {
+      time >= 120;
+    }
+  }
+}
+
+
+This Uclid5 model captures the behavior of a thermostat controlling a heater system based on the specified conditions. The model includes variables for temperature, heater states (on and off), and time elapsed. The transitions ensure that the heater behaves according to the described rules, reacting exactly once every 30 seconds.

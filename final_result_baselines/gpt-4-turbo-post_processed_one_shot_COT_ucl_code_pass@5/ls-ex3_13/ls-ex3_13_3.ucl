@@ -1,0 +1,70 @@
+module main {
+    // State type
+    type state_t = enum { RED, GREEN, PENDING, YELLOW };
+
+    // State variable
+    var state : state_t;
+    var count : integer;
+
+    // Input
+    input pedestrian : boolean;
+
+    // Outputs
+    output sigG : boolean;
+    output sigY : boolean;
+    output sigR : boolean;
+
+    // Initialization
+    init {
+        state = RED;
+        count = 0;
+        sigG = false;
+        sigY = false;
+        sigR = true;
+    }
+
+    // Next state logic
+    next {
+        count' = count + 1;
+        case
+            (state == RED) && (count == 60) : {
+                state' = GREEN;
+                count' = 0;
+            }
+            (state == GREEN) && (count < 60) && pedestrian : {
+                state' = PENDING;
+                count' = count; // Keep the current count
+            }
+            (state == GREEN) && (count == 60) && !pedestrian : {
+                state' = YELLOW;
+                count' = 0;
+            }
+            (state == PENDING) && (count == 60) : {
+                state' = YELLOW;
+                count' = 0;
+            }
+            (state == YELLOW) && (count == 5) : {
+                state' = RED;
+                count' = 0;
+            }
+            true : {
+                state' = state;
+                count' = count;
+            }
+        esac
+    }
+
+    // Output logic
+    next {
+        sigG = (state' == GREEN);
+        sigY = (state' == YELLOW);
+        sigR = (state' == RED);
+    }
+
+    // Control for model checking
+    control {
+        v = unroll(120);
+        check;
+        print_results;
+    }
+}

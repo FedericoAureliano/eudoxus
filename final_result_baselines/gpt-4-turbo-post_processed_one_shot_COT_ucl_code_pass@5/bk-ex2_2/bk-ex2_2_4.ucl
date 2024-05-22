@@ -1,0 +1,41 @@
+module main {
+    type state_t = enum { pay, select, soda, beer };
+    var current_state : state_t;
+    var coin_inserted : boolean;
+
+    // Define initial state
+    init {
+        current_state = pay;
+        coin_inserted = false;
+    }
+
+    // Input signals
+    input insert_coin : boolean;
+    input select_soda : boolean;
+    input select_beer : boolean;
+
+    // State transition logic
+    next {
+        if (current_state == pay && insert_coin) {
+            current_state' = select;
+            coin_inserted' = true;
+        } else if (current_state == select && select_soda && coin_inserted) {
+            current_state' = soda;
+        } else if (current_state == select && select_beer && coin_inserted) {
+            current_state' = beer;
+        } else {
+            current_state' = current_state;
+            coin_inserted' = coin_inserted;
+        }
+    }
+
+    // LTL Property: A drink is delivered only if a coin has been inserted
+    // This checks that if we are in state soda or beer, then coin_inserted must have been true.
+    ltl deliver_after_payment { G ((current_state == soda || current_state == beer) -> coin_inserted) }
+}
+
+// Control block for model checking
+control {
+    v = check;
+    print_results;
+}

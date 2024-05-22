@@ -1,0 +1,66 @@
+module traffic_light1 {
+    var green1 : boolean;
+    var red1 : boolean;
+
+    init {
+        green1 = false;
+        red1 = true;
+    }
+
+    next {
+        if (action_A) {
+            green1' = true;
+            red1' = false;
+        } else if (action_B) {
+            green1' = false;
+            red1' = true;
+        }
+    }
+}
+
+module traffic_light2 {
+    var green2 : boolean;
+    var red2 : boolean;
+
+    init {
+        green2 = true;
+        red2 = false;
+    }
+
+    next {
+        if (action_A) {
+            green2' = false;
+            red2' = true;
+        } else if (action_B) {
+            green2' = true;
+            red2' = false;
+        }
+    }
+}
+
+module main {
+    var action_A : boolean;
+    var action_B : boolean;
+
+    instance tl1 : traffic_light1;
+    instance tl2 : traffic_light2;
+
+    init {
+        action_A = false;
+        action_B = false;
+    }
+
+    next {
+        action_A' = non_det();
+        action_B' = non_det();
+        assume (action_A' != action_B'); // Ensure that both actions do not occur simultaneously
+    }
+
+    invariant no_deadlock : !(tl1.red1 && tl2.red2) && !(tl1.green1 && tl2.green2);
+
+    control {
+        v = unroll(5);
+        check;
+        print_results;
+    }
+}

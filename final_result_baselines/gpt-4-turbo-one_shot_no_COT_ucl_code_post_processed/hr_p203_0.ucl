@@ -1,0 +1,121 @@
+module message_channel
+{
+  type message_t = record {
+    data : boolean;
+    control_bit : boolean;
+  };
+
+  var message : message_t;
+  var lossy : boolean;
+
+  input in_message : message_t;
+  input simulate_loss : boolean;
+
+  init {
+    message = {data: false, control_bit: false};
+    lossy = false;
+  }
+
+  next {
+    if (simulate_loss) {
+      lossy' = true;
+    } else {
+      message' = in_message;
+      lossy' = false;
+    }
+  }
+}
+
+module ack_channel
+{
+  var ack : boolean;
+  var lossy : boolean;
+
+  input in_ack : boolean;
+  input simulate_loss : boolean;
+
+  init {
+    ack = false;
+    lossy = false;
+  }
+
+  next {
+    if (simulate_loss) {
+      lossy' = true;
+    } else {
+      ack' = in_ack;
+      lossy' = false;
+    }
+  }
+}
+
+module sender
+{
+  var st : boolean;
+  var message : boolean;
+  var waiting_for_ack : boolean;
+
+  input received_ack : boolean;
+  input expected_ack : boolean;
+
+  init {
+    st = false;
+    message = false;
+    waiting_for_ack = false;
+  }
+
+  next {
+    if (!waiting_for_ack || (waiting_for_ack && received_ack == expected_ack)) {
+      st' = !st;
+      message' = !message;
+      waiting_for_ack' = true;
+    }
+  }
+}
+
+module receiver
+{
+  var st : boolean;
+  var last_received_st : boolean;
+
+  input received_message : message_channel.message_t;
+
+  init {
+    st = false;
+    last_received_st = false;
+  }
+
+  next {
+    if (received_message.control_bit == st) {
+      st' = !st;
+      last_received_st' = received_message.control_bit;
+    }
+  }
+}
+
+module main
+{
+  var message1 : message_channel.message_t;
+  var message2 : message_channel.message_t;
+  var ack : boolean;
+
+  instance msg_channel : message_channel(in_message: message1, simulate_loss: false);
+  instance ack_channel : ack_channel(in_ack: ack, simulate_loss: false);
+  instance sender_inst : sender(received_ack: ack_channel.ack, expected_ack: sender_inst.st);
+  instance receiver_inst : receiver(received_message: msg_channel.message);
+
+  init {
+    message1 = {data: false, control_bit: false};
+    message2 = {data: false, control_bit: false};
+    ack = false;
+  }
+
+  next {
+    message1.data' = sender_inst.message;
+    message1.control_bit' = sender_inst.st;
+    ack' = receiver_inst.last_received_st;
+  }
+
+  invariant check_ack_sync : (sender_inst.waiting_for_ack -> sender_inst.st == ack_channel.ack);
+  invariant check_msg_sync : (receiver_inst.st == !message_channel.message.control_bit);
+}

@@ -1,0 +1,49 @@
+module main {
+    // Define the state of each traffic light
+    type state_t = enum { green, red };
+
+    // State variables for each traffic light
+    var traffic_light1 : state_t;
+    var traffic_light2 : state_t;
+
+    // Initialization of traffic lights
+    init {
+        traffic_light1 = red;
+        traffic_light2 = green;
+    }
+
+    // Transition function based on actions A and B
+    procedure next_state(action: boolean)
+    modifies traffic_light1, traffic_light2;
+    {
+        if (action == true) { // Action A
+            if (traffic_light1 == red && traffic_light2 == green) {
+                traffic_light1 = green;
+                traffic_light2 = red;
+            }
+        } else { // Action B
+            if (traffic_light1 == green && traffic_light2 == red) {
+                traffic_light1 = red;
+                traffic_light2 = green;
+            }
+        }
+    }
+
+    // Define next state relations
+    next {
+        // Non-deterministically choose between action A and B
+        havoc action : boolean;
+        call next_state(action);
+    }
+
+    // Check for deadlock: no possible action leads to a state change
+    invariant no_deadlock :
+        !((traffic_light1 == red && traffic_light2 == red) || (traffic_light1 == green && traffic_light2 == green));
+
+    // Control block for verification
+    control {
+        v = unroll(10); // Check up to 10 steps
+        check;
+        print_results;
+    }
+}

@@ -1,0 +1,45 @@
+module main {
+  // Define the state variables
+  var heatOn : boolean;
+  var temp : int;
+  var time : int;
+
+  // Initialize the system
+  init {
+    heatOn = if (temp <= 20) then true else false;
+    time = 0;
+  }
+
+  // Define the transition relation
+  next {
+    if (heatOn) {
+      // The heater is currently on
+      if (temp > 20 && time >= 30) {
+        // Conditions to turn the heater off
+        heatOn' = false;
+        time' = 0; // Reset time
+      } else {
+        // Continue heating
+        time' = time + 30;
+      }
+    } else {
+      // The heater is currently off
+      if (temp <= 20 && time >= 120) {
+        // Conditions to turn the heater on
+        heatOn' = true;
+        time' = 0; // Reset time
+      } else {
+        // Continue off
+        time' = time + 30;
+      }
+    }
+  }
+
+  // Define the control block for bounded model checking
+  control {
+    var v : verification;
+    v = unroll(10); // Check for 10 transitions
+    check;
+    print_results;
+  }
+}

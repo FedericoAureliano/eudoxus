@@ -1,0 +1,71 @@
+module sender {
+  var st: boolean; // sender state
+  var control_bit: boolean; // current control bit
+
+  init {
+    st = false; // initial state
+    control_bit = false; // start with control bit 0
+  }
+
+  next {
+    if (received_ack == control_bit) {
+      control_bit' = !control_bit; // toggle control bit on correct ack
+    }
+  }
+}
+
+module receiver {
+  var expected_bit: boolean; // expected control bit
+
+  init {
+    expected_bit = false; // expect initial control bit to be 0
+  }
+
+  next {
+    if (received_message == expected_bit) {
+      expected_bit' = !expected_bit; // toggle expected bit on correct message
+    }
+  }
+}
+
+module message_channel {
+  var message1: boolean; // message bit
+
+  next {
+    // non-deterministic loss or duplication handled externally
+  }
+}
+
+module ack_channel {
+  var ack: boolean; // acknowledgement bit
+
+  next {
+    // non-deterministic loss or duplication handled externally
+  }
+}
+
+module main {
+  instance s: sender;
+  instance r: receiver;
+  instance mc: message_channel;
+  instance ac: ack_channel;
+
+  // simulate message and ack transmission with nondeterminism
+  init {
+    mc.message1 = s.control_bit;
+    ac.ack = r.expected_bit;
+  }
+
+  next {
+    mc.message1' = nondet() ? s.control_bit : mc.message1; // nondeterministic loss/duplication
+    ac.ack' = nondet() ? r.expected_bit : ac.ack; // nondeterministic loss/duplication
+    s.received_ack' = ac.ack;
+    r.received_message' = mc.message1;
+  }
+
+  control {
+    v = unroll(10);
+    check;
+    print_results;
+  }
+}

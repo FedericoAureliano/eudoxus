@@ -1,0 +1,87 @@
+c
+module process
+{
+  type pc_t = enum { l0, l1, l2, l3, l4, l5 };
+
+  var pc : pc_t;
+  var y : boolean;
+  var s : 0..1;
+
+  init {
+    pc = l0;
+    y = false;
+    s = 1;
+  }
+
+  next {
+    if pc = l0 then {
+      pc' = l1;
+    }
+    else if pc = l1 then {
+      pc' = l2;
+      y' = true;
+      s' = 0;
+    }
+    else if pc = l2 then {
+      pc' = l3;
+    }
+    else if pc = l3 then {
+      if y = (1 - s) || s != 1 then
+        pc' = l4;
+      else
+        pc' = l3;
+    }
+    else if pc = l4 then {
+      pc' = l5;
+      y' = false;
+    }
+    else {
+      pc' = l0;
+    }
+  }
+}
+
+module main
+{
+  var p0 : process;
+  var p1 : process;
+
+  init {
+    call process.init(p0);
+    call process.init(p1);
+  }
+
+  next {
+    call process.next(p0);
+    call process.next(p1);
+  }
+
+  property mutual_exclusion {
+    forall i: [0:1] {
+      forall j: [0:1] {
+        if p0.pc = l4 && p1.pc = l4 && p0.s = i && p1.s = j && i != j {
+          assert false;
+        }
+      }
+    }
+  }
+
+  property starvation_freedom {
+    forall i: [0:1] {
+      forall j: [0:1] {
+        if p0.pc = l3 && p1.pc = l3 && p0.s = i && p1.s = j && i = j {
+          assert false;
+        }
+      }
+    }
+  }
+
+  control {
+    unroll 10;
+    check mutual_exclusion;
+    check starvation_freedom;
+  }
+}
+
+
+This code models a parallel composition of two processes implementing the mutual exclusion protocol as described. The properties `mutual_exclusion` and `starvation_freedom` check whether the algorithm ensures mutual exclusion and starvation freedom, respectively.

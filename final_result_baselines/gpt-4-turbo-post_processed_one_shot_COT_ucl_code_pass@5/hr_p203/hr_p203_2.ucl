@@ -1,0 +1,60 @@
+module main {
+    type State = { S0, S1 };
+    type Channel = record { bit : boolean, valid : boolean };
+
+    var st : State;
+    var message1 : Channel;
+    var message2 : Channel; // Represents potential duplication
+    var ack : Channel;
+
+    init {
+        st = S0;
+        message1 = { bit = false, valid = false };
+        message2 = { bit = false, valid = false };
+        ack = { bit = false, valid = false };
+    }
+
+    procedure send_message(bit : boolean) {
+        message1.bit = bit;
+        message1.valid = true;
+        // Non-deterministic duplication
+        if (*) {
+            message2 = message1;
+        } else {
+            message2.valid = false;
+        }
+    }
+
+    procedure receive_message() {
+        if (message1.valid && message1.bit == (st == S1)) {
+            ack.bit = message1.bit;
+            ack.valid = true;
+            st = (st == S0) ? S1 : S0;
+        }
+        // Handle message loss
+        message1.valid = false;
+        message2.valid = false;
+    }
+
+    procedure receive_ack() {
+        if (ack.valid && ack.bit == (st == S0)) {
+            send_message(!ack.bit);
+        }
+        // Handle ack loss
+        ack.valid = false;
+    }
+
+    next {
+        if (*) {
+            receive_message();
+        } else {
+            receive_ack();
+        }
+    }
+
+    control {
+        v = unroll(10);
+        check;
+        print_results;
+    }
+}

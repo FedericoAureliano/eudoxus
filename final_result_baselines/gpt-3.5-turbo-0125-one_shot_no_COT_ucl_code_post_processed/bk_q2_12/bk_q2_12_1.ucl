@@ -1,0 +1,59 @@
+uclid
+module leaderElection(n : int)
+{
+    type process_id_t = [n] int;
+    type message_t = int;
+
+    var id : process_id_t; // Process identifiers
+    var m : message_t; // Message received
+
+    init {
+        // Initialize process identifiers
+        forall i: [n] {
+            id[i] := i + 1; // Assign unique identifier to each process
+        }
+    }
+
+    process electionProcess(i : int)
+    {
+        var next : int;
+        var prev : int;
+
+        if (i == 0) {
+            prev := n - 1;
+        } else {
+            prev := i - 1;
+        }
+
+        if (i == n - 1) {
+            next := 0;
+        } else {
+            next := i + 1;
+        }
+
+        send(id[i], next); // Send own id to next process
+
+        while (true) {
+            receive(m, prev); // Receive message from previous process
+
+            if (m == id[i]) {
+                stop;
+            }
+
+            if (m > id[i]) {
+                send(m, next);
+            }
+        }
+    }
+
+    // Create n instances of electionProcess
+    forall i: [n] {
+        electionProcess(i);
+    }
+}
+
+// Instantiate the leaderElection module for 5 processes
+leaderElection(5);
+
+
+In this model, the `leaderElection` module defines the process identifiers and message types. Each process executes the `electionProcess` procedure, which simulates the leader election algorithm within the ring topology. The processes send their ids to the next process and compare received messages to determine the leader. The model is instantiated for 5 processes in this example.

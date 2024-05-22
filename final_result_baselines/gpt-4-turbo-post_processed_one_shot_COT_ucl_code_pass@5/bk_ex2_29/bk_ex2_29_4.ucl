@@ -1,0 +1,75 @@
+module BCR {
+  var BCR_state : {0, 1};
+
+  init {
+    BCR_state = 0;
+  }
+
+  next {
+    BCR_state' = match BCR_state {
+      0 -> 1,
+      1 -> 0
+    };
+  }
+}
+
+module BP {
+  var BP_state : {0, 1};
+
+  init {
+    BP_state = 0;
+  }
+
+  next {
+    BP_state' = match BP_state {
+      0 -> 1,
+      1 -> 0
+    };
+  }
+}
+
+module Printer {
+  var Printer_state : {0, 1};
+
+  init {
+    Printer_state = 0;
+  }
+
+  next {
+    Printer_state' = match Printer_state {
+      0 -> 1,
+      1 -> 0
+    };
+  }
+}
+
+module main {
+  var BCR_state : {0, 1};
+  var BP_state : {0, 1};
+  var Printer_state : {0, 1};
+
+  instance bcr : BCR(BCR_state);
+  instance bp : BP(BP_state);
+  instance printer : Printer(Printer_state);
+
+  init {
+    BCR_state = 0;
+    BP_state = 0;
+    Printer_state = 0;
+  }
+
+  next {
+    // Synchronize state transitions based on handshaking
+    if (BCR_state = 1 && BP_state = 0) {
+      bcr.BCR_state' = 0;
+      bp.BP_state' = 1;
+    }
+    if (BP_state = 1 && Printer_state = 0) {
+      bp.BP_state' = 0;
+      printer.Printer_state' = 1;
+    }
+    if (Printer_state = 1) {
+      printer.Printer_state' = 0;
+    }
+  }
+}

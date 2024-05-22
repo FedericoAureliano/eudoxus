@@ -1,0 +1,46 @@
+module main {
+  // State definition
+  type state_t = enum { pay, select, soda, beer };
+  var current_state : state_t;
+  var coin_inserted : boolean;
+
+  // Initialization
+  init {
+    current_state = pay;
+    coin_inserted = false;
+  }
+
+  // Transitions
+  input insert_coin : boolean;
+  input get_soda : boolean;
+  input get_beer : boolean;
+
+  next {
+    if (current_state == pay && insert_coin) {
+      current_state' = select;
+      coin_inserted' = true;
+    } else if (current_state == select && get_soda && coin_inserted) {
+      current_state' = soda;
+    } else if (current_state == select && get_beer && coin_inserted) {
+      current_state' = beer;
+    } else {
+      current_state' = current_state;
+      coin_inserted' = coin_inserted;
+    }
+  }
+
+  // LTL Property
+  // Ensure that a drink is delivered only if a coin has been inserted
+  // "G" stands for globally (always), "F" stands for eventually (in the future)
+  // "=>" stands for implies
+  // "[]" is the UCLID5 syntax for LTL globally operator
+  // "U" is the UCLID5 syntax for LTL until operator
+  // Check that if we are in select state and move to soda or beer, coin must have been inserted
+  ltl drink_after_coin { [] (current_state = select && (current_state' = soda || current_state' = beer) => coin_inserted) }
+
+  // Control block for model checking
+  control {
+    check;
+    print_results;
+  }
+}

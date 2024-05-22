@@ -1,0 +1,78 @@
+
+module sequential_circuit
+{
+  var x : boolean;
+  var y : boolean;
+  var r : boolean;
+
+  init {
+    r = false; // Initial value of register r is 0
+  }
+
+  // Circuit behavior
+  next {
+    var next_r : boolean;
+    next_r = x | r; // Update register r according to x OR r
+
+    if (r == false) {
+      r' = next_r; // Update register value if current r is 0
+    }
+
+    y = !(x ^ r); // Compute output y as negation of x XOR r
+  }
+}
+
+module main
+{
+  var s1_x : boolean;
+  var s1_r : boolean;
+  var s2_x : boolean;
+  var s2_r : boolean;
+
+  init {
+    s1_x = false; // Initial x value for state S1
+    s1_r = false; // Initial r value for state S1
+    s2_x = true; // Initial x value for state S2
+    s2_r = false; // Initial r value for state S2
+  }
+
+  process s1
+  {
+    var s1_y : boolean;
+    var s1_aux : boolean;
+
+    init {
+      x = s1_x;
+      r = s1_r;
+    }
+
+    next {
+      x' = s1_x;
+      r' = s1_r;
+      y' = s1_y;
+      s1_aux = y; // Auxiliary variable to track output y
+    }
+  }
+
+  process s2
+  {
+    var s2_y : boolean;
+    var s2_aux : boolean;
+
+    init {
+      x = s2_x;
+      r = s2_r;
+    }
+
+    next {
+      x' = s2_x;
+      r' = s2_r;
+      y' = s2_y;
+      s2_aux = y; // Auxiliary variable to track output y
+    }
+  }
+
+  invariant output_set_infinitely_often {
+    always (s1_aux || s2_aux); // LTL property checking that output bit y is set infinitely often
+  }
+}

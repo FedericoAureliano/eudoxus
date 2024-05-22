@@ -1,0 +1,53 @@
+uclid
+module circuit_C1 {
+  var r1 : boolean;
+  output y1 : boolean;
+
+  init {
+    r1 = false;
+    y1 = false;
+  }
+
+  next {
+    y1' = r1;
+    r1' = !r1;
+  }
+}
+
+module circuit_C2 {
+  input x2 : boolean;
+  var r2 : boolean;
+  output y2 : boolean;
+
+  init {
+    r2 = false;
+    y2 = false;
+  }
+
+  next {
+    y2' = x2' | r2;
+    r2' = x2' | r2;
+  }
+}
+
+module main {
+  var x2 : boolean;
+  var y1, y2 : boolean;
+  var r1, r2 : boolean;
+
+  instance c1 : circuit_C1(y1, r1);
+  instance c2 : circuit_C2(x2, y2, r2);
+
+  init {
+    havoc x2;
+  }
+
+  next {
+    havoc x2;
+    next(c1);
+    next(c2);
+  }
+}
+
+
+In this code, we have defined two modules `circuit_C1` and `circuit_C2` representing the circuits C1 and C2 as described. The `main` module synchronously composes instances of these two circuits, allowing for the interaction between them.

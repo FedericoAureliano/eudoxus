@@ -1,0 +1,46 @@
+module traffic_light {
+    type state_t = enum { red, green };
+    var state : state_t;
+
+    init {
+        state = red;
+    }
+
+    next {
+        state' = match state {
+            red   : { green },
+            green : { red }
+        };
+    }
+}
+
+module main {
+    var red1, green1, red2, green2 : boolean;
+
+    instance light1 : traffic_light;
+    instance light2 : traffic_light;
+
+    init {
+        red1 = (light1.state == red);
+        green1 = (light1.state == green);
+        red2 = (light2.state == red);
+        green2 = (light2.state == green);
+    }
+
+    next {
+        // Simulate nondeterministic state transitions for both traffic lights
+        light1.state' = nondet[red, green](light1.state);
+        light2.state' = nondet[red, green](light2.state);
+
+        red1' = (light1.state' == red);
+        green1' = (light1.state' == green);
+        red2' = (light2.state' == red);
+        green2' = (light2.state' == green);
+    }
+
+    control {
+        v = unroll(5);
+        check;
+        print_results;
+    }
+}

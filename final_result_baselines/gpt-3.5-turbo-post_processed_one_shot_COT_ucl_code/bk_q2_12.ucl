@@ -1,0 +1,45 @@
+
+
+module process(id : int, m : int, m_out : int)
+{
+  var stop : bool;
+  init {
+    send(m_out, id); // Send the process identifier to the neighbor.
+    stop := false;
+  }
+
+  while (!stop) {
+    receive(m);
+    if (m == id) {
+      stop := true; // Stop if the received message is the process identifier.
+    } else if (m > id) {
+      send(m_out, m); // Forward the higher identifier to the next neighbor.
+    }
+  }
+}
+
+module main {
+  const int n; // Number of processes
+  var id_arr : array[n] of int;
+  var m_arr : array[n] of int;
+  var m_out_arr : array[n] of int;
+
+  // Instantiate n process modules
+  for i := 0 to n-1 {
+    instance p_i : process(id_arr[i], m_arr[i], m_out_arr[i]);
+  }
+
+  // Set up the ring topology connections
+  for i := 0 to n-1 {
+    if i == n-1 {
+      p_i.m_out := m_arr[0]; // Connect last process to the first process
+    } else {
+      p_i.m_out := m_arr[i+1]; // Connect process i to process i+1
+    }
+  }
+
+  control {
+    v := unroll(10); // Unroll the model for 10 steps
+    check;
+  }
+}

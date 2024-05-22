@@ -1,0 +1,60 @@
+module main {
+  type state_t = enum { Red, Green, Pending, Yellow };
+  var state : state_t;
+  var count : integer;
+  input pedestrian : boolean;
+
+  var sigG, sigY, sigR : boolean;
+
+  init {
+    state = Red;
+    count = 0;
+    sigR = true;
+    sigG = false;
+    sigY = false;
+  }
+
+  next {
+    if (state == Red && count < 60) {
+      count' = count + 1;
+    } else if (state == Red && count == 60) {
+      state' = Green;
+      count' = 0;
+      sigR' = false;
+      sigG' = true;
+    } else if (state == Green && count < 60) {
+      count' = count + 1;
+      if (pedestrian) {
+        state' = Pending;
+      }
+    } else if (state == Pending && count < 60) {
+      count' = count + 1;
+      if (count == 60) {
+        state' = Yellow;
+        sigG' = false;
+        sigY' = true;
+      }
+    } else if (state == Green && count == 60) {
+      if (pedestrian) {
+        state' = Yellow;
+        sigG' = false;
+        sigY' = true;
+      } else {
+        count' = count + 1;
+      }
+    } else if (state == Yellow && count < 5) {
+      count' = count + 1;
+    } else if (state == Yellow && count == 5) {
+      state' = Red;
+      sigY' = false;
+      sigR' = true;
+      count' = 0;
+    }
+  }
+
+  control {
+    v = unroll(120);
+    check;
+    print_results;
+  }
+}

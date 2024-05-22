@@ -1,0 +1,97 @@
+c
+module process
+{
+  type action_t = enum { LOAD, INC, STORE };
+
+  var x : int;
+  input done : boolean;
+  input action : action_t;
+
+  procedure P1()
+  {
+    var i : int;
+    for i := 1 to 10 do
+    {
+      assume(done == false);
+      action := LOAD;
+      yield;
+      action := INC;
+      yield;
+      action := STORE;
+      yield;
+    }
+    done := true;
+  }
+
+  procedure P2()
+  {
+    var i : int;
+    for i := 1 to 10 do
+    {
+      assume(done == false);
+      action := LOAD;
+      yield;
+      action := INC;
+      yield;
+      action := STORE;
+      yield;
+    }
+    done := true;
+  }
+
+  procedure P3()
+  {
+    var i : int;
+    for i := 1 to 10 do
+    {
+      assume(done == false);
+      action := LOAD;
+      yield;
+      action := INC;
+      yield;
+      action := STORE;
+      yield;
+    }
+    done := true;
+  }
+
+  init {
+    x := 0;
+    done := false;
+  }
+
+  next {
+    if (action == LOAD) {
+      x := x;
+    } else if (action == INC) {
+      x := x + 1;
+    } else if (action == STORE) {
+      x := x;
+    }
+  }
+}
+
+module main
+{
+  var p1_done, p2_done, p3_done : boolean;
+
+  instance p1 : process(done: p1_done, action: process.action_t);
+  instance p2 : process(done: p2_done, action: process.action_t);
+  instance p3 : process(done: p3_done, action: process.action_t);
+
+  init {
+    p1_done := false;
+    p2_done := false;
+    p3_done := false;
+  }
+
+  control {
+    call process.P1();
+    call process.P2();
+    call process.P3();
+    assert process.x == 2;
+  }
+}
+
+
+In this code, the `process` module defines the actions `LOAD`, `INC`, and `STORE`, and the three processes `P1`, `P2`, and `P3` that perform these actions sequentially. The `main` module creates instances of these processes and checks if the final value of `x` is equal to 2 after the execution of the parallel program.

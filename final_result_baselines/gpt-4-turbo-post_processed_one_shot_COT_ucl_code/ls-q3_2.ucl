@@ -1,0 +1,45 @@
+module thermostat {
+    type state_t = { ON, OFF };
+
+    // State variables
+    var temp : int;
+    var heatOn : boolean;
+    var heatOff : boolean;
+    var time : int;
+
+    // Initialize the system
+    init {
+        temp = *; // Non-deterministic initial temperature
+        heatOn = false;
+        heatOff = true;
+        time = 0;
+    }
+
+    // Transition logic
+    next {
+        if (time >= 30) {
+            if (temp <= 20 && heatOff && time >= 120) {
+                heatOn' = true;
+                heatOff' = false;
+                time' = 0;
+            } else if (temp > 20 && heatOn && time >= 30) {
+                heatOn' = false;
+                heatOff' = true;
+                time' = 0;
+            } else {
+                time' = time + 30;
+            }
+        }
+    }
+
+    // Safety properties
+    invariant no_conflict : !(heatOn && heatOff);
+    invariant minimum_on_time : (heatOn => time >= 30);
+    invariant minimum_off_time : (heatOff => time >= 120);
+
+    // Control for simulation
+    control {
+        v = simulate 10;
+        print_trace;
+    }
+}

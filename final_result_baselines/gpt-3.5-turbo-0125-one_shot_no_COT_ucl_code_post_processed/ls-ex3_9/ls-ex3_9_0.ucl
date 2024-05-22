@@ -1,0 +1,55 @@
+c
+module traffic_light
+{
+  type state_t = enum { RED, GREEN, YELLOW, PENDING };
+
+  var state : state_t;
+  input pedestrian : boolean;
+  output sigG, sigY, sigR : boolean;
+  var count : int;
+
+  init {
+    state = RED;
+    sigG = false;
+    sigY = false;
+    sigR = true;
+    count = 0;
+  }
+
+  next {
+    count' = count + 1;
+
+    if (state == RED) {
+      if (count == 60) {
+        state' = GREEN;
+        count' = 0;
+      }
+    } else if (state == GREEN) {
+      if (pedestrian) {
+        if (count >= 60) {
+          state' = YELLOW;
+          count' = 0;
+        } else {
+          state' = PENDING;
+        }
+      }
+    } else if (state == YELLOW) {
+      if (count == 5) {
+        state' = RED;
+        count' = 0;
+      }
+    } else if (state == PENDING) {
+      if (count == 60) {
+        state' = YELLOW;
+        count' = 0;
+      }
+    }
+
+    sigG' = (state == GREEN);
+    sigY' = (state == YELLOW);
+    sigR' = (state == RED);
+  }
+}
+
+
+This code models a state machine for the traffic light at a pedestrian crosswalk. The state machine transitions through different states based on the inputs (pedestrian) and the count of seconds passed. The outputs sigG, sigY, and sigR are updated based on the current state of the traffic light.

@@ -1,0 +1,48 @@
+module process
+{
+    type state_t = enum { L0, L1, L2, L3, L4, L5 };
+    var pc : state_t;
+    var y : boolean;
+    var s : [0:1] int;
+    var other_y : boolean;
+    var id : int;
+
+    init {
+        pc = L0;
+        y = false;
+    }
+
+    next {
+        case
+            pc == L0 : { pc' = L1; }
+            pc == L1 : { pc' = L2; }
+            pc == L2 : { y' = true; s' = id; pc' = L3; }
+            pc == L3 : { if (other_y == false || s != id) { pc' = L4; } }
+            pc == L4 : { pc' = L5; }
+            pc == L5 : { y' = false; pc' = L0; }
+            true : { pc' = pc; y' = y; }
+        esac
+    }
+}
+
+module main
+{
+    var s : [0:1] int = 1;
+    var y0 : boolean = false;
+    var y1 : boolean = false;
+
+    instance p0 : process(y : (y0), s : (s), other_y : (y1), id : 0);
+    instance p1 : process(y : (y1), s : (s), other_y : (y0), id : 1);
+
+    init {
+        assume(s == 1);
+    }
+
+    invariant mutual_exclusion : !(p0.pc == L4 && p1.pc == L4);
+
+    control {
+        v = unroll(10);
+        check;
+        print_results;
+    }
+}

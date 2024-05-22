@@ -1,0 +1,70 @@
+c
+module automobile {
+
+  var warn : boolean; // warning light status
+  var nowarn : boolean; // no warning status
+  var time : int; // time elapsed since warning started
+  var ignition : boolean; // ignition status
+  var buckled : boolean; // seat belt buckle status
+
+  const BEEP_TIME : int = 30; // duration of beeping in seconds
+
+  init {
+    warn = false;
+    nowarn = true;
+    time = 0;
+    ignition = false;
+    buckled = true; // Assume seat belts are initially buckled
+  }
+
+  event warn_event : bool;
+  event nowarn_event : bool;
+
+  transition {
+    if (warn_event) {
+      assume(ignition && !buckled && nowarn); // Warn if ignition is on and seat belt is not buckled
+      warn := true;
+      nowarn := false;
+      time := 0;
+    }
+
+    if (nowarn_event) {
+      assume(!ignition || buckled || warn); // No warning if ignition is off or seat belt is buckled
+      warn := false;
+      nowarn := true;
+      time := 0;
+    }
+
+    if (time < BEEP_TIME && !buckled && warn) {
+      time := time + 1;
+    } else {
+      warn := false;
+      nowarn := true;
+      time := 0;
+    }
+  }
+
+  procedure ignition_on() {
+    assume(!ignition);
+    ignition := true;
+  }
+
+  procedure ignition_off() {
+    assume(ignition);
+    ignition := false;
+  }
+
+  procedure buckle_seat_belt() {
+    assume(!buckled);
+    buckled := true;
+  }
+
+  procedure unbuckle_seat_belt() {
+    assume(buckled);
+    buckled := false;
+  }
+
+}
+
+
+This code models an automobile system with variables representing the warning light status, ignition status, seat belt buckle status, and time elapsed since the warning started. It includes events for warning and no-warning conditions, as well as procedures for turning the ignition on/off and buckling/unbuckling the seat belt. The transition block handles the logic for sounding the beeper, indicating the warning light, and stopping the beeper based on the specified conditions.

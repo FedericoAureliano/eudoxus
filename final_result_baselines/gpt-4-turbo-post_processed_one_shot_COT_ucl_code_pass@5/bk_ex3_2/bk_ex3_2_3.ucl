@@ -1,0 +1,43 @@
+module main {
+  type state_t = enum { THINKING, HUNGRY, EATING };
+
+  var phil1, phil2, phil3, phil4, phil5 : state_t;
+  var chopstick1, chopstick2, chopstick3, chopstick4, chopstick5 : boolean;
+
+  init {
+    phil1 = THINKING; phil2 = THINKING; phil3 = THINKING;
+    phil4 = THINKING; phil5 = THINKING;
+    chopstick1 = true; chopstick2 = true; chopstick3 = true;
+    chopstick4 = true; chopstick5 = true;
+  }
+
+  next {
+    // Transition rules for each philosopher
+    // Example for Philosopher 1
+    if (phil1 == THINKING) {
+      phil1' = HUNGRY;
+    } else if (phil1 == HUNGRY && chopstick1 && chopstick5) {
+      phil1' = EATING;
+      chopstick1 = false; chopstick5 = false;
+    } else if (phil1 == EATING) {
+      phil1' = THINKING;
+      chopstick1 = true; chopstick5 = true;
+    }
+
+    // Similar rules for other philosophers
+  }
+
+  invariant no_deadlock {
+    // Check for deadlock: all philosophers are hungry and cannot proceed to eating
+    !(phil1 == HUNGRY && phil2 == HUNGRY && phil3 == HUNGRY &&
+      phil4 == HUNGRY && phil5 == HUNGRY &&
+      !((chopstick1 && chopstick5) || (chopstick2 && chopstick1) ||
+        (chopstick3 && chopstick2) || (chopstick4 && chopstick3) ||
+        (chopstick5 && chopstick4)))
+  }
+
+  control {
+    check;
+    print_results;
+  }
+}

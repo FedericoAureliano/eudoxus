@@ -1,0 +1,39 @@
+module main {
+    // Define the state variables
+    var door_open : boolean;
+    var light_on : boolean;
+    var time : int;
+
+    // Initialize the state
+    init {
+        door_open = false;
+        light_on = false;
+        time = 0;
+    }
+
+    // Define the state transition
+    next {
+        if (door_open) {
+            light_on' = true;
+            time' = 0;
+        } else {
+            if (time < 30) {
+                light_on' = true;
+                time' = time + 1;
+            } else {
+                light_on' = false;
+                time' = time + 1; // Continue counting time even after the light is off
+            }
+        }
+    }
+
+    // Define an invariant to check the correct behavior of the light
+    invariant light_correctness : (door_open || (time < 30)) == light_on;
+
+    // Control block for model checking
+    control {
+        v = unroll(50); // Unroll enough steps to test the light staying on for 30 seconds
+        check;
+        print_results;
+    }
+}

@@ -1,0 +1,59 @@
+// Define the enumerated type for traffic light states
+type light_state_t = enum { green, yellow, red, amber };
+
+// Define a module for the traffic light controller
+module controller {
+    var L1, L2, L3, L4 : light_state_t;
+
+    // Initialize the traffic light states
+    init {
+        L1 = green; L2 = red; L3 = green; L4 = red;
+    }
+
+    // Define the next state transition for the traffic lights
+    next {
+        // Transition logic for L1 and L3
+        if (L1 == green || L3 == green) {
+            L1' = yellow; L3' = yellow;
+        } else if (L1 == yellow || L3 == yellow) {
+            L1' = red; L3' = red;
+            L2' = green; // Next, L2 turns green
+        }
+
+        // Transition logic for L2
+        else if (L2 == green) {
+            L2' = yellow;
+        } else if (L2 == yellow) {
+            L2' = red;
+            L4' = green; // Next, L4 turns green
+        }
+
+        // Transition logic for L4
+        else if (L4 == green) {
+            L4' = yellow;
+        } else if (L4 == yellow) {
+            L4' = red;
+            // Cycle repeats with L1 and L3 turning green again
+            L1' = green; L3' = green;
+        }
+    }
+}
+
+// Main module to instantiate and simulate the controller
+module main {
+    instance ctrl : controller;
+
+    // You can add simulation steps or verification properties here
+    // For example, to simulate the traffic light control for a few cycles
+    init {
+        // Initialize the controller (handled by the controller's init block)
+    }
+
+    next {
+        // Advance the state of the traffic lights
+        next(ctrl);
+    }
+
+    // Example property: L1 and L2 should not be green at the same time
+    invariant no_conflict : !(ctrl.L1 == green && ctrl.L2 == green);
+}

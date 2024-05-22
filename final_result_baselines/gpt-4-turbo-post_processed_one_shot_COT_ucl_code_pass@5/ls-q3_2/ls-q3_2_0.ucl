@@ -1,0 +1,36 @@
+module main {
+  type state_t = enum { ON, OFF };
+
+  var heatOn : boolean;
+  var heatOff : boolean;
+  var temp : integer;
+  var time : integer;
+
+  init {
+    heatOn = (temp <= 20);
+    heatOff = !heatOn;
+    time = 0;
+  }
+
+  next {
+    if (time % 30 == 0) {
+      if (heatOn && temp > 20 && time >= 30) {
+        heatOn' = false;
+        heatOff' = true;
+      } else if (heatOff && temp <= 20 && time >= 120) {
+        heatOn' = true;
+        heatOff' = false;
+      }
+    }
+    time' = time + 30;
+  }
+
+  invariant safeHeating : (heatOn -> temp <= 20);
+  invariant safeCooling : (heatOff -> (temp > 20 || time < 120));
+
+  control {
+    v = unroll(10);
+    check;
+    print_results;
+  }
+}

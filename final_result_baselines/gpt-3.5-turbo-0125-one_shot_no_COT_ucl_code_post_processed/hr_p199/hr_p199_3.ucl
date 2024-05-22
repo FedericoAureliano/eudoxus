@@ -1,0 +1,78 @@
+
+module ferryman_puzzle
+{
+  type side_t = enum { LEFT, RIGHT };
+  type item_t = enum { NONE, FERRYMAN, GOAT, CABBAGE, WOLF };
+
+  var ferryman : side_t;
+  var goat : side_t;
+  var cabbage : side_t;
+  var wolf : side_t;
+  var carry : item_t;
+
+  init {
+    ferryman = LEFT;
+    goat = LEFT;
+    cabbage = LEFT;
+    wolf = LEFT;
+    carry = NONE;
+  }
+
+  procedure cross(item : item_t)
+    modifies ferryman;
+    modifies goat;
+    modifies cabbage;
+    modifies wolf;
+    modifies carry;
+  {
+    if (ferryman == LEFT) {
+      ferryman' = RIGHT;
+      carry' = item;
+      if (item == GOAT) {
+        goat' = RIGHT;
+      } else if (item == CABBAGE) {
+        cabbage' = RIGHT;
+      } else if (item == WOLF) {
+        wolf' = RIGHT;
+      }
+    } else {
+      ferryman' = LEFT;
+      carry' = NONE;
+      if (item == GOAT) {
+        goat' = LEFT;
+      } else if (item == CABBAGE) {
+        cabbage' = LEFT;
+      } else if (item == WOLF) {
+        wolf' = LEFT;
+      }
+    }
+  }
+
+  transition {
+    // All possible moves
+    cross(NONE);
+    cross(GOAT);
+    cross(CABBAGE);
+    cross(WOLF);
+  }
+
+  function goal_state_reached() : boolean
+  {
+    return (ferryman == RIGHT) && (goat == RIGHT) && (cabbage == RIGHT) && (wolf == RIGHT);
+  }
+
+  property no_conflict()
+  {
+    assert !( (goat == cabbage && goat != ferryman) || (goat == wolf && goat != ferryman) );
+  }
+
+  control {
+    while (!goal_state_reached()) {
+      next;
+    }
+    check no_conflict();
+  }
+}
+
+
+In this model, the ferryman can cross the river with at most one item (either the goat, cabbage, or wolf). The `cross` procedure updates the states based on the item being carried. The `goal_state_reached` function checks if all items are on the right side of the river. The `no_conflict` property checks that there are no conflicts between the goat and cabbage, and between the goat and wolf, on the same side of the river. The control block iterates until the goal state is reached and checks the `no_conflict` property.

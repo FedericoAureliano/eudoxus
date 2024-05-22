@@ -1,0 +1,91 @@
+c
+module ferryman_puzzle {
+
+    type location_t = enum { LEFT, RIGHT };
+    type item_t = enum { NONE, FERRYMAN, GOAT, CABBAGE, WOLF };
+
+    var ferryman : location_t;
+    var goat : location_t;
+    var cabbage : location_t;
+    var wolf : location_t;
+    var carry : item_t;
+
+    init {
+        ferryman = LEFT;
+        goat = LEFT;
+        cabbage = LEFT;
+        wolf = LEFT;
+        carry = NONE;
+    }
+
+    procedure cross(item : item_t)
+        modifies ferryman;
+        modifies goat;
+        modifies cabbage;
+        modifies wolf;
+        modifies carry;
+    {
+        if ferryman == LEFT {
+            ferryman' = RIGHT;
+            carry' = item;
+            if item == GOAT {
+                goat' = RIGHT;
+            } else if item == CABBAGE {
+                cabbage' = RIGHT;
+            } else if item == WOLF {
+                wolf' = RIGHT;
+            }
+        } else {
+            ferryman' = LEFT;
+            carry' = NONE;
+            if item == GOAT {
+                goat' = LEFT;
+            } else if item == CABBAGE {
+                cabbage' = LEFT;
+            } else if item == WOLF {
+                wolf' = LEFT;
+            }
+        }
+    }
+
+    next {
+        // Define the rules for the ferryman to cross the river
+        if ferryman == LEFT {
+            if carry == NONE {
+                if (goat == LEFT && cabbage == LEFT) || (goat == LEFT && wolf == LEFT) {
+                    cross(GOAT);
+                } else if goat == LEFT {
+                    cross(GOAT);
+                } else if cabbage == LEFT {
+                    cross(CABBAGE);
+                } else if wolf == LEFT {
+                    cross(WOLF);
+                }
+            } else {
+                cross(NONE);
+            }
+        } else {
+            if carry == NONE {
+                if goat == RIGHT {
+                    cross(GOAT);
+                } else if cabbage == RIGHT {
+                    cross(CABBAGE);
+                } else if wolf == RIGHT {
+                    cross(WOLF);
+                }
+            } else {
+                cross(carry);
+            }
+        }
+    }
+
+    // Define the goal state where all items are on the right side
+    invariant goal_state_reachable : (ferryman == RIGHT && goat == RIGHT && cabbage == RIGHT && wolf == RIGHT)
+
+    // Define a property to check for conflicts
+    invariant no_conflicts : !(goat == cabbage && goat != ferryman) && !(goat == wolf && goat != ferryman)
+
+}
+
+
+This code models the ferryman puzzle scenario with the specified variables and constraints. It defines the rules for the ferryman to cross the river while avoiding conflicts between the goat and cabbage, and the goat and wolf. The goal state is defined where all items are on the right side of the river, and a property is defined to check for conflicts.

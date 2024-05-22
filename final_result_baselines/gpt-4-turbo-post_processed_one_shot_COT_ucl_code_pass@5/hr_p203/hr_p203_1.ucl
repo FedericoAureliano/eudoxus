@@ -1,0 +1,69 @@
+module sender {
+  var st : boolean; // Sender toggle bit
+  var message1 : boolean; // Message sent to message channel
+
+  input ack : boolean; // Acknowledgement from acknowledgement channel
+
+  init {
+    st = false;
+    message1 = false;
+  }
+
+  next {
+    if (ack == st) {
+      st' = !st;
+      message1' = !message1; // Assuming message content toggles for demonstration
+    } else {
+      message1' = message1;
+    }
+  }
+}
+
+module receiver {
+  var rt : boolean; // Receiver toggle bit
+  var message2 : boolean; // Acknowledgement sent to acknowledgement channel
+
+  input msg : boolean; // Message from message channel
+  input control_bit : boolean; // Control bit from message channel
+
+  init {
+    rt = false;
+    message2 = false;
+  }
+
+  next {
+    if (control_bit == rt) {
+      rt' = !rt;
+      message2' = rt;
+    } else {
+      message2' = message2;
+    }
+  }
+}
+
+module main {
+  var ack : boolean;
+  var msg : boolean;
+  var control_bit : boolean;
+
+  instance s : sender(ack);
+  instance r : receiver(msg, control_bit);
+
+  init {
+    ack = false;
+    msg = false;
+    control_bit = false;
+  }
+
+  next {
+    // Simulate message channel
+    msg' = s.message1;
+    control_bit' = s.st;
+
+    // Simulate acknowledgement channel
+    ack' = r.message2;
+  }
+
+  // Properties to verify
+  invariant correct_acknowledgement : (s.st == !r.rt);
+}

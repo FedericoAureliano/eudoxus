@@ -1,0 +1,158 @@
+//Model for mutual exclusion protocol
+module mutual_exclusion
+{
+    shared s : [2]integer;
+    var y0, y1 : boolean;
+
+    init {
+        s = 1;
+        y0 = 0;
+        y1 = 0;
+    }
+
+    process P0
+    {
+        var l2, l3, l4, l5 : integer;
+
+        next {
+            //Noncritical Section
+            l2' = 0;
+            l3' = 0;
+            l4' = 0;
+            l5' = 0;
+
+            //Attempt Section
+            if (l2 == 0) {
+                atomic {
+                    y0' = true;
+                    s' = 0;
+                    l2' = 1;
+                }
+            }
+
+            //Wait Section
+            if (l3 == 0) {
+                l3' = (y1 - 0);
+                l3'' = (s != 0);
+            }
+
+            if (l3' == 0 && l3'' == 0) {
+                l3' = (y1 - 0);
+                l3'' = (s != 0);
+            }
+
+            if (l3' == 0 && l3'' != 0) {
+                l3' = 0;
+            }
+
+            if (l3' != 0) {
+                assume (y1 == 0);
+            }
+
+            if (l3'' != 0) {
+                assume (s != 0);
+            }
+
+            if (l3' == 0 && l3'' == 0) {
+                l3' = (y1 - 0);
+                l3'' = (s != 0);
+            }
+            wait(l3' == 0 && l3'' == 0);
+
+            //Critical Section
+            l4' = 1;
+            assert (y1 == 0 || s != 0);
+            assert (y1 == 0 || y0 == 0);
+            assert (s == 0);
+            assert (y0 == 0);
+            //Exit Section
+            if (l5 == 0) {
+                y0' = false;
+                l5' = 1;
+            }
+        }
+    }
+
+    process P1
+    {
+        var l2, l3, l4, l5 : integer;
+
+        next {
+            //Noncritical Section
+            l2' = 0;
+            l3' = 0;
+            l4' = 0;
+            l5' = 0;
+
+            //Attempt Section
+            if (l2 == 0) {
+                atomic {
+                    y1' = true;
+                    s' = 1;
+                    l2' = 1;
+                }
+            }
+
+            //Wait Section
+            if (l3 == 0) {
+                l3' = (y0 - 1);
+                l3'' = (s != 1);
+            }
+
+            if (l3' == 0 && l3'' == 0) {
+                l3' = (y0 - 1);
+                l3'' = (s != 1);
+            }
+
+            if (l3' == 0 && l3'' != 0) {
+                l3' = 0;
+            }
+
+            if (l3' != 0) {
+                assume (y0 == 0);
+            }
+
+            if (l3'' != 0) {
+                assume (s != 1);
+            }
+
+            if (l3' == 0 && l3'' == 0) {
+                l3' = (y0 - 1);
+                l3'' = (s != 1);
+            }
+            wait(l3' == 0 && l3'' == 0);
+
+            //Critical Section
+            l4' = 1;
+            assert (y0 == 0 || s != 1);
+            assert (y0 == 0 || y1 == 0);
+            assert (s == 1);
+            assert (y1 == 0);
+            //Exit Section
+            if (l5 == 0) {
+                y1' = false;
+                l5' = 1;
+            }
+        }
+    }
+
+    next {
+        next(P0);
+        next(P1);
+    }
+
+    //Properties
+    //Mutual exclusion
+    assert !(P0.in_critical_section && P1.in_critical_section);
+    //Starvation freedom
+    assert G(F (P0.wants_to_enter -> F P0.in_critical_section));
+    assert G(F (P1.wants_to_enter -> F P1.in_critical_section));
+
+    control
+    {
+        v = bmc(1);
+        // v = bmc[properties=[P0.wants_to_enter, P0.in_critical_section]];
+        check;
+        v.print_cex;
+    }
+}

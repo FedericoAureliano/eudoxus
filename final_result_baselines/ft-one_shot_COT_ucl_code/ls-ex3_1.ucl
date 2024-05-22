@@ -1,0 +1,78 @@
+// Arrival detector module.
+module ArrivalDetector {
+    output arrival : boolean;
+    next {
+        // Car arrives with probability 0.9.
+        arrival' = (arrival || (arrival == false) && (rand(0, 10) < 9));
+    }
+}
+
+// Departure detector module.
+module DepartureDetector {
+    output departure : boolean;
+    next {
+        // Car departs with probability 0.9.
+        departure' = (departure || (departure == false) && (rand(0, 10) < 9));
+    }
+}
+
+// Counter module.
+module Counter {
+    input arrival : boolean;
+    input departure : boolean;
+    output counter : integer;
+    var count : integer;
+
+    init {
+        count = 0;
+    }
+    next {
+        if (arrival) {
+            count' = count + 1;
+        }
+        if (departure) {
+            count' = count - 1;
+        }
+        counter' = count;
+    }
+}
+
+// Main module.
+module System {
+    instance ad : ArrivalDetector();
+    instance dd : DepartureDetector();
+    instance co : Counter(arrival : (ad.arrival), departure : (dd.departure));
+    input i : integer;
+    output counter : integer;
+    init {
+        assume (i >= 0);
+        // Initialize the counter with i.
+        next (co) = (counter : i);
+        // Ensure that no car arrives or departs initially.
+        next (ad, dd) = (arrival : false, departure : false);
+    }
+    next {
+        // Route the outputs of the arrival and departure detectors to the counter.
+        next (co) = (arrival : ad.arrival, departure : dd.departure);
+        // Update the display based on the counter.
+        next (counter) = co.counter;
+    }
+    // Safety properties.
+    // The count should never be negative.
+    invariant (co) = (co.counter >= 0);
+    // The output should always match the number of cars computed from the events.
+    invariant (co) = (co.counter == (ad.arrival_count + dd.departure_count));
+    // Liveness properties.
+    // Every arrival eventually increments the counter.
+    property (co) = (ad.arrival_count == 0) || (ad.arrival);
+    // Every departure eventually decrements the counter.
+    property (co) = (dd.departure_count == 0) || (dd.departure);
+}
+
+// Control block.
+control {
+    // Test the system.
+    test;
+    // Print counterexamples.
+    test.print_cex(ad.arrival, dd.departure, co.counter, ad.arrival_count, dd.departure_count);
+}

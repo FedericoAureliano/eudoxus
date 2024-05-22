@@ -1,0 +1,55 @@
+c
+module traffic_light {
+  type state_t = enum { RED, GREEN, YELLOW, PENDING };
+
+  var state : state_t;
+  var count : int;
+  input pedestrian : bool;
+  output sigG : bool;
+  output sigY : bool;
+  output sigR : bool;
+
+  init {
+    state = RED;
+    count = 0;
+    sigG = false;
+    sigY = false;
+    sigR = true;
+  }
+
+  next {
+    if (count < 60) {
+      count' = count + 1;
+    } else {
+      count' = 0;
+      if (state == RED) {
+        if (pedestrian) {
+          state' = GREEN;
+        }
+      } else if (state == GREEN) {
+        if (pedestrian) {
+          if (count >= 60) {
+            state' = YELLOW;
+          } else {
+            state' = PENDING;
+          }
+        }
+      } else if (state == YELLOW) {
+        if (count < 5) {
+          state' = YELLOW;
+        } else {
+          state' = RED;
+        }
+      } else if (state == PENDING) {
+        state' = GREEN;
+      }
+    }
+
+    sigG' = state == GREEN;
+    sigY' = state == YELLOW;
+    sigR' = state == RED;
+  }
+}
+
+
+This code models a traffic light state machine at a pedestrian crosswalk with the specified behavior. The machine transitions between red, green, yellow, and pending states based on the input from the pedestrian button and the count variable. The outputs sigG, sigY, and sigR indicate the status of the traffic light.

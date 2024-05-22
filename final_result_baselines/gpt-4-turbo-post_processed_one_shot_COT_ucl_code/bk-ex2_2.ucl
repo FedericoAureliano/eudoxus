@@ -1,0 +1,37 @@
+module vending_machine {
+    type state_t = enum { pay, select, soda, beer };
+    var current_state : state_t;
+    input insert_coin : boolean;
+    input get_soda : boolean;
+    input get_beer : boolean;
+    var coin_inserted : boolean;
+
+    init {
+        current_state = pay;
+        coin_inserted = false;
+    }
+
+    next {
+        if (current_state == pay && insert_coin) {
+            current_state' = select;
+            coin_inserted' = true;
+        } else if (current_state == select && get_soda && coin_inserted) {
+            current_state' = soda;
+        } else if (current_state == select && get_beer && coin_inserted) {
+            current_state' = beer;
+        } else {
+            current_state' = pay;
+            coin_inserted' = false;
+        }
+    }
+
+    // LTL property to ensure a drink is only delivered after a coin is inserted
+    // G: globally (always), F: finally (eventually)
+    ltl drink_after_coin { G ((current_state == soda || current_state == beer) -> F(coin_inserted)) }
+}
+
+control {
+    v = unroll(10);
+    check;
+    print_results;
+}

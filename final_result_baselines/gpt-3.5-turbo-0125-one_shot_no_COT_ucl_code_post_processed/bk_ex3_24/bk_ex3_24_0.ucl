@@ -1,0 +1,58 @@
+uclid
+module vending_machine {
+    var coin : int; // Number of coins inserted
+    var dispensed_drinks : int; // Number of drinks dispensed
+
+    init {
+        coin = 0;
+        dispensed_drinks = 0;
+    }
+
+    // Model the behavior of inserting a coin and dispensing a drink
+    procedure insert_coin()
+        modifies coin;
+    {
+        coin = coin + 1;
+    }
+
+    procedure dispense_drink()
+        modifies dispensed_drinks;
+    {
+        coin = coin - 1;
+        dispensed_drinks = dispensed_drinks + 1;
+    }
+
+    // Safety property to check that the number of inserted coins is always at least the number of dispensed drinks
+    invariant sufficient_coins {
+        coin >= dispensed_drinks;
+    }
+}
+
+module main {
+    var vm : vending_machine;
+
+    init {
+        vm.init();
+    }
+
+    // Interact with the vending machine by inserting coins and dispensing drinks
+    control {
+        havoc vm.coin;
+        assume vm.coin >= 0; // Ensure the number of coins is non-negative
+
+        while true {
+            if (vm.coin > 0) {
+                vm.insert_coin();
+            } else {
+                break;
+            }
+
+            if (some_condition) { // Add a condition to dispense a drink
+                vm.dispense_drink();
+            }
+        }
+    }
+}
+
+
+In this Uclid5 model, the `vending_machine` module represents the behavior of the vending machine, including inserting coins and dispensing drinks. The safety property `sufficient_coins` ensures that the number of inserted coins is always at least the number of dispensed drinks. The `main` module initializes the vending machine and interacts with it by inserting coins and dispensing drinks based on some condition.

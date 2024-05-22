@@ -1,0 +1,271 @@
+system :: You're an expert in writing uclid5 models.You will be given a docstring and asked to write a model. Remember uclid5 is a state machine language and has it's own specific syntax.
+====================
+user :: Write a uclid5 model for the following description:
+    This UCLID5 model simulates a process interaction environment to evaluate confidentiality properties through non-interference simulations, inspired by an example in Chapter 17 on Security from "Introduction to Embedded Systems" by Lee & Seshia. The model consists of two types of process modules (`process1` and `process2`) and a main module that orchestrates the interaction between instances of these processes.
+
+    Process Modules:
+    1. `process1`: This module captures a simplified process that reflects non-deterministic behavior based on public input. It uses an enumerated type `pc_t` with a single state `A`. It has:
+        - Inputs:
+        * `s`: A boolean representing a secret input.
+        * `x`: A boolean representing a public input.
+        - Output:
+        * `z`: A boolean public output that toggles based on the inverse of input `x`.
+        - Behavior:
+        * The process starts in state `A` and outputs `z` as `false` initially.
+        * In subsequent cycles, the output `z` becomes the negation of `x`.
+
+    2. `process2`: This module is a more complex process with an internal state machine described using state enum `pc_t` with states `B` and `C`. It demonstrates state-dependent output behavior.
+        - Inputs are the same as in `process1`.
+        - Output and state transitions:
+        * The process starts in state `B` with the output `z` as `false`.
+        * Based on the input combination (state, `s`, and `x`), the process transitions between states `B` and `C`, toggling the output `z`.
+        * The transitions are specifically:
+            - From `B` to `C` (output `z` is set to `true`) when `s` is true and `x` is false.
+            - From `C` back to `B` (output `z` is reset to `false`) under the same input conditions.
+
+    Main Module:
+    - Sets up instances of `process2` (`p21` and `p22`) to interact under controlled input conditions.
+    - Inputs `x1`, `x2` (public), and `s1`, `s2` (secret) are used for driving the process instances.
+    - Controls non-determinism by initially assuming both `x1` and `x2` are equal, and it maintains this assumption in all subsequent states.
+    - Evaluates confidentiality by asserting the invariant `same_output_z`, ensuring that outputs `z1` and `z2` of both process instances are always equal, thereby checking for consistent behavior across different runs with potentially varying secret inputs.
+
+    Control:
+    - The control block is used to perform bounded model checking and to produce counterexamples. It specifies that up to 5 unrolling should be checked.
+    - The `print_cex` function is used for displaying counterexamples for the states of inputs and outputs along with the internal state of `process2` instances (`p21` and `p22`).
+
+    This model is particularly useful for demonstrating the effects of secret data manipulations on the outputs, which can be analyzed to study security vulnerability or proof of non-interference in systems.
+
+====================
+assistant :: module process1
+    {
+    type pc_t = enum { A };
+
+    var pc : pc_t;
+    input s : boolean; // secret input
+    input x : boolean; // public input
+    output z: boolean; // public output
+
+    init {
+        pc = A;
+        z = false;
+    }
+
+    next {
+        z' = !x;
+    }
+
+    }
+
+    module process2
+    {
+    type pc_t = enum { B, C };
+
+    var pc : pc_t;
+    input s : boolean; // secret input
+    input x : boolean; // public input
+    output z: boolean; // public output
+
+    procedure next_state()
+        modifies z;
+        modifies pc;
+    {
+        case
+        (pc == B) && s && !x : { pc = C; z = true; }
+        (pc == C) && s && !x : { pc = B; z = false; }
+        esac
+    }
+
+    init {
+        pc = B;
+        z = false;
+    }
+
+    next {
+        call next_state();
+    }
+    }
+
+
+    module main
+    {
+    type t1pc_t = process1.pc_t;
+    type t2pc_t = process2.pc_t;
+
+    var x1,x2 : boolean;
+    var s1,s2 : boolean;
+    var z1,z2 : boolean;
+
+    /*
+    instance p11 : process1(z: (z1), s : (s1), x : (x1));
+    instance p12 : process1(z: (z2), s : (s2), x : (x2));
+    */
+
+    /*
+    */
+    instance p21 : process2(z: (z1), s : (s1), x : (x1));
+    instance p22 : process2(z: (z2), s : (s2), x : (x2));
+
+    init {
+        havoc x1; havoc x2;
+        havoc s1; havoc s2;
+        assume(x1 == x2);
+    }
+
+    next {
+        havoc x1; havoc x2;
+        havoc s1; havoc s2;
+        assume(x1' == x2');
+        // next(p11); next(p12);
+        next(p21); next(p22);
+    }
+
+    invariant same_output_z : (z1 == z2);
+
+
+    control {
+        // *** BASIC ASSERTIONS/INVARIANT
+    /*
+    */
+        v = unroll(5);
+        check;
+        print_results;
+        //v.print_cex(x1,x2,s1,s2,z1,z2,p11.pc,p12.pc);
+        v.print_cex(x1,x2,s1,s2,z1,z2,p21.pc,p22.pc);
+
+    /*
+        // *** INDUCTION
+        v = induction(1);
+        check;
+        print_results;
+        v.print_cex(x1,x2,s1,s2,z1,z2,p11.pc,p12.pc);
+    */
+    }
+    }
+====================
+user :: Write a uclid5 model for the following description:
+Here is an outline for constructing a UCLID5 model for a traffic light system at a pedestrian crosswalk, based on the description provided:
+
+--OUTLINE--
+
+1. **Model Overview**
+   The model represents a state machine for a traffic light at a pedestrian crosswalk. The traffic light cycles through red, green, and yellow states, influenced by a nondeterministic pedestrian presence input. The system reacts on a one-second interval.
+
+2. **State Representation**
+   - Enumerate the states of the traffic light: `RED`, `GREEN`, `PENDING`, `YELLOW`.
+   - The initial state is `RED`.
+
+3. **Variables**
+   - `state`: Enumerated type variable to represent the current state of the traffic light.
+   - `count`: Integer variable to keep track of the time spent in the current state.
+   - `pedestrian`: Boolean input variable, modeled as nondeterministic, representing the presence of a pedestrian.
+   - `sigR`, `sigG`, `sigY`: Boolean output variables representing the signals for the red, green, and yellow lights, respectively.
+
+4. **Transitions and State Updates**
+   - **Red State**:
+     - Starts with `count` initialized to 0.
+     - Increment `count` each second.
+     - Transition to `GREEN` when `count` reaches 60.
+   - **Green State**:
+     - Reset `count` to 0 upon entry.
+     - Stay in `GREEN` unless `pedestrian` is true and `count` is at least 60, then transition to `YELLOW`.
+     - If `pedestrian` is true but `count` is less than 60, transition to `PENDING`.
+   - **Pending State**:
+     - Continue incrementing `count`.
+     - Transition to `YELLOW` once `count` reaches 60.
+   - **Yellow State**:
+     - Reset `count` to 0 upon entry.
+     - Remain in `YELLOW` for 5 seconds, then transition to `RED`.
+
+5. **Output Logic**
+   - `sigR` is true if the state is `RED`.
+   - `sigG` is true if the state is `GREEN` or `PENDING`.
+   - `sigY` is true if the state is `YELLOW`.
+
+6. **Nondeterminism Handling**
+   - Model the `pedestrian` input as nondeterministic. Use UCLID5's capability to model nondeterministic behavior (e.g., using `havoc` or non-deterministic choice functions).
+
+7. **Safety and Temporal Properties**
+   - Ensure that the light is `GREEN` for at least 60 seconds unless prematurely interrupted by a pedestrian, in which case it moves to `PENDING`.
+   - Ensure that the yellow light lasts exactly 5 seconds before transitioning to red.
+
+8. **Model Checking**
+   - Use bounded model checking to verify properties such as the minimum duration of green and yellow lights.
+   - Check for deadlocks or unreachable states.
+
+9. **Counterexamples and Trace Generation**
+   - Generate traces or counterexamples where safety properties are violated to understand failure modes.
+
+This outline provides a structured approach to modeling the described traffic light system in UCLID5, ensuring that all necessary components, states, transitions, and properties are represented and verified.
+====================
+assistant :: module traffic_light
+{
+    type t = enum { RED, GREEN, PENDING, YELLOW };
+    var state  : t;
+    var count  : integer;
+    input pedestrian : boolean;
+    output sigR, sigG, sigY : boolean;
+
+    next {
+        if (state == RED) {
+            count' = count + 1;
+            if (count == 59) {
+                state' = GREEN;
+            }
+        } else {
+            if (state == GREEN) {
+                count' = 0;
+                if (pedestrian && count >= 60) {
+                    state' = YELLOW;
+                } else {
+                    if (pedestrian && count < 60) {
+                        state' = PENDING;
+                    }
+                }
+            } else {
+                if (state == PENDING) {
+                    count' = count + 1;
+                    if (count == 59) {
+                        state' = YELLOW;
+                    }
+                } else {
+                    if (state == YELLOW) {
+                        count' = 0;
+                        if (count == 4) {
+                            state' = RED;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    init {
+        state = RED;
+        count = 0;
+    }
+
+    next {
+        sigR' = (state == RED);
+        sigG' = (state == GREEN) || (state == PENDING);
+        sigY' = (state == YELLOW);
+    }
+
+    safety {
+        // if the light is green, it must stay green for at least 60 seconds,
+        // unless it is interrupted by a pedestrian.
+        // if the light is yellow, it must stay yellow for exactly 5 seconds.
+        case
+        (state == GREEN) : { count >= 60 && state' != GREEN && state' != PENDING; }
+        (state == YELLOW) : { count == 4 && state' != YELLOW; }
+        esac
+    }
+
+    control {
+        v = bmc(2);
+        check;
+        // print_module;
+        v.print_cex(pedestrian, count, state, sigR, sigG, sigY);
+    }
+}
+
+====================

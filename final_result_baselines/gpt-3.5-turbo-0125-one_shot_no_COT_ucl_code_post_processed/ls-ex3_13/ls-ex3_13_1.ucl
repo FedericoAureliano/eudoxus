@@ -1,0 +1,64 @@
+java
+module traffic_light
+{
+    type state_t = enum { RED, GREEN, YELLOW, PENDING };
+
+    var state : state_t;
+    var count : int;
+    input pedestrian : boolean;
+    output sigG : boolean;
+    output sigY : boolean;
+    output sigR : boolean;
+
+    init {
+        state = RED;
+        count = 0;
+        sigG = false;
+        sigY = false;
+        sigR = true;
+    }
+
+    next {
+        if (state == RED) {
+            count = count + 1;
+            if (count == 60) {
+                state = GREEN;
+                count = 0;
+            }
+        }
+        else if (state == GREEN) {
+            if (pedestrian) {
+                if (count >= 60) {
+                    state = YELLOW;
+                    count = 0;
+                } else {
+                    state = PENDING;
+                }
+            }
+            else {
+                count = count + 1;
+            }
+        }
+        else if (state == YELLOW) {
+            count = count + 1;
+            if (count == 5) {
+                state = RED;
+                count = 0;
+            }
+        }
+        else if (state == PENDING) {
+            count = count + 1;
+            if (count == 60) {
+                state = YELLOW;
+                count = 0;
+            }
+        }
+
+        sigG = (state == GREEN);
+        sigY = (state == YELLOW);
+        sigR = (state == RED);
+    }
+}
+
+
+This code models a traffic light at a pedestrian crosswalk with the specified behavior. The state machine transitions between different states based on time triggers and the presence of a pedestrian. The outputs `sigG`, `sigY`, and `sigR` control the lights at the pedestrian crosswalk.

@@ -1,0 +1,83 @@
+module sender
+{
+    var m : int;
+    var b : boolean;
+    var waiting_for_ack : boolean;
+
+    input ack : boolean;
+    input ack_b : boolean;
+
+    init {
+        m = 0;
+        b = false;
+        waiting_for_ack = false;
+    }
+
+    next {
+        if (waiting_for_ack) {
+            if (ack && ack_b == b) {
+                m = m + 1;
+                b = !b;
+                waiting_for_ack = false;
+            }
+        } else {
+            waiting_for_ack = true;
+        }
+    }
+}
+
+module receiver
+{
+    var last_received_b : boolean;
+
+    input msg : int;
+    input msg_b : boolean;
+
+    output ack_b : boolean;
+
+    init {
+        last_received_b = false;
+    }
+
+    next {
+        if (msg_b != last_received_b) {
+            last_received_b = msg_b;
+            ack_b = msg_b;
+        }
+    }
+}
+
+module main
+{
+    var c_msg : int;
+    var c_b : boolean;
+    var d_ack : boolean;
+    var d_ack_b : boolean;
+
+    instance S : sender(ack: d_ack, ack_b: d_ack_b);
+    instance R : receiver(msg: c_msg, msg_b: c_b);
+
+    init {
+        c_msg = 0;
+        c_b = false;
+        d_ack = false;
+        d_ack_b = false;
+    }
+
+    next {
+        // Simulate unreliable channel c
+        if (*) { // Non-deterministic choice to simulate message loss
+            c_msg = S.m;
+            c_b = S.b;
+        }
+
+        // Reliable channel d
+        d_ack = true;
+        d_ack_b = R.ack_b;
+
+        next(S);
+        next(R);
+    }
+
+    invariant all_messages_acknowledged : (S.waiting_for_ack => d_ack);
+}

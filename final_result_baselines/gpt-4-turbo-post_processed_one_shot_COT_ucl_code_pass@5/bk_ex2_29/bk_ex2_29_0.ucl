@@ -1,0 +1,78 @@
+module BCR {
+  type state_t = enum { IDLE, SCANNED };
+  var BCR_state : state_t;
+
+  init {
+    BCR_state = IDLE;
+  }
+
+  next {
+    BCR_state' = case
+      BCR_state == IDLE : SCANNED;
+      BCR_state == SCANNED : IDLE;
+      default : IDLE;
+    esac;
+  }
+}
+
+module BP {
+  type state_t = enum { WAITING, PROCESSING };
+  var BP_state : state_t;
+
+  init {
+    BP_state = WAITING;
+  }
+
+  next {
+    BP_state' = case
+      BP_state == WAITING : PROCESSING;
+      BP_state == PROCESSING : WAITING;
+      default : WAITING;
+    esac;
+  }
+}
+
+module Printer {
+  type state_t = enum { IDLE, PRINTING };
+  var Printer_state : state_t;
+
+  init {
+    Printer_state = IDLE;
+  }
+
+  next {
+    Printer_state' = case
+      Printer_state == IDLE : PRINTING;
+      Printer_state == PRINTING : IDLE;
+      default : IDLE;
+    esac;
+  }
+}
+
+module main {
+  instance bcr : BCR;
+  instance bp : BP;
+  instance printer : Printer;
+
+  init {
+    // Ensure initial states are set correctly
+    bcr.BCR_state = BCR.IDLE;
+    bp.BP_state = BP.WAITING;
+    printer.Printer_state = Printer.IDLE;
+  }
+
+  next {
+    // Handshaking logic to synchronize state transitions
+    if (bcr.BCR_state == BCR.SCANNED && bp.BP_state == BP.WAITING) {
+      bcr.BCR_state' = BCR.IDLE;
+      bp.BP_state' = BP.PROCESSING;
+    }
+    if (bp.BP_state == BP.PROCESSING && printer.Printer_state == Printer.IDLE) {
+      bp.BP_state' = BP.WAITING;
+      printer.Printer_state' = Printer.PRINTING;
+    }
+    if (printer.Printer_state == Printer.PRINTING) {
+      printer.Printer_state' = Printer.IDLE;
+    }
+  }
+}

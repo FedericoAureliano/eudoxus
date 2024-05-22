@@ -1,0 +1,101 @@
+java
+module Train
+{
+  type train_state_t = enum { far, near, in };
+  var train_state : train_state_t;
+
+  input approaching : boolean;
+  input crossed : boolean;
+
+  init {
+    train_state = far;
+  }
+
+  next {
+    if (train_state == far && approaching) {
+      train_state' = near;
+    } else if (train_state == near && crossed) {
+      train_state' = in;
+    } else if (train_state == in) {
+      train_state' = far;
+    } else {
+      train_state' = train_state;
+    }
+  }
+}
+
+module Gate
+{
+  type gate_state_t = enum { up, down };
+  var gate_state : gate_state_t;
+
+  input lower : boolean;
+  input raise : boolean;
+
+  init {
+    gate_state = up;
+  }
+
+  next {
+    if (gate_state == up && lower) {
+      gate_state' = down;
+    } else if (gate_state == down && raise) {
+      gate_state' = up;
+    } else {
+      gate_state' = gate_state;
+    }
+  }
+}
+
+module Controller
+{
+  type controller_state_t = enum { 0, 1, 2, 3 };
+  var controller_state : controller_state_t;
+
+  input train_approaching : boolean;
+  input train_crossing : boolean;
+  input gate_lowering : boolean;
+  input gate_raising : boolean;
+
+  init {
+    controller_state = 0;
+  }
+
+  next {
+    if (controller_state == 0 && train_approaching) {
+      controller_state' = 1;
+    } else if (controller_state == 1 && gate_lowering) {
+      controller_state' = 2;
+    } else if (controller_state == 2 && train_crossing) {
+      controller_state' = 3;
+    } else if (controller_state == 3 && gate_raising) {
+      controller_state' = 0;
+    } else {
+      controller_state' = controller_state;
+    }
+  }
+}
+
+module RailroadCrossingSystem
+{
+  instance train : Train(approaching, crossed);
+  instance gate : Gate(lower, raise);
+  instance controller : Controller(train_approaching, train_crossing, gate_lowering, gate_raising);
+
+  control {
+    train.approaching = nondet;
+    train.crossed = nondet;
+    gate.lower = nondet;
+    gate.raise = nondet;
+    controller.train_approaching = train.train_state == Train.near;
+    controller.train_crossing = train.train_state == Train.in;
+    controller.gate_lowering = gate.gate_state == Gate.up;
+    controller.gate_raising = gate.gate_state == Gate.down;
+
+    assert controller.controller_state != 1 || gate.gate_state == Gate.down;
+    assert controller.controller_state != 3 || gate.gate_state == Gate.down;
+  }
+}
+
+
+This model simulates the interactions between the Train, Gate, and Controller components of the railroad crossing control system. The Controller component orchestrates the behavior of the Gate and Train based on the states and inputs provided. The control block includes assertions to ensure that the gates are always closed when the train is crossing the road.

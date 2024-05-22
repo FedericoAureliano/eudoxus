@@ -1,0 +1,38 @@
+module main {
+    // State variables
+    var light_on : boolean;
+    var door_open : boolean;
+    var time : integer;
+
+    // Initialize the states
+    init {
+        light_on = false;
+        door_open = false;
+        time = 0;
+    }
+
+    // Define the state transitions
+    next {
+        if (door_open) {
+            light_on' = true;
+            time' = 0;
+        } else {
+            if (time < 30) {
+                light_on' = true;
+                time' = time + 1;
+            } else {
+                light_on' = false;
+            }
+        }
+    }
+
+    // Properties to verify
+    invariant light_on_when_door_open : (door_open => light_on);
+    invariant light_off_after_30_seconds : (!door_open && time >= 30 => !light_on);
+
+    // Simulation control for testing
+    control {
+        v = simulate(10);
+        print_trace;
+    }
+}

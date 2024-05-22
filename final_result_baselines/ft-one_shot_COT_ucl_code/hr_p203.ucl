@@ -1,0 +1,98 @@
+module main {
+    type state_t = enum { WAIT_FOR_ACK_0, WAIT_FOR_ACK_1 };
+    type ack_state_t = enum { EXPECT_BIT_0, EXPECT_BIT_1 };
+    type message_t = { bit: boolean, payload: int };
+    type channel_message_t = union { none, one_message: message_t, duplicate: (message_t, message_t) };
+
+    var st : state_t;
+    var ack : ack_state_t;
+    var message1 : channel_message_t;
+    var message2 : channel_message_t;
+
+    procedure sender() {
+        if (st == WAIT_FOR_ACK_0) {
+            if (message2 has one_message && message2.one_message.bit == false) {
+                st := WAIT_FOR_ACK_1;
+                message1 := {bit: true, payload: new_payload()};
+            } else {
+                // re-send the message
+                message1 := {bit: false, payload: current_payload()};
+            }
+        } else if (st == WAIT_FOR_ACK_1) {
+            if (message2 has one_message && message2.one_message.bit == true) {
+                st := WAIT_FOR_ACK_0;
+                message1 := {bit: false, payload: new_payload()};
+            } else {
+                // re-send the message
+                message1 := {bit: true, payload: current_payload()};
+            }
+        }
+    }
+
+    procedure receiver() {
+        match (message1) {
+            case none => { /* do nothing */ }
+            case one_message(m) => {
+                if (ack == EXPECT_BIT_0 && m.bit == false) {
+                    message2 := {bit: false, payload: 1}; // Acknowledge receipt
+                    ack := EXPECT_BIT_1;
+                } else if (ack == EXPECT_BIT_1 && m.bit == true) {
+                    message2 := {bit: true, payload: 1};
+                    ack := EXPECT_BIT_0;
+                }
+            }
+            case duplicate(m1, m2) => {
+                // Handle duplication case, e.g., ignore or process based on system requirements
+            }
+        }
+    }
+
+    init {
+        st := WAIT_FOR_ACK_0;
+        ack := EXPECT_BIT_0;
+        message1 := {none};
+        message2 := {none};
+    }
+
+    next {
+        sender();
+        receiver();
+    }
+
+    // Safety Property
+    // The receiver should only accept messages with the expected control bit.
+    property prop1() {
+        if (message1 has one_message) {
+            assert (ack == EXPECT_BIT_0 ==> message1.one_message.bit == false);
+            assert (ack == EXPECT_BIT_1 ==> message1.one_message.bit == true);
+        }
+    }
+
+    // Liveness Property
+    // If the sender continually re-sends a message, it eventually gets acknowledged (assuming the channel
+    // does not lose infinitely many messages).
+    property prop2() {
+        if (message1 has one_message) {
+            if (message2 has one_message) {
+                assert (message1.one_message.payload > 0);
+            } else {
+                message1 := one_message({bit: message1.one_message.bit, payload: 1});
+            }
+        }
+    }
+
+    // Validity Property
+    // If a message is sent with a particular control bit, then the next message received by the receiver should have the
+    // alternating bit, unless lost.
+    property prop3() {
+        if (message1 has one_message) {
+            assert (message1.one_message.bit == false ==> message2.one_message.bit == true);
+            assert (message1.one_message.bit == true ==> message2.one_message.bit == false);
+        }
+    }
+
+    control {
+        check;
+        print_results;
+    }
+}

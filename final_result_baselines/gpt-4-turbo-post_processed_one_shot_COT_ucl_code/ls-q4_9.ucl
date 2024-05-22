@@ -1,0 +1,71 @@
+module traffic_light_system {
+  type light_state_t = enum { R, G, Y };
+  type time_t = integer;
+
+  // Light states for Main and Secondary
+  var mL : light_state_t;
+  var sL : light_state_t;
+  var timer : time_t;
+  var vehicle_detected : boolean;
+
+  // Output signals for lights
+  var mR, mG, mY, sR, sG, sY : boolean;
+
+  // Initialize the system
+  init {
+    mL = G; // Main light starts green
+    sL = R; // Secondary light starts red
+    timer = 0; // Reset timer
+    vehicle_detected = false; // No vehicle initially detected
+  }
+
+  // State transitions
+  next {
+    if (vehicle_detected) {
+      if (mL == G) {
+        mL' = Y;
+        timer' = 0;
+      } else {
+        mL' = mL;
+        sL' = sL;
+        timer' = timer + 1;
+      }
+    } else {
+      if (timer >= 180 && mL == G) { // Main green ends
+        mL' = Y;
+        timer' = 0;
+      } else if (timer >= 5 && mL == Y) { // Main yellow ends
+        mL' = R;
+        sL' = G;
+        timer' = 0;
+      } else if (timer >= 50 && sL == G) { // Secondary green ends
+        sL' = Y;
+        timer' = 0;
+      } else if (timer >= 5 && sL == Y) { // Secondary yellow ends
+        sL' = R;
+        mL' = G;
+        timer' = 0;
+      } else {
+        timer' = timer + 1;
+      }
+    }
+  }
+
+  // Output logic
+  next {
+    mR = (mL == R);
+    mG = (mL == G);
+    mY = (mL == Y);
+    sR = (sL == R);
+    sG = (sL == G);
+    sY = (sL == Y);
+  }
+
+  // Safety requirement
+  invariant safety_requirement : (mL != R) -> (sL == R);
+
+  // Vehicle detection
+  input detect_vehicle(v : boolean) {
+    vehicle_detected = v;
+  }
+}

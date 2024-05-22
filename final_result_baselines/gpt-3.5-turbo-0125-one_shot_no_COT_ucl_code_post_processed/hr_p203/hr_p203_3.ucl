@@ -1,0 +1,133 @@
+uclid
+module abp {
+    const DATA_SIZE : int = 2;
+    type control_t = enum { C0, C1 };
+    type state_t = enum { WAIT_FOR_0, WAIT_FOR_1 };
+
+    var st : state_t;
+    var message1 : int[DATA_SIZE];
+    var message2 : int[DATA_SIZE];
+    var ack : control_t;
+
+    // Sender module
+    module sender {
+        input send : bool;
+        output message : int[DATA_SIZE];
+        output control : control_t;
+
+        init {
+            message = message1;
+            control = C0;
+        }
+
+        next {
+            if (send) {
+                if (st == WAIT_FOR_0) {
+                    control' = C0;
+                } else {
+                    control' = C1;
+                }
+            }
+        }
+    }
+
+    // Receiver module
+    module receiver {
+        input receive : bool;
+        input control : control_t;
+        input message : int[DATA_SIZE];
+        output ack : control_t;
+
+        init {
+            ack = C0;
+        }
+
+        next {
+            if (receive) {
+                if (control == C0 && st == WAIT_FOR_0) {
+                    ack' = C0;
+                } else if (control == C1 && st == WAIT_FOR_1) {
+                    ack' = C1;
+                }
+            }
+        }
+    }
+
+    // Message Channel
+    module message_channel {
+        input send : bool;
+        input message : int[DATA_SIZE];
+        output receive : bool;
+        output message : int[DATA_SIZE];
+
+        init {
+            receive = false;
+        }
+
+        next {
+            if (send) {
+                message' = message;
+                receive' = true;
+            }
+        }
+    }
+
+    // Acknowledgement Channel
+    module ack_channel {
+        input send : bool;
+        input ack : control_t;
+        output receive : bool;
+        output ack : control_t;
+
+        init {
+            receive = false;
+            ack = C0;
+        }
+
+        next {
+            if (send) {
+                ack' = ack;
+                receive' = true;
+            }
+        }
+    }
+
+    // Main module orchestrating interactions between sender, receiver, message channel, and acknowledgement channel
+    module main {
+        var s_send, r_receive, m_send, a_send : bool;
+
+        instance s : sender(send: s_send);
+        instance r : receiver(receive: r_receive, control: s.control, message: s.message);
+        instance m : message_channel(send: m_send, message: s.message);
+        instance a : ack_channel(send: a_send, ack: r.ack);
+
+        init {
+            s_send = true;
+            r_receive = true;
+            m_send = false;
+            a_send = false;
+            st = WAIT_FOR_0;
+        }
+
+        next {
+            s_send' = !r_receive;
+            r_receive' = !s_send;
+            m_send' = s_send;
+            a_send' = r_receive;
+
+            if (r_receive) {
+                if (r.control == C0) {
+                    st' = WAIT_FOR_1;
+                } else {
+                    st' = WAIT_FOR_0;
+                }
+            }
+        }
+
+        invariant no_corruption : forall i: [0:DATA_SIZE-1] :: m.message[i] == s.message[i];
+        invariant ack_matches_control : a.ack == r.control;
+    }
+}
+
+
+This model simulates the interactions between the sender, receiver, message channel, and acknowledgement channel in the Alternating Bit Protocol. It includes modules for each of these entities and a main module that orchestrates their interactions. The properties `no_corruption` and `ack_matches_control` are used to check that the model behaves as described in the problem statement.

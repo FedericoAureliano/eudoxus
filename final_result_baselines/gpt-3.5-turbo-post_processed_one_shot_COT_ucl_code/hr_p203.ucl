@@ -1,0 +1,63 @@
+
+
+module main
+{
+  type st_t = enum { SENDING_0, WAITING_0_ACK, SENDING_1, WAITING_1_ACK };
+
+  var st : st_t;
+  var message1 : bool;
+  var message2 : bool;
+  var ack : bool;
+
+  init {
+    st = SENDING_0;
+    message1 = false;
+    message2 = false;
+    ack = false;
+  }
+
+  transition {
+    // Sender behavior
+    if (st == SENDING_0) {
+      message1 = true;
+      message2 = false;
+    } else if (st == SENDING_1) {
+      message1 = false;
+      message2 = true;
+    }
+
+    // Receiver behavior
+    if (st == WAITING_0_ACK && message1) {
+      ack = false;
+    } else if (st == WAITING_1_ACK && message2) {
+      ack = true;
+    }
+
+    // Protocol logic
+    if (st == SENDING_0 && ack == false) {
+      st := SENDING_0;
+    } else if (st == SENDING_0 && ack == true) {
+      st := WAITING_1_ACK;
+    } else if (st == WAITING_1_ACK && message1 == false) {
+      st := WAITING_1_ACK;
+    } else if (st == WAITING_1_ACK && message1 == true) {
+      st := SENDING_1;
+    } else if (st == SENDING_1 && ack == false) {
+      st := SENDING_1;
+    } else if (st == SENDING_1 && ack == true) {
+      st := WAITING_0_ACK;
+    } else if (st == WAITING_0_ACK && message2 == false) {
+      st := WAITING_0_ACK;
+    } else if (st == WAITING_0_ACK && message2 == true) {
+      st := SENDING_0;
+    }
+  }
+
+  invariant alternating_control_bits : (message1 != message2);
+
+  invariant receiver_acknowledges_correctly : ((st == WAITING_0_ACK && message1 == true && ack == false) || (st == WAITING_1_ACK && message2 == true && ack == true));
+
+  invariant sender_retransmits_until_ack : ((st == SENDING_0 && ack == false) || (st == SENDING_1 && ack == false));
+
+  invariant receiver_retransmits_ack : ((st == WAITING_0_ACK && message2 == true) || (st == WAITING_1_ACK && message1 == true));
+}

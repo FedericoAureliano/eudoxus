@@ -1,0 +1,43 @@
+module main {
+    type pc_t = enum { IDLE, LOAD, INC, STORE, DONE };
+
+    var x : integer;
+    var pc1, pc2, pc3 : pc_t;
+    var count1, count2, count3 : integer;
+
+    init {
+        x = 0;
+        pc1 = IDLE; pc2 = IDLE; pc3 = IDLE;
+        count1 = 0; count2 = 0; count3 = 0;
+    }
+
+    // Simulate the process operations
+    procedure step_process(var pc : pc_t, var count : integer) {
+        if (pc == IDLE && count < 10) {
+            pc = LOAD;
+        } else if (pc == LOAD) {
+            pc = INC;
+        } else if (pc == INC) {
+            x = x + 1;
+            pc = STORE;
+        } else if (pc == STORE) {
+            pc = IDLE;
+            count = count + 1;
+        }
+    }
+
+    next {
+        // Non-deterministically choose a process to make a step
+        if (*) { step_process(pc1, count1); }
+        else if (*) { step_process(pc2, count2); }
+        else { step_process(pc3, count3); }
+    }
+
+    invariant check_x_value : (pc1 == DONE && pc2 == DONE && pc3 == DONE) => (x == 2);
+
+    control {
+        v = unroll(50);
+        check;
+        print_results;
+    }
+}

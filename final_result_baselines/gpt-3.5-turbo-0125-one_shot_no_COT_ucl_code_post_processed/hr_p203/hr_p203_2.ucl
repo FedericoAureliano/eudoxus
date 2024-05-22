@@ -1,0 +1,119 @@
+javascript
+module ABP {
+
+  type control_t = enum { ZERO, ONE };
+
+  var st : control_t; // current state
+  var message1 : bool; // message part 1
+  var message2 : bool; // message part 2
+  var ack : bool; // acknowledgement
+
+  // Sender module
+  module sender {
+    input send : bool; // signal to send message
+    input recv_ack : bool; // acknowledgement received
+    output message : bool; // message to be sent
+    output control : control_t; // control bit
+
+    init {
+      message = false;
+      control = ZERO;
+    }
+
+    next {
+      if (st == ZERO) {
+        message' = message1;
+        control' = ZERO;
+        if (send && recv_ack) {
+          st' = ONE;
+        }
+      } else {
+        message' = message2;
+        control' = ONE;
+        if (send && recv_ack) {
+          st' = ZERO;
+        }
+      }
+    }
+  }
+
+  // Receiver module
+  module receiver {
+    input received_message : bool; // message received
+    input control_bit : control_t; // control bit received
+    output ack : bool; // acknowledgement to be sent
+
+    init {
+      ack = false;
+    }
+
+    next {
+      if (st == ZERO) {
+        ack' = (received_message && control_bit == ZERO);
+      } else {
+        ack' = (received_message && control_bit == ONE);
+      }
+    }
+  }
+
+  // Message channel
+  module message_channel {
+    input send_message : bool; // message to be sent
+    output received_message : bool; // received message
+
+    init {
+      received_message = false;
+    }
+
+    next {
+      received_message' = send_message;
+    }
+  }
+
+  // Acknowledgement channel
+  module ack_channel {
+    input send_ack : bool; // acknowledgement to be sent
+    output received_ack : bool; // received acknowledgement
+
+    init {
+      received_ack = false;
+    }
+
+    next {
+      received_ack' = send_ack;
+    }
+  }
+
+  // Main module
+  module main {
+    var s : sender;
+    var r : receiver;
+    var m : message_channel;
+    var a : ack_channel;
+
+    init {
+      s.message = message1;
+      s.control = ZERO;
+      s.st = ZERO;
+      r.st = ZERO;
+    }
+
+    next {
+      s.send = true;
+      r.received_message = m.send_message;
+      r.control_bit = s.control;
+      a.send_ack = r.ack;
+      m.received_message = s.message;
+    }
+
+    // Properties
+    invariant alternating_control_bits: (s.control != s'.control) -> (r.ack == r'.ack);
+    invariant ack_on_correct_message: r.received_message && r.control_bit == s.control -> r.ack;
+    invariant resend_on_incorrect_control_bit: r.received_message && r.control_bit != s.control -> r'.ack == r.ack;
+    invariant retry_on_missing_ack: s.send && !r.ack -> s'.send;
+  }
+}
+
+
+
+This code models the Alternating Bit Protocol with sender, receiver, message channel, and acknowledgement channel modules. The properties defined check for the correct behavior of the protocol, such as alternating control bits, acknowledgement on correct message receipt, resending on incorrect control bit, and retrying on missing acknowledgement.

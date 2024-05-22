@@ -1,0 +1,37 @@
+
+module parallel_program
+{
+  var x : int; // Shared variable
+
+  // Action A: x := 2*x
+  procedure actionA()
+    modifies x;
+  {
+    x := 2 * x;
+  }
+
+  // Action B: x := x + 1
+  procedure actionB()
+    modifies x;
+  {
+    x := x + 1;
+  }
+
+  init {
+    x := 3; // Initial value of x
+  }
+
+  transition {
+    actionA() ||| actionB(); // Execute actions A and B concurrently
+  }
+
+  invariant {
+    x > 0; // Invariant: x should always be positive
+  }
+
+  control {
+    v: bounded_model_check(5); // Perform bounded model checking up to 5 steps
+    check;
+    print_results;
+  }
+}

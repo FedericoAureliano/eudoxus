@@ -1,0 +1,45 @@
+c
+module diningPhilosophers {
+    var phil1, phil2, phil3, phil4, phil5 : boolean; // true if philosopher is eating
+    var chopstick1, chopstick2, chopstick3, chopstick4, chopstick5 : boolean; // true if chopstick is in use
+
+    init {
+        phil1 = false; phil2 = false; phil3 = false; phil4 = false; phil5 = false;
+        chopstick1 = false; chopstick2 = false; chopstick3 = false; chopstick4 = false; chopstick5 = false;
+    }
+
+    // Philosopher 1
+    process P1 {
+        var leftChopstick : boolean;
+        var rightChopstick : boolean;
+
+        init {
+            leftChopstick = chopstick1;
+            rightChopstick = chopstick5;
+        }
+
+        while (true) {
+            if (!phil1) {
+                if (leftChopstick && rightChopstick) {
+                    phil1 = true;
+                    chopstick1 = false;
+                    chopstick5 = false;
+                }
+            } else {
+                phil1 = false;
+                chopstick1 = true;
+                chopstick5 = true;
+            }
+        }
+    }
+
+    // Philosopher 2, 3, 4, 5 similar to Philosopher 1
+
+    // Property to check for deadlock
+    property no_deadlock {
+        !((phil1 && phil2) || (phil2 && phil3) || (phil3 && phil4) || (phil4 && phil5) || (phil5 && phil1));
+    }
+}
+
+
+In this model, each philosopher is represented by a process that tries to acquire two chopsticks to eat. The property `no_deadlock` checks that no two neighboring philosophers are both eating at the same time, which would indicate a deadlock situation where both are waiting for the other's chopstick.

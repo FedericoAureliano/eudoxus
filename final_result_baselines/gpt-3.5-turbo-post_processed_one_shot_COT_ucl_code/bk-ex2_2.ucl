@@ -1,0 +1,35 @@
+
+module vending_machine {
+
+  type state_t = enum { pay, select, soda, beer };
+  var state : state_t;
+  var coin_inserted : boolean;
+
+  init {
+    state = pay;
+    coin_inserted = false;
+  }
+
+  transition {
+    // User action: insert coin
+    if (state == pay && !coin_inserted) {
+      coin_inserted := true;
+    }
+
+    // Machine actions: get soda and get beer
+    if (state == pay && coin_inserted) {
+      state := select;
+    } else if (state == select && coin_inserted) {
+      if (coin_inserted) {
+        state := soda;
+      } else {
+        state := beer;
+      }
+    }
+  }
+
+  ltl deliver_after_coin_inserted {
+    always (state != soda && state != beer) | (state == soda && coin_inserted) | (state == beer && coin_inserted);
+  }
+
+}

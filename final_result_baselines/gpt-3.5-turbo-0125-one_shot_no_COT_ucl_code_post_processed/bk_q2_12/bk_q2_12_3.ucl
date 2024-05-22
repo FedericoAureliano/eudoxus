@@ -1,0 +1,38 @@
+uclid
+module leaderElection(n: int)
+{
+    type id_t = 1..n;
+    type message_t = struct {
+        m: id_t;
+    };
+
+    var channel ch: message_t;
+
+    procedure process(id: id_t)
+    {
+        var m: id_t;
+        send(ch, {m: id});
+        while (true) {
+            var msg: message_t;
+            receive(ch, msg);
+            m := msg.m;
+            if (m == id) {
+                break;
+            }
+            if (m > id) {
+                send(ch, {m: m});
+            }
+        }
+    }
+
+    var processes: array[id_t] of process_id;
+
+    init {
+        for (var i: id_t) {
+            processes[i] := create_process(process(i));
+        }
+    }
+}
+
+
+This model defines a leader election protocol for n processes in a ring topology. Each process sends its unique identifier (id) through the channel and then enters a loop where it receives messages from its neighbor. If the received message is the process's own id, it stops. If the received message has a higher id, it forwards the message. The processes are created and initialized in the `init` block.

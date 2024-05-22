@@ -1,0 +1,308 @@
+system :: You're an expert in writing uclid5 models.You will be given a docstring and asked to write a model. Remember uclid5 is a state machine language and has it's own specific syntax.
+====================
+user :: Write a uclid5 model for the following description:
+    This UCLID5 model simulates a process interaction environment to evaluate confidentiality properties through non-interference simulations, inspired by an example in Chapter 17 on Security from "Introduction to Embedded Systems" by Lee & Seshia. The model consists of two types of process modules (`process1` and `process2`) and a main module that orchestrates the interaction between instances of these processes.
+
+    Process Modules:
+    1. `process1`: This module captures a simplified process that reflects non-deterministic behavior based on public input. It uses an enumerated type `pc_t` with a single state `A`. It has:
+        - Inputs:
+        * `s`: A boolean representing a secret input.
+        * `x`: A boolean representing a public input.
+        - Output:
+        * `z`: A boolean public output that toggles based on the inverse of input `x`.
+        - Behavior:
+        * The process starts in state `A` and outputs `z` as `false` initially.
+        * In subsequent cycles, the output `z` becomes the negation of `x`.
+
+    2. `process2`: This module is a more complex process with an internal state machine described using state enum `pc_t` with states `B` and `C`. It demonstrates state-dependent output behavior.
+        - Inputs are the same as in `process1`.
+        - Output and state transitions:
+        * The process starts in state `B` with the output `z` as `false`.
+        * Based on the input combination (state, `s`, and `x`), the process transitions between states `B` and `C`, toggling the output `z`.
+        * The transitions are specifically:
+            - From `B` to `C` (output `z` is set to `true`) when `s` is true and `x` is false.
+            - From `C` back to `B` (output `z` is reset to `false`) under the same input conditions.
+
+    Main Module:
+    - Sets up instances of `process2` (`p21` and `p22`) to interact under controlled input conditions.
+    - Inputs `x1`, `x2` (public), and `s1`, `s2` (secret) are used for driving the process instances.
+    - Controls non-determinism by initially assuming both `x1` and `x2` are equal, and it maintains this assumption in all subsequent states.
+    - Evaluates confidentiality by asserting the invariant `same_output_z`, ensuring that outputs `z1` and `z2` of both process instances are always equal, thereby checking for consistent behavior across different runs with potentially varying secret inputs.
+
+    Control:
+    - The control block is used to perform bounded model checking and to produce counterexamples. It specifies that up to 5 unrolling should be checked.
+    - The `print_cex` function is used for displaying counterexamples for the states of inputs and outputs along with the internal state of `process2` instances (`p21` and `p22`).
+
+    This model is particularly useful for demonstrating the effects of secret data manipulations on the outputs, which can be analyzed to study security vulnerability or proof of non-interference in systems.
+
+====================
+assistant :: module process1
+    {
+    type pc_t = enum { A };
+
+    var pc : pc_t;
+    input s : boolean; // secret input
+    input x : boolean; // public input
+    output z: boolean; // public output
+
+    init {
+        pc = A;
+        z = false;
+    }
+
+    next {
+        z' = !x;
+    }
+
+    }
+
+    module process2
+    {
+    type pc_t = enum { B, C };
+
+    var pc : pc_t;
+    input s : boolean; // secret input
+    input x : boolean; // public input
+    output z: boolean; // public output
+
+    procedure next_state()
+        modifies z;
+        modifies pc;
+    {
+        case
+        (pc == B) && s && !x : { pc = C; z = true; }
+        (pc == C) && s && !x : { pc = B; z = false; }
+        esac
+    }
+
+    init {
+        pc = B;
+        z = false;
+    }
+
+    next {
+        call next_state();
+    }
+    }
+
+
+    module main
+    {
+    type t1pc_t = process1.pc_t;
+    type t2pc_t = process2.pc_t;
+
+    var x1,x2 : boolean;
+    var s1,s2 : boolean;
+    var z1,z2 : boolean;
+
+    /*
+    instance p11 : process1(z: (z1), s : (s1), x : (x1));
+    instance p12 : process1(z: (z2), s : (s2), x : (x2));
+    */
+
+    /*
+    */
+    instance p21 : process2(z: (z1), s : (s1), x : (x1));
+    instance p22 : process2(z: (z2), s : (s2), x : (x2));
+
+    init {
+        havoc x1; havoc x2;
+        havoc s1; havoc s2;
+        assume(x1 == x2);
+    }
+
+    next {
+        havoc x1; havoc x2;
+        havoc s1; havoc s2;
+        assume(x1' == x2');
+        // next(p11); next(p12);
+        next(p21); next(p22);
+    }
+
+    invariant same_output_z : (z1 == z2);
+
+
+    control {
+        // *** BASIC ASSERTIONS/INVARIANT
+    /*
+    */
+        v = unroll(5);
+        check;
+        print_results;
+        //v.print_cex(x1,x2,s1,s2,z1,z2,p11.pc,p12.pc);
+        v.print_cex(x1,x2,s1,s2,z1,z2,p21.pc,p22.pc);
+
+    /*
+        // *** INDUCTION
+        v = induction(1);
+        check;
+        print_results;
+        v.print_cex(x1,x2,s1,s2,z1,z2,p11.pc,p12.pc);
+    */
+    }
+    }
+====================
+user :: Write a uclid5 model for the following description:
+Here’s a structured outline for creating a UCLID5 model for the thermostat system as described:
+
+### Model Outline
+
+#### 1. **Module Definitions**
+   - **Thermostat Module**: This will encapsulate the behavior of the thermostat controlling the heater based on temperature readings.
+
+#### 2. **State Variables**
+   - `temp`: An integer representing the current temperature in degrees Celsius.
+   - `heatOn`: A boolean indicating whether the heater is on.
+   - `time`: An integer tracking the time since the last state change in seconds.
+
+#### 3. **Initialization**
+   - `temp` is initialized based on an unspecified initial condition (could be an input or a constant).
+   - `heatOn` is initialized to `false`.
+   - `time` is initialized to `0`.
+
+#### 4. **State Transition Function**
+   - The function will update `heatOn` and `time` based on the current `temp` and `time`.
+   - **Conditions**:
+     - If `heatOn` is `true` and `time` is at least 30 seconds:
+       - If `temp` > 20, then set `heatOn` to `false` and reset `time` to `0`.
+     - If `heatOn` is `false` and `time` is at least 120 seconds:
+       - If `temp` <= 20, then set `heatOn` to `true` and reset `time` to `0`.
+   - **Time Increment**:
+     - Increment `time` by 30 seconds in each transition, representing the system's reaction every 30 seconds.
+
+#### 5. **Invariants**
+   - Ensure `time` is always a multiple of 30 to maintain the system's discrete time steps.
+   - Ensure `heatOn` cannot toggle more frequently than the specified minimum durations (30 seconds when turning off, 120 seconds when turning on).
+
+#### 6. **Safety Properties**
+   - **Property 1**: If the temperature is above 20 degrees Celsius for more than 30 seconds, `heatOn` should be `false`.
+   - **Property 2**: If the temperature is 20 degrees Celsius or less for more than 120 seconds, `heatOn` should be `true`.
+
+#### 7. **Control Flow**
+   - **Model Checking**:
+     - Use bounded model checking to verify the safety properties over a simulated period.
+   - **Counterexamples**:
+     - Generate counterexamples if any safety property is violated, showing the sequence of states leading to the violation.
+
+#### 8. **Simulation and Testing**
+   - Define a series of test scenarios with varying initial temperatures and sequences of temperature changes to validate the model behavior under different conditions.
+   - Use assertions within these scenarios to ensure that the thermostat behaves as expected.
+
+### Implementation Notes
+- Ensure that the model accurately reflects the physical constraints of the thermostat and heater system.
+- Consider edge cases such as rapid fluctuations around the temperature threshold (20 degrees Celsius).
+- Use UCLID5's capabilities for handling non-deterministic inputs (like temperature changes) to simulate different environmental conditions.
+
+This outline provides a structured approach to modeling the thermostat system in UCLID5, ensuring clarity in state management and transitions, as well as rigor in verifying the system's safety and correctness.
+====================
+assistant :: module thermostat
+{
+    var temp : integer;
+    var heatOn : boolean;
+    var time : integer;
+
+    init {
+        // unknown initial temp
+        assume (temp >= 0 && temp <= 100);
+        heatOn = false;
+        time = 0;
+    }
+
+    next {
+        if (heatOn) {
+            if (time >= 30) {
+                if (temp > 20) {
+                    heatOn' = false;
+                    time' = 0;
+                }
+            }
+        } else {
+            if (time >= 120) {
+                if (temp <= 20) {
+                    heatOn' = true;
+                    time' = 0;
+                }
+            }
+        }
+        time' = time + 30;
+    }
+
+    invariant time_step: time % 30 == 0;
+    invariant min_duration: time < 30 || (heatOn && temp <= 20) || (!heatOn && temp > 20);
+
+    // safety properties
+    // if the temperature is above 20 degrees for more than 30 seconds, the heater should be off
+    // if the temperature is 20 degrees or below for more than 120 seconds, the heater should be on
+    property property1: (temp > 20 && heatOn) ==> (time < 30);
+    property property2: (temp <= 20 && !heatOn) ==> (time < 120);
+
+    control
+    {
+        v = bmc(10);
+        check;
+        v.print_cex(temp, heatOn, time);
+    }
+}
+
+// Test suite
+module main {
+    instance t : thermostat();
+
+    // Test 1: Start at 15, then go to 25
+    init {
+        t.temp = 15;
+    }
+    next {
+        next(t);
+        assert t.heatOn == false;
+    }
+
+    // Test 2: Start at 25, then go to 15
+    init {
+        t.temp = 25;
+    }
+    next {
+        next(t);
+        assert t.heatOn == true;
+    }
+
+    // Test 3: Start at 15, then go to 25, then go to 15
+    init {
+        t.temp = 15;
+    }
+    next {
+        next(t);
+        next(t);
+        assert t.heatOn == false;
+    }
+
+    // Test 4: Start at 25, then go to 15, then go to 25
+    init {
+        t.temp = 25;
+    }
+    next {
+        next(t);
+        next(t);
+        assert t.heatOn == true;
+    }
+
+    // Test 5: Start at 15, then go to 15
+    init {
+        t.temp = 15;
+    }
+    next {
+        next(t);
+        assert t.heatOn == false;
+    }
+
+    // Test 6: Start at 25, then go to 25
+    init {
+        t.temp = 25;
+    }
+    next {
+        next(t);
+        assert t.heatOn == true;
+    }
+}
+
+====================

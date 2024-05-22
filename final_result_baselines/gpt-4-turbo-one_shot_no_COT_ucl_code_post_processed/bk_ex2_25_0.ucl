@@ -1,0 +1,69 @@
+module main {
+  type state_t = enum { IDLE, WAIT, CRITICAL };
+
+  var b1 : boolean;
+  var b2 : boolean;
+  var x : [1..2];
+
+  var p1_state : state_t;
+  var p2_state : state_t;
+
+  init {
+    b1 = false;
+    b2 = false;
+    x = 1; // Start with P1 having the privilege to enter the critical section.
+    p1_state = IDLE;
+    p2_state = IDLE;
+  }
+
+  next {
+    case
+      // P1 transitions
+      (p1_state == IDLE) : {
+        p1_state' = WAIT;
+        b1' = true;
+        x' = 2;
+      }
+      (p1_state == WAIT) && (x == 1 || !b2) : {
+        p1_state' = CRITICAL;
+      }
+      (p1_state == CRITICAL) : {
+        p1_state' = IDLE;
+        b1' = false;
+      }
+
+      // P2 transitions
+      (p2_state == IDLE) : {
+        p2_state' = WAIT;
+        b2' = true;
+        x' = 1;
+      }
+      (p2_state == WAIT) && (x == 2 || !b1) : {
+        p2_state' = CRITICAL;
+      }
+      (p2_state == CRITICAL) : {
+        p2_state' = IDLE;
+        b2' = false;
+      }
+
+      // Default case to handle no changes
+      default: {
+        p1_state' = p1_state;
+        p2_state' = p2_state;
+        b1' = b1;
+        b2' = b2;
+        x' = x;
+      }
+    esac
+  }
+
+  // Safety property: both processes cannot be in the critical section simultaneously
+  invariant mutual_exclusion : !(p1_state == CRITICAL && p2_state == CRITICAL);
+
+  control {
+    init;
+    next;
+    check;
+    print_results;
+  }
+}

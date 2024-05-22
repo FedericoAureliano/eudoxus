@@ -1,0 +1,45 @@
+module main {
+    // Define the enumeration for the status variable.
+    type status_t = enum { ready, busy };
+
+    // Declare the variables.
+    var request : boolean;
+    var status : status_t;
+    var wasRequested : boolean; // Auxiliary variable to track if request was ever true.
+
+    // Initialize the variables.
+    init {
+        status = ready;
+        wasRequested = false;
+    }
+
+    // Define the state transition.
+    next {
+        // Non-deterministically set request as it is controlled externally.
+        havoc request;
+
+        // Update the status based on the request.
+        if (request) {
+            status' = busy;
+            wasRequested' = true;
+        } else {
+            // Non-deterministic behavior if request is false.
+            havoc status';
+        }
+
+        // Keep track of whether request was ever true.
+        if (!wasRequested) {
+            wasRequested' = request;
+        }
+    }
+
+    // Define the property to check.
+    invariant if_requested_then_eventually_busy : (wasRequested -> (status == busy));
+
+    // Control block for model checking.
+    control {
+        v = unroll(10);
+        check;
+        print_results;
+    }
+}

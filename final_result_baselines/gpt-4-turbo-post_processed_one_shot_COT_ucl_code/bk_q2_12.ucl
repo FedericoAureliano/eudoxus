@@ -1,0 +1,58 @@
+model leader_election_ring
+{
+  const n : int;
+  type id_t = [1..n];
+  type state_t = enum { ACTIVE, STOPPED };
+  type msg_t = record {
+    sender_id : id_t,
+    content : id_t
+  };
+
+  // Channels for communication
+  var channels : array [id_t, id_t] of msg_t;
+
+  // Define the process module
+  module process
+  {
+    input id : id_t;
+    var state : state_t;
+    var m : id_t; // message content
+
+    init {
+      state = ACTIVE;
+      m = id; // Initially, send its own id
+    }
+
+    next {
+      if (state == ACTIVE) {
+        // Receive message from the previous process
+        var received_msg : msg_t = channels[(id % n) + 1, id];
+        if (received_msg.content == id) {
+          state' = STOPPED;
+        } else if (received_msg.content > id) {
+          m' = received_msg.content;
+        }
+        // Send message to the next process
+        channels[id, (id % n) + 1]' = {sender_id: id, content: m};
+      }
+    }
+  }
+
+  // Instantiate processes and initialize channels
+  instance processes[n] : process;
+  init {
+    for (i : id_t) {
+      channels[i, (i % n) + 1] = {sender_id: i, content: i};
+    }
+  }
+
+  // Safety property: the highest id should become the leader
+  invariant is_leader_elected : exists (i : id_t) :: (processes[i].state == STOPPED && processes[i].id == n);
+
+  // Control for verification
+  control {
+    v = unroll(2 * n); // Assuming 2*n steps are sufficient for convergence
+    check;
+    print_results;
+  }
+}

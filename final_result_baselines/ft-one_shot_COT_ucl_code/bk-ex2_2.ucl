@@ -1,0 +1,54 @@
+/* Preliminary design of a beverage vending machine. */
+
+module vending_machine
+{
+    type state_t = enum { pay, select, soda, beer };
+
+    var current_state : state_t;
+
+    init {
+        current_state = pay;
+    }
+
+    event insert_coin;
+    event get_soda;
+    event get_beer;
+
+    next {
+        case
+            (current_state == pay) : {
+                if (insert_coin) {
+                    current_state' = select;
+                }
+            }
+            (current_state == select) : {
+                if (get_soda) {
+                    current_state' = soda;
+                } else {
+                    if (get_beer) {
+                        current_state' = beer;
+                    }
+                }
+            }
+        esac
+    }
+}
+
+module property
+{
+    type state_t = vending_machine.state_t;
+
+    var current_state, previous_state : state_t;
+
+    init {
+        current_state = pay;
+        previous_state = pay;
+    }
+
+    property deliver_drink_after_coin_inserted : G((current_state = soda || current_state = beer) -> X(previous_state = select && X(previous_state = pay)));
+
+    control {
+        v = check_ltlf;
+        v.print_cex(current_state, previous_state);
+    }
+}

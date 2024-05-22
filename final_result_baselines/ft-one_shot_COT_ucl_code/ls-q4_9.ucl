@@ -1,0 +1,142 @@
+// Model for traffic light system at intersection of Main and Secondary streets.
+module trafficLightSystem
+{
+    // Constants
+    const greenDuration : integer = 10; // 10 seconds
+    const yellowDuration : integer = 5; // 5 seconds
+    const redDuration    : integer = 10; // 10 seconds
+
+    // State variables
+    var mState : {Green, Yellow, Red};
+    var sState : {Green, Yellow, Red};
+
+    // Input variables
+    input vehicleDetected : boolean;
+
+    init {
+        mState = Green;
+        sState = Red;
+    }
+
+    next {
+        // Main street transitions
+        if (mState == Green) {
+            if (vehicleDetected || changed(mState)) {
+                mState' = Yellow;
+            }
+            else {
+                mState' = Green;
+            }
+        }
+        else {
+            if (mState == Yellow) {
+                if (changed(mState)) {
+                    mState' = Red;
+                }
+                else {
+                    mState' = Yellow;
+                }
+            }
+            else {
+                if (changed(mState)) {
+                    mState' = Green;
+                }
+                else {
+                    mState' = Red;
+                }
+            }
+        }
+
+        // Secondary street transitions
+        if (sState == Red) {
+            if (mState == Red) {
+                sState' = Green;
+            }
+            else {
+                if (changed(sState)) {
+                    sState' = Red;
+                }
+                else {
+                    sState' = Yellow;
+                }
+            }
+        }
+        else {
+            if (sState == Green) {
+                if (changed(sState)) {
+                    sState' = Yellow;
+                }
+                else {
+                    sState' = Green;
+                }
+            }
+            else {
+                if (changed(sState)) {
+                    sState' = Red;
+                }
+                else {
+                    sState' = Yellow;
+                }
+            }
+        }
+    }
+
+    // Safety property
+    invariant safetyProperty : (mState == Green || mState == Yellow) ==> sState == Red;
+
+    // Output signals
+    output mG : boolean;
+    output mY : boolean;
+    output mR : boolean;
+    output sG : boolean;
+    output sY : boolean;
+    output sR : boolean;
+
+    next {
+        mG = (mState == Green);
+        mY = (mState == Yellow);
+        mR = (mState == Red);
+        sG = (sState == Green);
+        sY = (sState == Yellow);
+        sR = (sState == Red);
+    }
+}
+
+module main
+{
+    instance tls : trafficLightSystem();
+
+    input vehicleDetected : boolean;
+    output mG : boolean;
+    output mY : boolean;
+    output mR : boolean;
+    output sG : boolean;
+    output sY : boolean;
+    output sR : boolean;
+
+    init {
+        mG = false;
+        mY = false;
+        mR = false;
+        sG = false;
+        sY = false;
+        sR = false;
+    }
+
+    next {
+        next(tls);
+        mG = tls.mG;
+        mY = tls.mY;
+        mR = tls.mR;
+        sG = tls.sG;
+        sY = tls.sY;
+        sR = tls.sR;
+    }
+
+    control {
+        v1 = cex(1);
+        v2 = v1.bmc(10);
+        check;
+        v2.print_cex(vehicleDetected, mG, mY, mR, sG, sY, sR);
+    }
+}

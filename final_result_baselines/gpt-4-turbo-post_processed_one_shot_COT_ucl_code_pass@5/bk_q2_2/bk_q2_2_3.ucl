@@ -1,0 +1,67 @@
+module main {
+    // Define the shared variable
+    var x : int;
+
+    // Define counters for each process to track the number of iterations
+    var count1, count2, count3 : int;
+
+    // Initialize the shared variable and counters
+    init {
+        x = 0;
+        count1 = 0;
+        count2 = 0;
+        count3 = 0;
+    }
+
+    // Define the sequence of operations for each process
+    procedure nextProcess1() modifies x, count1 {
+        if (count1 < 10) {
+            var temp : int;
+            temp = x;
+            temp = temp + 1;
+            x = temp;
+            count1 = count1 + 1;
+        }
+    }
+
+    procedure nextProcess2() modifies x, count2 {
+        if (count2 < 10) {
+            var temp : int;
+            temp = x;
+            temp = temp + 1;
+            x = temp;
+            count2 = count2 + 1;
+        }
+    }
+
+    procedure nextProcess3() modifies x, count3 {
+        if (count3 < 10) {
+            var temp : int;
+            temp = x;
+            temp = temp + 1;
+            x = temp;
+            count3 = count3 + 1;
+        }
+    }
+
+    // Define the next state logic using non-deterministic choice to simulate parallel execution
+    next {
+        choice {
+            nextProcess1();
+        } or {
+            nextProcess2();
+        } or {
+            nextProcess3();
+        }
+    }
+
+    // Safety property: Check if there exists an execution that halts with x = 2
+    invariant x_neq_2 : x != 2;
+
+    // Control block for model checking
+    control {
+        v = unroll(30); // Unroll enough to cover all possible interleavings of the 10 iterations of the three processes
+        check;
+        print_results;
+    }
+}

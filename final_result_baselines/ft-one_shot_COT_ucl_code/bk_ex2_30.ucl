@@ -1,0 +1,67 @@
+/* A simple railroad crossing system. */
+
+/* Train module. */
+module train {
+    type train_state_t = enum { far, near, in };
+    var state : train_state_t;
+    input want_far : boolean;
+
+    next {
+        state' =
+            if (want_far) {
+                if (state == near) then far else state;
+            } else {
+                if (state == in) then near else in;
+            };
+    }
+}
+
+/* Gate module. */
+module gate {
+    type gate_state_t = enum { up, down };
+    var state : gate_state_t;
+    input command : gate_state_t;
+
+    next {
+        state' = command;
+    }
+}
+
+/* Controller module. */
+module controller {
+    type controller_state_t = enum { s0, s1, s2, s3 };
+    var state : controller_state_t;
+    input train_near : boolean;
+    input gate_down : boolean;
+
+    next {
+        state' =
+            if (state == s0 && train_near) { s1; }
+            else if (state == s1 && gate_down) { s2; }
+            else if (state == s2) {
+                if (gate_down && train_near) then s3 else s2;
+            }
+            else if (state == s3) {
+                if (!gate_down) then s0 else s3;
+            }
+            else { state };
+    }
+}
+
+/* System module. */
+module main {
+    instance t : train(want_far : (controller.train_near));
+    instance g : gate(command : (controller.command));
+    instance c : controller(train_near : (t.state == near), gate_down : (g.state == down));
+
+    next {
+        next(t);
+        next(g);
+        next(c);
+    }
+
+    control {
+        check;
+        print_cex;
+    }
+}

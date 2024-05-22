@@ -1,0 +1,50 @@
+module main {
+    // State variables
+    var ignition : boolean;
+    var buckled : boolean;
+    var warn : boolean;
+    var time : int;
+
+    // Initialize the system state
+    init {
+        ignition = false;
+        buckled = true;
+        warn = false;
+        time = 0;
+    }
+
+    // Input events
+    input warn_event : boolean;
+    input nowarn_event : boolean;
+
+    // Update the system based on events and conditions
+    next {
+        if (warn_event) {
+            warn = true;
+            time = 0;
+        } else if (nowarn_event) {
+            warn = false;
+        }
+
+        if (ignition && !buckled && warn) {
+            if (time >= 30) {
+                warn = false; // Stop beeper after 30 seconds
+            } else {
+                time = time + 1;
+            }
+        } else {
+            time = 0;
+        }
+    }
+
+    // Safety Property: Verify beeper and light logic
+    invariant sound_beeper_correctly : (warn && time <= 30) || !warn;
+    invariant light_correctly : warn == !buckled;
+
+    // Control logic for simulation and verification
+    control {
+        v = unroll(50);
+        check;
+        print_results;
+    }
+}

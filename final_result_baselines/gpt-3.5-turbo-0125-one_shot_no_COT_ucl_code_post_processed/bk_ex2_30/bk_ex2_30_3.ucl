@@ -1,0 +1,94 @@
+
+module Train
+{
+  type train_state_t = enum { far, near, in };
+  var train_state : train_state_t;
+  input train_approaching : boolean;
+  input train_crossing : boolean;
+
+  init {
+    train_state = far;
+  }
+
+  next {
+    if (train_state == far && train_approaching) {
+      train_state' = near;
+    } else if (train_state == near && train_crossing) {
+      train_state' = in;
+    } else if (train_state == in) {
+      train_state' = far;
+    } else {
+      train_state' = train_state;
+    }
+  }
+}
+
+module Gate
+{
+  type gate_state_t = enum { up, down };
+  var gate_state : gate_state_t;
+  input gate_lowering : boolean;
+  input gate_raising : boolean;
+
+  init {
+    gate_state = up;
+  }
+
+  next {
+    if (gate_state == up && gate_lowering) {
+      gate_state' = down;
+    } else if (gate_state == down && gate_raising) {
+      gate_state' = up;
+    } else {
+      gate_state' = gate_state;
+    }
+  }
+}
+
+module Controller
+{
+  type controller_state_t = enum { 0, 1, 2, 3 };
+  var controller_state : controller_state_t;
+  input train_approaching : boolean;
+  input train_crossing : boolean;
+  input gate_lowering : boolean;
+  input gate_raising : boolean;
+
+  init {
+    controller_state = 0;
+  }
+
+  next {
+    if (controller_state == 0 && train_approaching) {
+      controller_state' = 1;
+    } else if (controller_state == 1 && gate_lowering) {
+      controller_state' = 2;
+    } else if (controller_state == 2 && train_crossing) {
+      controller_state' = 3;
+    } else if (controller_state == 3 && gate_raising) {
+      controller_state' = 0;
+    } else {
+      controller_state' = controller_state;
+    }
+  }
+}
+
+module RailroadCrossingSystem
+{
+  instance train : Train(train_approaching, train_crossing);
+  instance gate : Gate(gate_lowering, gate_raising);
+  instance controller : Controller(train_approaching, train_crossing, gate_lowering, gate_raising);
+
+  control {
+    havoc train_approaching; havoc train_crossing;
+    havoc gate_lowering; havoc gate_raising;
+
+    next {
+      next(train);
+      next(gate);
+      next(controller);
+    }
+
+    invariant gates_closed_while_train_crossing : !(controller.train_crossing && gate.gate_state == down);
+  }
+}

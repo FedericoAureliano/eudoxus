@@ -1,0 +1,68 @@
+uclid
+module P1P2 {
+    var b1: boolean;
+    var b2: boolean;
+    var x: 1..2; // x can take values 1 or 2
+
+    process P1 {
+        state wait1, crit1;
+
+        init {
+            state := wait1;
+        }
+
+        transition {
+            wait1 -> crit1 {
+                b1 := true;
+                x := 2;
+            }
+            crit1 -> wait1 {
+                b1 := false;
+            }
+        }
+    }
+
+    process P2 {
+        state wait2, crit2;
+
+        init {
+            state := wait2;
+        }
+
+        transition {
+            wait2 -> crit2 {
+                b2 := true;
+                x := 1;
+            }
+            crit2 -> wait2 {
+                b2 := false;
+            }
+        }
+    }
+
+    init {
+        b1 := false;
+        b2 := false;
+        x := 1; // Initially set x to 1
+    }
+
+    transition {
+        // Interleaving of P1 and P2
+        P1.state = wait1 && P2.state = wait2 && x == 1 -> {
+            P1.state' := crit1;
+        }
+        P1.state = crit1 -> {
+            P1.state' := wait1;
+        }
+
+        P2.state = wait2 && P1.state = wait1 && x == 2 -> {
+            P2.state' := crit2;
+        }
+        P2.state = crit2 -> {
+            P2.state' := wait2;
+        }
+    }
+}
+
+
+This code models the interleaving of processes P1 and P2 as described, with shared variables b1, b2, and x. The processes P1 and P2 are defined with their respective states and transitions. The main module initializes the variables and defines the interleaving transitions between P1 and P2 based on the conditions specified.

@@ -1,0 +1,88 @@
+module traffic_light {
+    type state_t = enum { RED, GREEN, YELLOW };
+    var state : state_t;
+    var timer : int;
+    input vehicle_detected : boolean;
+
+    init {
+        state = GREEN;
+        timer = 180; // 3 minutes in seconds
+    }
+
+    next {
+        if (state == GREEN) {
+            if (vehicle_detected) {
+                state' = YELLOW;
+                timer' = 5;
+            } else if (timer == 0) {
+                state' = YELLOW;
+                timer' = 5;
+            } else {
+                timer' = timer - 1;
+            }
+        } else if (state == YELLOW) {
+            if (timer == 0) {
+                state' = RED;
+                timer' = 55;
+            } else {
+                timer' = timer - 1;
+            }
+        } else if (state == RED) {
+            if (timer == 0) {
+                state' = GREEN;
+                timer' = 180;
+            } else {
+                timer' = timer - 1;
+            }
+        }
+    }
+}
+
+module main {
+    var main_light : traffic_light.state_t;
+    var sec_light : traffic_light.state_t;
+    var main_timer : int;
+    var sec_timer : int;
+    var vehicle_detected : boolean;
+
+    input mG, mY, mR, sG, sY, sR : boolean;
+
+    init {
+        main_light = GREEN;
+        sec_light = RED;
+        main_timer = 180;
+        sec_timer = 185;
+        vehicle_detected = false;
+    }
+
+    next {
+        if (main_light == GREEN && vehicle_detected) {
+            main_light' = YELLOW;
+            main_timer' = 5;
+        } else if (main_light == YELLOW && main_timer == 0) {
+            main_light' = RED;
+            main_timer' = 55;
+        }
+
+        if (sec_light == RED && main_timer <= 55) {
+            sec_light' = GREEN;
+            sec_timer' = 50;
+        } else if (sec_light == GREEN && sec_timer == 0) {
+            sec_light' = YELLOW;
+            sec_timer' = 5;
+        } else if (sec_light == YELLOW && sec_timer == 0) {
+            sec_light' = RED;
+            sec_timer' = 185;
+        }
+
+        // Update timers
+        main_timer' = (main_timer > 0) ? main_timer - 1 : main_timer;
+        sec_timer' = (sec_timer > 0) ? sec_timer - 1 : sec_timer;
+    }
+
+    control {
+        v = unroll(360); // Unroll for 6 minutes to cover full cycles
+        check;
+        print_results;
+    }
+}

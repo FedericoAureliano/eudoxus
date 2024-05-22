@@ -1,0 +1,39 @@
+module main {
+    type state_t = enum { HEATING, COOLING };
+    var current_state : state_t;
+    input temp : real;
+    output heatOn : boolean;
+    output heatOff : boolean;
+
+    init {
+        // Initialize the state based on the initial temperature
+        if (temp < 20.0) {
+            current_state = HEATING;
+        } else {
+            current_state = COOLING;
+        }
+        heatOn = false;
+        heatOff = false;
+    }
+
+    next {
+        heatOn' = false;
+        heatOff' = false;
+
+        if (current_state == COOLING && temp <= 18.0) {
+            current_state' = HEATING;
+            heatOn' = true;
+        } else if (current_state == HEATING && temp >= 22.0) {
+            current_state' = COOLING;
+            heatOff' = true;
+        } else {
+            current_state' = current_state;
+        }
+    }
+
+    control {
+        v = unroll(10);
+        check;
+        print_results;
+    }
+}

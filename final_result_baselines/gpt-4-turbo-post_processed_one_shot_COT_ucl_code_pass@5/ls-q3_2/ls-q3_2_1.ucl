@@ -1,0 +1,47 @@
+module main {
+    // Define variables
+    var temp : int;
+    var heatOn : boolean;
+    var heatOff : boolean;
+    var time : int;
+
+    // Initialize the system
+    init {
+        heatOn = temp <= 20;
+        heatOff = !heatOn;
+        time = 0;
+    }
+
+    // Define the state transition logic
+    next {
+        // Update the system every 30 seconds
+        if (time >= 30) {
+            if (heatOn && temp > 20) {
+                // Turn off the heater if it's on and the temperature is greater than 20
+                heatOn' = false;
+                heatOff' = true;
+                time' = 0; // Reset time when state changes
+            } else if (heatOff && temp <= 20 && time >= 120) {
+                // Turn on the heater if it's off, the temperature is <= 20, and it has been off for at least 2 minutes
+                heatOn' = true;
+                heatOff' = false;
+                time' = 0; // Reset time when state changes
+            } else {
+                // Continue counting time in the current state
+                time' = time + 30;
+            }
+        } else {
+            // Continue counting time in the current state
+            time' = time + 30;
+        }
+    }
+
+    // Define properties to monitor (optional)
+    control {
+        // Check properties or print state for debugging every cycle
+        v = unroll(10);
+        check;
+        print_results;
+        v.print_cex(temp, heatOn, heatOff, time);
+    }
+}
