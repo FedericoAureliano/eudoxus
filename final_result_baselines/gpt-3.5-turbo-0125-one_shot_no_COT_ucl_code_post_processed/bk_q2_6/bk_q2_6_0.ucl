@@ -1,0 +1,61 @@
+uclid
+module stack
+{
+    const n : int; // capacity of the stack
+
+    type stack_t : record {
+        top : int; // index of the top element in the stack
+        elements : array [0, n-1] of int; // array to store elements of the stack
+    };
+
+    var s : stack_t; // stack variable
+
+    procedure push(v: int)
+        requires s.top < n; // stack is not full
+        modifies s;
+    {
+        s.elements[s.top] := v;
+        s.top := s.top + 1;
+    }
+
+    procedure pop()
+        requires s.top > 0; // stack is not empty
+        modifies s;
+    {
+        s.top := s.top - 1;
+    }
+
+    function top() : int
+        requires s.top > 0; // stack is not empty
+    {
+        return s.elements[s.top - 1];
+    }
+
+    procedure init()
+        modifies s;
+    {
+        s.top := 0; // initialize the stack
+    }
+
+    procedure next()
+        modifies s;
+    {
+        havoc s;
+        if (s.top < n) {
+            // non-deterministically decide whether to push or pop
+            if (nondet()) {
+                push(nondet());
+            } else {
+                pop();
+            }
+        } else {
+            pop();
+        }
+    }
+
+    procedure main()
+    {
+        init(); // initialize the stack
+        next(); // perform a transition
+    }
+}

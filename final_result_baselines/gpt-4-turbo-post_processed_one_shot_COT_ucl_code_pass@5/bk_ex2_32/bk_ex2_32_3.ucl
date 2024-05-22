@@ -1,0 +1,92 @@
+module channel_c {
+  var buffer : [int]boolean;
+  var lossy : boolean;
+
+  procedure send(m : boolean, b : boolean) {
+    if (!lossy) {
+      buffer[m] = b;
+    }
+  }
+
+  procedure receive() returns (m : boolean, b : boolean) {
+    return (m, buffer[m]);
+  }
+
+  init {
+    lossy = *;
+  }
+}
+
+module channel_d {
+  var buffer : [int]boolean;
+
+  procedure send(b : boolean) {
+    buffer[0] = b; // Always successful
+  }
+
+  procedure receive() returns (b : boolean) {
+    return buffer[0];
+  }
+}
+
+module sender {
+  var m : int;
+  var b : boolean;
+  var state : {SENDING, WAITING_FOR_ACK};
+
+  procedure send_message() {
+    if (state == SENDING) {
+      call channel_c.send(m, b);
+      state = WAITING_FOR_ACK;
+    }
+  }
+
+  procedure handle_ack() {
+    var ack : boolean;
+    ack = call channel_d.receive();
+    if (ack == b) {
+      b = !b;
+      m = m + 1; // send next message
+      state = SENDING;
+    } else {
+      // Timeout or incorrect ack
+      call send_message(); // Resend
+    }
+  }
+
+  init {
+    m = 0;
+    b = true;
+    state = SENDING;
+  }
+}
+
+module receiver {
+  procedure receive_message() {
+    var m : int;
+    var b : boolean;
+    (m, b) = call channel_c.receive();
+    call channel_d.send(b); // Acknowledge with received control bit
+  }
+}
+
+module main {
+  instance S : sender;
+  instance R : receiver;
+  instance c : channel_c;
+  instance d : channel_d;
+
+  init {
+    // Initialize channels and components
+  }
+
+  next {
+    call S.send_message();
+    call R.receive_message();
+    call S.handle_ack();
+  }
+
+  control {
+    // Model checking and property verification
+  }
+}

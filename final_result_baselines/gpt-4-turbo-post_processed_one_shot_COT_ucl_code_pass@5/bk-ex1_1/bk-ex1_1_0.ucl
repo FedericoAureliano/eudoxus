@@ -1,0 +1,52 @@
+module main {
+    // Shared variable
+    var x : int;
+
+    // Initial condition for x
+    init {
+        // x can start with any value, but we constrain it to be within 0 to 200 for meaningful initial states.
+        assume(x >= 0 && x <= 200);
+    }
+
+    // Process: Increment x
+    procedure Inc() {
+        if (x < 200) {
+            x := x + 1;
+        }
+    }
+
+    // Process: Decrement x
+    procedure Dec() {
+        if (x > 0) {
+            x := x - 1;
+        }
+    }
+
+    // Process: Reset x
+    procedure Reset() {
+        if (x == 200) {
+            x := 0;
+        }
+    }
+
+    // Model concurrency using nondeterministic choice
+    next {
+        if (*) {
+            Inc();
+        } else if (*) {
+            Dec();
+        } else {
+            Reset();
+        }
+    }
+
+    // Invariant to ensure x is always between 0 and 200
+    invariant x_range : (x >= 0 && x <= 200);
+
+    // Control block for bounded model checking
+    control {
+        v = unroll(10); // Unroll the loop 10 times for checking
+        check;
+        print_results;
+    }
+}

@@ -1,0 +1,46 @@
+module main {
+    // State definitions
+    type state_t = enum { S0, S1 };
+    var BCR_state : state_t;
+    var BP_state : state_t;
+    var Printer_state : state_t;
+
+    // Initial states
+    init {
+        BCR_state = S0;
+        BP_state = S0;
+        Printer_state = S0;
+    }
+
+    // Transitions for BCR
+    next(BCR_state) :=
+        case
+            BCR_state == S0 : S1; // Barcode scanned
+            BCR_state == S1 && BP_state == S0 : S0; // Data sent to BP
+            default : BCR_state;
+        esac;
+
+    // Transitions for BP
+    next(BP_state) :=
+        case
+            BP_state == S0 && BCR_state == S1 : S1; // Data received from BCR
+            BP_state == S1 && Printer_state == S0 : S0; // Print command sent to Printer
+            default : BP_state;
+        esac;
+
+    // Transitions for Printer
+    next(Printer_state) :=
+        case
+            Printer_state == S0 && BP_state == S1 : S1; // Print command received
+            Printer_state == S1 : S0; // Article printed
+            default : Printer_state;
+        esac;
+
+    // Control block for simulation and checking
+    control {
+        var v : verification;
+        v = simulate(10);
+        v = check;
+        print_results;
+    }
+}

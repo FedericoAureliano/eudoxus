@@ -1,0 +1,47 @@
+uclid
+module sequential_circuit {
+    var x : boolean;
+    var y : boolean;
+    var r : boolean;
+
+    init {
+        r = false;
+    }
+
+    next {
+        r' = x | r;
+        y = !(x ^ r);
+    }
+}
+
+module main {
+    var s1_x : boolean;
+    var s1_r : boolean;
+
+    var s2_x : boolean;
+    var s2_r : boolean;
+
+    var aux : boolean; // auxiliary variable to track if y is set infinitely often
+
+    instance seq_circuit : sequential_circuit(x, y, r);
+
+    init {
+        s1_x = false;
+        s1_r = false;
+        s2_x = true;
+        s2_r = false;
+    }
+
+    next {
+        next(seq_circuit);
+        aux = y;
+    }
+
+    invariant y_infinitely_often : []<>(aux);
+}
+
+
+
+In this code, the `sequential_circuit` module models the behavior of the sequential circuit with input `x`, output `y`, and register `r` following the given circuit diagram.
+
+The `main` module initializes two initial states `S1` and `S2` with different values of `x` and `r`. It then instantiates the `sequential_circuit` module and checks the LTL property `y_infinitely_often` that ensures the output bit `y` is set infinitely often.

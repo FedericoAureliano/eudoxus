@@ -1,0 +1,196 @@
+system :: You are an expert in program verification (hoare logic style). You are an expert user of UCLID5 which is a state transition modeling language. You will be given a description of a task and asked to write code.
+====================
+user :: Please write code in Uclid5 to model the following description:
+
+  This UCLID5 model, inspired by Lee & Seshia's "Introduction to Embedded Systems," simulates interactions between processes to evaluate confidentiality through non-interference simulations. It features two modules, `process1` and `process2`, each handling inputs and outputs differently based on internal states and external inputs. `process1` uses a simple state and toggles its output based on the negation of a public input, while `process2` incorporates a more complex state transition system that toggles outputs based on both secret and public inputs. The main module orchestrates interactions between instances of these processes under controlled conditions, ensuring that the output remains consistent across different runs despite variations in secret inputs. This setup is used for bounded model checking to analyze potential security vulnerabilities or to demonstrate non-interference, with functionalities to unroll process behaviors up to five times and print counterexamples for detailed analysis.
+
+
+====================
+assistant :: Certainly!
+  ```
+
+  /*
+  * Based on an example from Lee & Seshia, "Introduction to Embedded Systems", Chapter 17 on Security
+  */
+  module process1
+  {
+    type pc_t = enum { A };
+
+    var pc : pc_t;
+    input s : boolean; // secret input
+    input x : boolean; // public input
+    output z: boolean; // public output
+
+    init {
+      pc = A;
+      z = false;
+    }
+
+    next {
+      z' = !x;
+    }
+
+  }
+
+  module process2
+  {
+    type pc_t = enum { B, C };
+
+    var pc : pc_t;
+    input s : boolean; // secret input
+    input x : boolean; // public input
+    output z: boolean; // public output
+
+    procedure next_state()
+      modifies z;
+      modifies pc;
+    {
+      case
+        (pc == B) && s && !x : { pc = C; z = true; }
+        (pc == C) && s && !x : { pc = B; z = false; }
+      esac
+    }
+
+    init {
+      pc = B;
+      z = false;
+    }
+
+    next {
+      call next_state();
+    }
+  }
+
+
+  module main
+  {
+    type t1pc_t = process1.pc_t;
+    type t2pc_t = process2.pc_t;
+
+    var x1,x2 : boolean;
+    var s1,s2 : boolean;
+    var z1,z2 : boolean;
+
+  /*
+    instance p11 : process1(z: (z1), s : (s1), x : (x1));
+    instance p12 : process1(z: (z2), s : (s2), x : (x2));
+  */
+
+  /*
+  */
+    instance p21 : process2(z: (z1), s : (s1), x : (x1));
+    instance p22 : process2(z: (z2), s : (s2), x : (x2));
+
+    init {
+      havoc x1; havoc x2;
+      havoc s1; havoc s2;
+      assume(x1 == x2);
+    }
+
+    next {
+      havoc x1; havoc x2;
+      havoc s1; havoc s2;
+      assume(x1' == x2');
+      // next(p11); next(p12);
+      next(p21); next(p22);
+    }
+
+    invariant same_output_z : (z1 == z2);
+
+
+    control {
+      // *** BASIC ASSERTIONS/INVARIANT
+  /*
+  */
+      v = unroll(5);
+      check;
+      print_results;
+      //v.print_cex(x1,x2,s1,s2,z1,z2,p11.pc,p12.pc);
+      v.print_cex(x1,x2,s1,s2,z1,z2,p21.pc,p22.pc);
+
+  /*
+      // *** INDUCTION
+      v = induction(1);
+      check;
+      print_results;
+      v.print_cex(x1,x2,s1,s2,z1,z2,p11.pc,p12.pc);
+  */
+    }
+  }
+
+  ```
+
+====================
+user :: Please write code in Uclid5 to model the following description:
+  Model a system that counts the number of cars that enter and leave a parking garage in order to keep track of how many cars are in the garage at any time.
+
+Assume that an ArrivalDetector actor produces an event when a car arrives, and a DepartureDetector actor produces an event when a car departs. The Counter actor keeps a running count, starting from an initial value i. Each time the count changes, it produces an output event that updates a display.
+
+Use the variable names arrival, departure and counter
+
+====================
+assistant :: Certainly! Here is the Uclid5 code modeling the system that counts the number of cars entering and leaving a parking garage:
+
+```
+module ArrivalDetector
+{
+  input arrival : boolean; // event when a car arrives
+}
+
+module DepartureDetector
+{
+  input departure : boolean; // event when a car departs
+}
+
+module Counter
+{
+  input arrival : boolean;
+  input departure : boolean;
+  output counter : int;
+
+  var count : int; // running count of cars in the garage
+
+  init {
+    count = 0; // initial count of cars in the garage
+    counter = count;
+  }
+
+  next {
+    if (arrival) {
+      count = count + 1; // increment count on car arrival
+    }
+    if (departure) {
+      count = count - 1; // decrement count on car departure
+    }
+    counter = count;
+  }
+}
+
+module main
+{
+  var arrival : boolean;
+  var departure : boolean;
+  var counter : int;
+
+  instance arrivalDetector : ArrivalDetector(arrival);
+  instance departureDetector : DepartureDetector(departure);
+  instance carCounter : Counter(arrival, departure, counter);
+
+  init {
+    arrival = false;
+    departure = false;
+  }
+
+  next {
+    // Simulate arrival and departure events
+    arrival = nondet();
+    departure = nondet();
+
+    // Update the counter based on arrival and departure events
+    next(carCounter);
+  }
+}
+```
+
+This code models the system with three modules: ArrivalDetector, DepartureDetector, and Counter. The main module orchestrates interactions between instances of these modules to simulate the arrival and departure events and update the counter accordingly.
+====================

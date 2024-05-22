@@ -1,0 +1,70 @@
+module process
+{
+    type id_t = integer;
+    type msg_t = integer;
+
+    var id : id_t;
+    var m : msg_t;
+    var leader : boolean;
+    var active : boolean;
+
+    init {
+        leader = false;
+        active = true;
+        m = id; // Initially, each process sends its own id
+    }
+
+    input in_msg : msg_t; // Message received from the previous process
+    output out_msg : msg_t; // Message to send to the next process
+
+    next {
+        if (active) {
+            if (in_msg == id) {
+                leader = true;
+                active = false;
+                out_msg' = id;
+            } else if (in_msg > id) {
+                m' = in_msg;
+                out_msg' = in_msg;
+            } else {
+                out_msg' = m;
+            }
+        }
+    }
+}
+
+module main
+{
+    type id_t = process.id_t;
+    type msg_t = process.msg_t;
+
+    const n : int;
+    instance p[1..n] : process;
+
+    init {
+        forall (i : [1..n]) {
+            p[i].id = i;
+        }
+    }
+
+    next {
+        forall (i : [1..n]) {
+            if (i == n) {
+                p[i].in_msg = p[1].out_msg;
+            } else {
+                p[i].in_msg = p[i+1].out_msg;
+            }
+        }
+    }
+
+    invariant leader_elected {
+        exists (i : [1..n]) :: p[i].leader
+    }
+
+    control {
+        // Setup bounded model checking
+        v = unroll(n);
+        check;
+        print_results;
+    }
+}

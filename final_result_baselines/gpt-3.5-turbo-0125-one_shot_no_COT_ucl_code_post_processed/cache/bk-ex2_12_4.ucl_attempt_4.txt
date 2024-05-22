@@ -1,0 +1,220 @@
+system :: You are an expert in program verification (hoare logic style). You are an expert user of UCLID5 which is a state transition modeling language. You will be given a description of a task and asked to write code.
+====================
+user :: Please write code in Uclid5 to model the following description:
+
+  This UCLID5 model, inspired by Lee & Seshia's "Introduction to Embedded Systems," simulates interactions between processes to evaluate confidentiality through non-interference simulations. It features two modules, `process1` and `process2`, each handling inputs and outputs differently based on internal states and external inputs. `process1` uses a simple state and toggles its output based on the negation of a public input, while `process2` incorporates a more complex state transition system that toggles outputs based on both secret and public inputs. The main module orchestrates interactions between instances of these processes under controlled conditions, ensuring that the output remains consistent across different runs despite variations in secret inputs. This setup is used for bounded model checking to analyze potential security vulnerabilities or to demonstrate non-interference, with functionalities to unroll process behaviors up to five times and print counterexamples for detailed analysis.
+
+
+====================
+assistant :: Certainly!
+  ```
+
+  /*
+  * Based on an example from Lee & Seshia, "Introduction to Embedded Systems", Chapter 17 on Security
+  */
+  module process1
+  {
+    type pc_t = enum { A };
+
+    var pc : pc_t;
+    input s : boolean; // secret input
+    input x : boolean; // public input
+    output z: boolean; // public output
+
+    init {
+      pc = A;
+      z = false;
+    }
+
+    next {
+      z' = !x;
+    }
+
+  }
+
+  module process2
+  {
+    type pc_t = enum { B, C };
+
+    var pc : pc_t;
+    input s : boolean; // secret input
+    input x : boolean; // public input
+    output z: boolean; // public output
+
+    procedure next_state()
+      modifies z;
+      modifies pc;
+    {
+      case
+        (pc == B) && s && !x : { pc = C; z = true; }
+        (pc == C) && s && !x : { pc = B; z = false; }
+      esac
+    }
+
+    init {
+      pc = B;
+      z = false;
+    }
+
+    next {
+      call next_state();
+    }
+  }
+
+
+  module main
+  {
+    type t1pc_t = process1.pc_t;
+    type t2pc_t = process2.pc_t;
+
+    var x1,x2 : boolean;
+    var s1,s2 : boolean;
+    var z1,z2 : boolean;
+
+  /*
+    instance p11 : process1(z: (z1), s : (s1), x : (x1));
+    instance p12 : process1(z: (z2), s : (s2), x : (x2));
+  */
+
+  /*
+  */
+    instance p21 : process2(z: (z1), s : (s1), x : (x1));
+    instance p22 : process2(z: (z2), s : (s2), x : (x2));
+
+    init {
+      havoc x1; havoc x2;
+      havoc s1; havoc s2;
+      assume(x1 == x2);
+    }
+
+    next {
+      havoc x1; havoc x2;
+      havoc s1; havoc s2;
+      assume(x1' == x2');
+      // next(p11); next(p12);
+      next(p21); next(p22);
+    }
+
+    invariant same_output_z : (z1 == z2);
+
+
+    control {
+      // *** BASIC ASSERTIONS/INVARIANT
+  /*
+  */
+      v = unroll(5);
+      check;
+      print_results;
+      //v.print_cex(x1,x2,s1,s2,z1,z2,p11.pc,p12.pc);
+      v.print_cex(x1,x2,s1,s2,z1,z2,p21.pc,p22.pc);
+
+  /*
+      // *** INDUCTION
+      v = induction(1);
+      check;
+      print_results;
+      v.print_cex(x1,x2,s1,s2,z1,z2,p11.pc,p12.pc);
+  */
+    }
+  }
+
+  ```
+
+====================
+user :: Please write code in Uclid5 to model the following description:
+  Model a design of a beverage vending machine. The machine can either deliver beer or soda. It counts the number of soda and beer bottles and returns inserted coins if the vending machine is empty.
+
+The vending machine is represented by the two locations start and select, and has variables that store the number of soda bottles (nsoda), and the number of beer bottles (nbeer).
+
+The following conditional transitions model the insertion of a coin and refilling the vending machine:
+
+start --(true:coin)-> select
+start --(true:refill)-> start
+
+ Labels of conditional transitions are of the form (g : a ) where g is a Boolean condition (called guard), and a is an action that is possible once g holds. As the condition for both conditional transitions above always holds, the action coin is always enabled in the starting location. To keep things simple, we assume that by refill both storages are entirely refilled.
+
+The following transitions model that soda (or beer) can be obtained if there is some soda (or beer) left in the vending machine:
+
+select --(nsoda > 0:sget)-> start
+select --(nbeer > 0:bget)-> start
+
+Finally, the vending machine automatically switches to the initial start location while returning the inserted coin once there are no bottles left:
+
+select --(nsoda=0 & nbeer=0: ret_coin) -> start
+
+Let the maximum capacity of both bottle repositories be max. The insertion of a coin (by action coin) leaves the number of bottles unchanged. The same applies when a coin is returned (by action ret coin). The effect of the other actions is as follows:
+
+refill : nsoda:=max & nbeer:=max
+sget: nsoda:=nsoda-1
+bget: nbeer:=nbeer-1
+
+You may use boolean variables to indicate when an action is enabled.
+
+Use the variable names nsoda, nbeer, sget, bget, refill, coin.
+
+====================
+assistant :: Here is the Uclid5 code that models the description of the beverage vending machine:
+
+```
+module vending_machine {
+
+    const max : int; // maximum capacity of both bottle repositories
+
+    var nsoda : int; // number of soda bottles
+    var nbeer : int; // number of beer bottles
+
+    var sget_enabled : boolean; // indicates if soda can be obtained
+    var bget_enabled : boolean; // indicates if beer can be obtained
+    var refill_enabled : boolean; // indicates if refill action is enabled
+    var coin_enabled : boolean; // indicates if coin insertion is enabled
+
+    init {
+        nsoda = max; // initialize number of soda bottles to maximum capacity
+        nbeer = max; // initialize number of beer bottles to maximum capacity
+        sget_enabled = false; // soda obtain action is disabled initially
+        bget_enabled = false; // beer obtain action is disabled initially
+        refill_enabled = false; // refill action is disabled initially
+        coin_enabled = true; // coin insertion is enabled initially
+    }
+
+    transition {
+        start -- (true: coin) -> select {
+            // Coin insertion action
+            assume(coin_enabled);
+            coin_enabled := false; // disable coin insertion
+        }
+
+        start -- (true: refill) -> start {
+            // Refill action
+            assume(refill_enabled);
+            nsoda := max; // refill soda bottles
+            nbeer := max; // refill beer bottles
+            refill_enabled := false; // disable refill action
+            coin_enabled := true; // enable coin insertion
+        }
+
+        select -- (nsoda > 0: sget) -> start {
+            // Soda obtain action
+            assume(sget_enabled);
+            nsoda := nsoda - 1; // decrement soda bottles
+            sget_enabled := false; // disable soda obtain action
+            coin_enabled := true; // enable coin insertion
+        }
+
+        select -- (nbeer > 0: bget) -> start {
+            // Beer obtain action
+            assume(bget_enabled);
+            nbeer := nbeer - 1; // decrement beer bottles
+            bget_enabled := false; // disable beer obtain action
+            coin_enabled := true; // enable coin insertion
+        }
+
+        select -- (nsoda == 0 && nbeer == 0: ret_coin) -> start {
+            // Return coin action
+            assume(!sget_enabled && !bget_enabled && !refill_enabled); // ensure no other action is enabled
+            coin_enabled := true; // enable coin insertion
+        }
+    }
+}
+```
+====================

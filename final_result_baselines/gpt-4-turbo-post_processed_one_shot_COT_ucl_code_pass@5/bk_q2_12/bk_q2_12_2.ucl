@@ -1,0 +1,63 @@
+module process
+{
+    type id_t = int;
+    type msg_t = int;
+
+    const n : int; // Total number of processes
+    const null_msg : msg_t = 0; // Represents no message in the channel
+
+    input id : id_t; // Unique identifier for each process
+    var m : msg_t; // Variable to store received message
+    var state : {active, stopped}; // State of the process
+
+    init {
+        state = active;
+        m = null_msg;
+    }
+
+    // Send operation: modeled in the main module as it involves inter-process communication
+    // Receive operation: modeled in the main module as it involves inter-process communication
+
+    next {
+        if (state == active) {
+            if (m == id) {
+                state' = stopped;
+            } else if (m > id) {
+                // The send operation will be triggered in the main module
+            } else {
+                // Do nothing if received message is less than id
+            }
+        }
+    }
+}
+
+module main
+{
+    instance p[1..n] : process;
+
+    // Channels modeled as an array of messages
+    var channels : array [1..n] of process.msg_t;
+
+    init {
+        // Initialize channels to null messages
+        forall (i : int :: channels[i] = process.null_msg);
+        // Assign unique ids and initiate sending of ids
+        forall (i : int :: p[i].id = i);
+        forall (i : int :: channels[i] = p[i].id);
+    }
+
+    next {
+        // Model the passing of messages through the channels
+        forall (i : int :: p[i].m = channels[i]);
+        forall (i : int :: channels[i % n + 1] = (p[i].state == process.active && p[i].m > p[i].id) ? p[i].m : process.null_msg);
+    }
+
+    // Verification properties
+    invariant leader_elected : exists (i : int :: p[i].state == process.stopped && p[i].id == n);
+}
+
+control {
+    v = unroll(2*n); // Unroll the loop enough times to ensure all processes have the chance to act
+    check;
+    print_results;
+}

@@ -1,0 +1,63 @@
+uclid
+module vendingMachine {
+  type state_t = enum { pay, select, soda, beer };
+  var state : state_t;
+  var coin_inserted : boolean;
+
+  init {
+    state = pay;
+    coin_inserted = false;
+  }
+
+  transition {
+    if (state == pay && coin_inserted) {
+      state := select;
+    } else if (state == select) {
+      if (coin_inserted) {
+        if (some_condition) {
+          state := soda;
+        } else {
+          state := beer;
+        }
+      }
+    }
+  }
+
+  process insertCoin {
+    var inserted : boolean;
+
+    transition {
+      inserted := coin_inserted;
+      coin_inserted := true;
+    }
+
+    next {
+      coin_inserted := inserted;
+    }
+  }
+
+  process getSoda {
+    transition {
+      if (state == soda) {
+        state := pay;
+      }
+    }
+  }
+
+  process getBeer {
+    transition {
+      if (state == beer) {
+        state := pay;
+      }
+    }
+  }
+
+  ltl property drink_after_coin {
+    always (state == soda || state == beer) -> coin_inserted;
+  }
+}
+
+
+In this code, the vending machine has states `pay`, `select`, `soda`, and `beer`. The `coin_inserted` variable tracks whether a coin has been inserted. The `insertCoin`, `getSoda`, and `getBeer` processes model the actions of inserting a coin, getting soda, and getting beer, respectively.
+
+The LTL property `drink_after_coin` checks that a drink (soda or beer) is only delivered after a coin has been inserted. The property states that whenever the vending machine is in the `soda` or `beer` state, the `coin_inserted` variable must be true.

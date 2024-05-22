@@ -1,0 +1,63 @@
+
+const HEAT_ON_DURATION : int = 30; // in seconds
+const HEAT_OFF_DURATION : int = 120; // in seconds
+
+module heaterControl
+{
+  var temp : int;
+  var heatOn : bool;
+  var heatOff : bool;
+  var time : int;
+
+  init {
+    assume(temp <= 20);
+    heatOn := true;
+    heatOff := false;
+    time := 0;
+  }
+
+  next {
+    if (heatOn) {
+      time := time + 1;
+      if (time >= HEAT_ON_DURATION) {
+        heatOn := false;
+        heatOff := true;
+        time := 0;
+      }
+    } else if (heatOff) {
+      time := time + 1;
+      if (time >= HEAT_OFF_DURATION) {
+        heatOff := false;
+        heatOn := (temp <= 20);
+        time := 0;
+      }
+    }
+  }
+}
+
+module main
+{
+  var temp : int;
+  var heatOn : bool;
+  var heatOff : bool;
+  var time : int;
+
+  instance hc : heaterControl(temp, heatOn, heatOff, time);
+
+  init {
+    temp := 18; // Initial temperature
+  }
+
+  next {
+    // Simulate temperature changes
+    temp := nondet();
+
+    // Ensure system reacts exactly once every 30 seconds
+    if (time == 30) {
+      time := 0;
+    }
+
+    // Execute heater control logic
+    next(hc);
+  }
+}

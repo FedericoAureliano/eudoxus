@@ -1,0 +1,50 @@
+module traffic_light {
+    type state_t = enum { Red, Green };
+    var state : state_t;
+
+    init {
+        state = Red;
+    }
+
+    next {
+        state' = match state {
+            Red   : { Green },
+            Green : { Red }
+        };
+    }
+}
+
+module main {
+    type tstate_t = traffic_light.state_t;
+
+    instance light1 : traffic_light;
+    instance light2 : traffic_light;
+
+    var red1, green1, red2, green2 : boolean;
+
+    init {
+        red1 = true; green1 = false;
+        red2 = true; green2 = false;
+    }
+
+    next {
+        if (*) {
+            next(light1);
+            red1' = (light1.state' == Red);
+            green1' = (light1.state' == Green);
+        } else {
+            next(light2);
+            red2' = (light2.state' == Red);
+            green2' = (light2.state' == Green);
+        }
+    }
+
+    invariant consistent_light1 : (red1 && !green1) || (!red1 && green1);
+    invariant consistent_light2 : (red2 && !green2) || (!red2 && green2);
+
+    control {
+        v = unroll(5);
+        check;
+        print_results;
+    }
+}

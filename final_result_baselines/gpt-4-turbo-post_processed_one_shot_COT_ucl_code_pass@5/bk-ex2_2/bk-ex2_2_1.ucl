@@ -1,0 +1,41 @@
+module main {
+    type state_t = enum { pay, select, soda, beer };
+    var current_state : state_t;
+    var coin_inserted : boolean;
+    var drink_delivered : boolean;
+
+    init {
+        current_state = pay;
+        coin_inserted = false;
+        drink_delivered = false;
+    }
+
+    input insert_coin : boolean;
+    input get_soda : boolean;
+    input get_beer : boolean;
+
+    next {
+        if (insert_coin) {
+            current_state' = select;
+            coin_inserted' = true;
+        } else if (get_soda && current_state == select && coin_inserted) {
+            current_state' = soda;
+            drink_delivered' = true;
+        } else if (get_beer && current_state == select && coin_inserted) {
+            current_state' = beer;
+            drink_delivered' = true;
+        } else {
+            current_state' = current_state;
+        }
+    }
+
+    invariant delivery_after_payment {
+        G (drink_delivered -> coin_inserted)
+    }
+
+    control {
+        v = unroll(10);
+        check;
+        print_results;
+    }
+}

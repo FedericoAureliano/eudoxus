@@ -1,0 +1,66 @@
+module main {
+    // Define the variables
+    var temp : int;      // Current temperature in degrees Celsius
+    var heatOn : boolean; // Heater state (true if on, false if off)
+    var heatOff : boolean; // Heater state (true if off, false if on)
+    var time : int;      // Time in seconds since last state change
+
+    // Define the initial state
+    init {
+        heatOn = (temp <= 20);
+        heatOff = !heatOn;
+        time = 0;
+    }
+
+    // Define the transitions
+    next {
+        if (heatOn) {
+            // Heater is currently on
+            if (time >= 30) { // Heater has been on for at least 30 seconds
+                if (temp > 20) {
+                    // Turn the heater off if the temperature is greater than 20
+                    heatOn' = false;
+                    heatOff' = true;
+                    time' = 0; // Reset the timer
+                } else {
+                    // Keep the heater on
+                    heatOn' = true;
+                    heatOff' = false;
+                    time' = time + 30; // Increment the time
+                }
+            } else {
+                // Continue the current state until 30 seconds pass
+                heatOn' = true;
+                heatOff' = false;
+                time' = time + 30; // Increment the time
+            }
+        } else if (heatOff) {
+            // Heater is currently off
+            if (time >= 120) { // Heater has been off for at least 2 minutes
+                if (temp <= 20) {
+                    // Turn the heater on if the temperature is less than or equal to 20
+                    heatOn' = true;
+                    heatOff' = false;
+                    time' = 0; // Reset the timer
+                } else {
+                    // Keep the heater off
+                    heatOn' = false;
+                    heatOff' = true;
+                    time' = time + 30; // Increment the time
+                }
+            } else {
+                // Continue the current state until 2 minutes pass
+                heatOn' = false;
+                heatOff' = true;
+                time' = time + 30; // Increment the time
+            }
+        }
+    }
+
+    // Define the control block for bounded model checking
+    control {
+        v = unroll(10);
+        check;
+        print_results;
+    }
+}

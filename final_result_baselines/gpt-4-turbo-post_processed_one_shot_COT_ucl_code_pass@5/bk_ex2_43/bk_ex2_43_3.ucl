@@ -1,0 +1,63 @@
+module circuit1 {
+  type state_t = boolean;
+
+  var y1 : state_t;
+  var r1 : state_t;
+
+  init {
+    r1 = false; // Initialize register
+  }
+
+  next {
+    y1' = r1;
+    r1' = !r1;
+  }
+}
+
+module circuit2 {
+  type state_t = boolean;
+
+  input x2 : state_t;
+  var y2 : state_t;
+  var r2 : state_t;
+
+  init {
+    r2 = false; // Initialize register
+  }
+
+  next {
+    y2' = x2' | r2;
+    r2' = x2' | r2;
+  }
+}
+
+module main {
+  type state_t = boolean;
+
+  var y1 : state_t;
+  var r1 : state_t;
+  var x2 : state_t;
+  var y2 : state_t;
+  var r2 : state_t;
+
+  instance c1 : circuit1(y1: y1, r1: r1);
+  instance c2 : circuit2(x2: x2, y2: y2, r2: r2);
+
+  init {
+    // Initialize main module state
+    x2 = false;
+  }
+
+  next {
+    // Synchronously update both circuits
+    next(c1);
+    x2' = nondet(); // Non-deterministic update for input x2
+    next(c2);
+  }
+}
+
+control {
+  v = unroll(5);
+  check;
+  print_results;
+}

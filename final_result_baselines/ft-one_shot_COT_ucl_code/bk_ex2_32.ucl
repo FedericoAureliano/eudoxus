@@ -1,0 +1,116 @@
+// Outline of the Model
+
+// Part 1: Data types and constants
+type message_t;
+type control_bit_t = boolean;
+
+// Part 2: Modules
+module S {
+    input ack_bit  : control_bit_t;
+    output msg_out : message_t;
+    output control_out : control_bit_t;
+    var current_control_bit : control_bit_t;
+    var waiting_for_ack : boolean;
+
+    procedure send_message(m: message_t)
+        modifies msg_out, control_out;
+    {
+        msg_out = m;
+        control_out = current_control_bit;
+    }
+
+    procedure receive_ack(ack_bit: control_bit_t)
+        modifies current_control_bit, waiting_for_ack;
+    {
+        if (waiting_for_ack) {
+            waiting_for_ack = false;
+        }
+        current_control_bit = ack_bit;
+    }
+
+    init {
+        current_control_bit = false;
+        waiting_for_ack = false;
+    }
+
+    next {
+        if (!waiting_for_ack) {
+            call send_message(fresh_const(message_t));
+            waiting_for_ack' = true;
+        } else {
+            if (ack_bit != current_control_bit) {
+                call receive_ack(ack_bit);
+            }
+        }
+    }
+}
+
+module R {
+    input msg_in    : message_t;
+    input control_in: control_bit_t;
+    output ack_out  : control_bit_t;
+
+    procedure receive_message(msg_in: message_t, control_in: control_bit_t)
+        modifies ack_out;
+    {
+        ack_out = control_in;
+    }
+
+    init { }
+
+    next {
+        call receive_message(msg_in, control_in);
+    }
+}
+
+// Part 3: Main module
+module main {
+    var channel_c : [message_t]control_bit_t;
+    var channel_d : [message_t]control_bit_t;
+
+    instance sender   : S(ack_bit  : channel_c[msg_out],
+                          msg_out : msg_out,
+                          control_out : control_out);
+    instance receiver : R(msg_in    : sender.msg_out,
+                          control_in: sender.control_out,
+                          ack_out   : channel_c[sender.msg_out]);
+
+    init {
+        assume channel_c == const_buffer(0, message_t, control_bit_t);
+        assume channel_d == const_buffer(0, message_t, control_bit_t);
+    }
+
+    next {
+        // Channel C
+        if (channel_c[sender.msg_out] == sender.control_out) {
+            channel_c[sender.msg_out]' = sender.ack_bit;
+        }
+
+        // Channel D
+        if (channel_d[sender.msg_out] == sender.control_out) {
+            channel_d[sender.msg_out]' = sender.control_out;
+        }
+
+        next (sender);
+        next (receiver);
+    }
+
+    invariant forall (m1: message_t) ::
+        (channel_c[m1] != sender.control_out) ==>
+            (exists (m2: message_t) ::
+                (channel_d[m2] == sender.control_out) &&
+                (m1 == sender.msg_out) && (m2 == receiver.msg_in));
+    // Note: this is a weird invariant, but it's the only thing that seems to work.
+
+    control {
+        v1 = send_wait(1);
+        v2 = timeout(1);
+        v3 = retransmit(1);
+        v4 = unroll(1);
+        check;
+        // v1.print_cex();
+        // v2.print_cex();
+        // v3.print_cex();
+        // v4.print_cex();
+    }
+}

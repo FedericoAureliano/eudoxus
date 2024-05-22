@@ -1,0 +1,33 @@
+module traffic_light {
+    type light_state = enum { red, green };  // Define the states of the traffic light
+
+    var current_state : light_state;  // Variable to keep track of the current state
+
+    init {
+        current_state = red;  // Initialize the traffic light to start at red
+    }
+
+    next {
+        // Define the state transitions
+        current_state' =
+            case
+                current_state == red : green;  // If red, change to green
+                current_state == green : red;  // If green, change to red
+                true : current_state;  // Default case to handle unexpected conditions
+            esac;
+    }
+
+    // Optional: Define an invariant to check the correctness of state transitions
+    invariant is_valid_state : (current_state == red) || (current_state == green);
+}
+
+module main {
+    // Create an instance of the traffic_light module
+    instance light : traffic_light;
+
+    // Control block to simulate and check the model
+    control {
+        v = simulate(10);  // Simulate for 10 steps
+        v.print_trace;
+    }
+}

@@ -1,0 +1,35 @@
+module main {
+    type state_t = enum { HEATER_ON, HEATER_OFF };
+
+    var temp : int;
+    var state : state_t;
+    var time : int;
+
+    init {
+        temp = 20; // Assuming initial temperature
+        state = if (temp <= 20) then HEATER_ON else HEATER_OFF;
+        time = 0;
+    }
+
+    next {
+        if (time % 30 == 0) {
+            if (state == HEATER_ON && temp > 20 && time >= 30) {
+                state' = HEATER_OFF;
+                time' = 0;
+            } else if (state == HEATER_OFF && temp <= 20 && time >= 120) {
+                state' = HEATER_ON;
+                time' = 0;
+            } else {
+                time' = time + 30;
+            }
+        } else {
+            time' = time + 30;
+        }
+    }
+
+    control {
+        v = unroll(20); // Simulate for 10 minutes, reacting every 30 seconds
+        check;
+        print_results;
+    }
+}

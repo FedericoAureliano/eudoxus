@@ -1,0 +1,45 @@
+model parallel_increment {
+    // Declare the shared variable
+    var x : integer;
+
+    // Initial state
+    init {
+        x = 0;
+    }
+
+    // Define the procedure for incrementing x
+    procedure increment_x() {
+        var local_x : integer;
+        local_x = x;       // LOAD(x)
+        local_x = local_x + 1;  // INC(x)
+        x = local_x;       // STORE(x)
+    }
+
+    // Process definitions (simulating parallel execution)
+    // Each process performs the increment procedure 10 times
+    procedure process() {
+        var i : integer;
+        for (i = 1; i <= 10; i = i + 1) {
+            increment_x();
+        }
+    }
+
+    // Main parallel execution simulation
+    // Simulating P1 || P2 || P3
+    // Note: For simplicity in UCLID5, we will unroll this manually as nested loops
+    // In a real concurrent system, this would need more sophisticated concurrency modeling
+    init {
+        process();  // P1
+        process();  // P2
+        process();  // P3
+    }
+
+    // Safety property: Check if x can be exactly 2 after all processes complete
+    invariant x_equals_2 : (x == 2);
+}
+
+// Control block to run the model checking
+control {
+    check;
+    print_results;
+}

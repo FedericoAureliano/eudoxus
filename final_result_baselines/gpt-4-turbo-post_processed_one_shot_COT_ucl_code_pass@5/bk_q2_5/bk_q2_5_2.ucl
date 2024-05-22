@@ -1,0 +1,55 @@
+module main {
+    type state_t = enum { l0, l1, l2, l3, l4, l5 };
+    var y0 : boolean;
+    var y1 : boolean;
+    var s : int;
+
+    var pc0 : state_t;
+    var pc1 : state_t;
+
+    init {
+        y0 = false;
+        y1 = false;
+        s = 1;
+        pc0 = l0;
+        pc1 = l0;
+    }
+
+    // Transition for process P0
+    next(pc0) {
+        case
+            pc0 == l0 : l1;
+            pc0 == l1 : l2;
+            pc0 == l2 : { y0' = true; s' = 0; l3; }
+            pc0 == l3 : (y1 == false || s != 0) ? l4 : l3;
+            pc0 == l4 : l5;
+            pc0 == l5 : { y0' = false; l0; }
+        esac
+    }
+
+    // Transition for process P1
+    next(pc1) {
+        case
+            pc1 == l0 : l1;
+            pc1 == l1 : l2;
+            pc1 == l2 : { y1' = true; s' = 1; l3; }
+            pc1 == l3 : (y0 == false || s != 1) ? l4 : l3;
+            pc1 == l4 : l5;
+            pc1 == l5 : { y1' = false; l0; }
+        esac
+    }
+
+    // Property: Mutual Exclusion
+    invariant main : !(pc0 == l4 && pc1 == l4);
+
+    // Property: Starvation Freedom
+    invariant starvation_freedom_p0 : always_eventually(pc0 == l4);
+    invariant starvation_freedom_p1 : always_eventually(pc1 == l4);
+
+    control {
+        v = unroll(10);
+        check;
+        print_results;
+        v.print_cex();
+    }
+}

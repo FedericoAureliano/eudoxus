@@ -1,0 +1,51 @@
+// Define the model
+module main {
+    // Define the types used in the model
+    type status_t = enum { ready, busy };
+
+    // Declare the program variables
+    var request : boolean;
+    var status : status_t;
+
+    // Auxiliary variable to track if request has been true
+    var wasRequested : boolean;
+
+    // Initialize the variables
+    init {
+        status = ready;
+        wasRequested = false;
+    }
+
+    // Define the transition relation
+    next {
+        // Non-deterministic assignment to request to model external influence
+        havoc request;
+
+        // Update status based on the value of request
+        if (request) {
+            status' = busy;
+            wasRequested' = true;
+        } else {
+            // Next value of status is not determined when request is false
+            havoc status';
+        }
+
+        // Maintain the wasRequested state
+        if (!wasRequested) {
+            wasRequested' = request;
+        }
+    }
+
+    // Property to check: If request is ever true, status should eventually be busy
+    property request_implies_busy = G (wasRequested -> F (status == busy));
+
+    // Control block for verification
+    control {
+        v = unroll(5);
+        check;
+        print_results;
+        if (!v.verify(request_implies_busy)) {
+            v.print_cex();
+        }
+    }
+}

@@ -1,0 +1,101 @@
+module Train
+{
+  type train_state_t = enum { far, near, in };
+
+  var train_state : train_state_t;
+  input signal : boolean;
+
+  init {
+    train_state = far;
+  }
+
+  next {
+    if (train_state == far) {
+      train_state' = near;
+    } else if (train_state == near) {
+      if (signal) {
+        train_state' = in;
+      } else {
+        train_state' = near;
+      }
+    } else if (train_state == in) {
+      train_state' = far;
+    }
+  }
+
+}
+
+module Gate
+{
+  type gate_state_t = enum { up, down };
+
+  var gate_state : gate_state_t;
+
+  init {
+    gate_state = up;
+  }
+
+  next {
+    if (gate_state == up) {
+      gate_state' = down;
+    } else if (gate_state == down) {
+      gate_state' = up;
+    }
+  }
+
+}
+
+module Controller
+{
+  type controller_state_t = enum { S0, S1, S2, S3 };
+
+  var controller_state : controller_state_t;
+  input train_signal : boolean;
+  input gate_signal : boolean;
+
+  init {
+    controller_state = S0;
+  }
+
+  next {
+    if (controller_state == S0) {
+      if (train_signal) {
+        controller_state' = S1;
+      } else {
+        controller_state' = S0;
+      }
+    } else if (controller_state == S1) {
+      if (gate_signal) {
+        controller_state' = S2;
+      } else {
+        controller_state' = S1;
+      }
+    } else if (controller_state == S2) {
+      if (!train_signal) {
+        controller_state' = S3;
+      } else {
+        controller_state' = S2;
+      }
+    } else if (controller_state == S3) {
+      if (!gate_signal) {
+        controller_state' = S0;
+      } else {
+        controller_state' = S3;
+      }
+    }
+  }
+
+}
+
+module main
+{
+  instance t : Train(signal);
+  instance g : Gate();
+  instance c : Controller(t.signal, g.gate_state == down);
+
+  control {
+    v = unroll(5);
+    check;
+    print_results;
+  }
+}

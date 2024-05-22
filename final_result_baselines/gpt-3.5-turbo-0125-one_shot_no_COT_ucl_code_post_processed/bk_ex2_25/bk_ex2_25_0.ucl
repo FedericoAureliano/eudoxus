@@ -1,0 +1,50 @@
+uclid
+module P1P2 {
+  var b1 : boolean; // process P1's indicator variable
+  var b2 : boolean; // process P2's indicator variable
+  var x : 1..2; // variable to decide which process can enter the critical section
+
+  process P1 {
+    wait1:
+      b1 := true;
+      x := 2;
+      goto crit1;
+
+    crit1:
+      wait {
+        assume (x == 1 || !b2);
+      }
+      b1 := false;
+      goto wait1;
+  }
+
+  process P2 {
+    wait2:
+      b2 := true;
+      x := 1;
+      goto crit2;
+
+    crit2:
+      wait {
+        assume (x == 2 || !b1);
+      }
+      b2 := false;
+      goto wait2;
+  }
+
+  init {
+    b1 := false;
+    b2 := false;
+    x := 1; // Initial value of x can be arbitrary
+  }
+
+  transition {
+    P1.wait1 -> P1.crit1;
+    P1.crit1 -> P1.wait1;
+    P2.wait2 -> P2.crit2;
+    P2.crit2 -> P2.wait2;
+  }
+}
+
+
+This code defines two processes, P1 and P2, with the specified behaviors for entering the critical section based on the values of shared variables b1, b2, and x. The transition system models the interleaving of these processes according to the described logic.

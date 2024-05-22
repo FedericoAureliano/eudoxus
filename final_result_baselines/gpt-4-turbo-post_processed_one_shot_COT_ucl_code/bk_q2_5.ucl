@@ -1,0 +1,55 @@
+module process
+{
+  type id_t = { P0, P1 };
+  type state_t = enum { l0, l1, l2, l3, l4, l5 };
+  var pc : state_t;
+  var yi : boolean;
+  var i : id_t;
+
+  input s : int;
+  output s_next : int;
+
+  init {
+    pc = l0;
+    yi = false;
+  }
+
+  next {
+    case
+      pc == l0 : { pc' = l1; }
+      pc == l1 : { pc' = l2; }
+      pc == l2 : { yi' = true; s_next' = i; pc' = l3; }
+      pc == l3 : {
+        if ((i == P0 && (y1 == 0 || s != 0)) || (i == P1 && (y0 == 0 || s != 1))) {
+          pc' = l4;
+        }
+      }
+      pc == l4 : { pc' = l5; }
+      pc == l5 : { yi' = false; pc' = l0; }
+    esac
+  }
+}
+
+module main
+{
+  var s : int;
+  var y0, y1 : boolean;
+
+  instance p0 : process(i: P0, s: s, s_next: s, yi: y0);
+  instance p1 : process(i: P1, s: s, s_next: s, yi: y1);
+
+  init {
+    s = 1;
+    y0 = false;
+    y1 = false;
+  }
+
+  next {
+    next(p0);
+    next(p1);
+  }
+
+  invariant mutual_exclusion : !(p0.pc == l4 && p1.pc == l4);
+  invariant starvation_freedom : (y0 && p0.pc != l4) -> eventually (p0.pc == l4);
+  invariant starvation_freedom : (y1 && p1.pc != l4) -> eventually (p1.pc == l4);
+}

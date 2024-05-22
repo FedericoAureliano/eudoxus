@@ -1,0 +1,58 @@
+module main {
+  // Define types and variables
+  var ignition : boolean;
+  var warn : boolean;
+  var nowarn : boolean;
+  var time : int;
+  var buckled : boolean;
+  var beeper : boolean;
+  var warningLight : boolean;
+
+  // Initialization
+  init {
+    ignition = false;
+    warn = false;
+    nowarn = true;
+    time = 0;
+    buckled = true;
+    beeper = false;
+    warningLight = false;
+  }
+
+  // State Transition System
+  next {
+    // Ignition turned on and warning condition met
+    if (ignition && warn) {
+      beeper' = true;
+      warningLight' = true;
+    }
+
+    // Conditions for turning off the beeper
+    if (nowarn || time >= 30) {
+      beeper' = false;
+    }
+
+    // Conditions for turning off the warning light
+    if (nowarn) {
+      warningLight' = false;
+    }
+
+    // Update time
+    if (beeper) {
+      time' = time + 1;
+    } else {
+      time' = 0;
+    }
+  }
+
+  // Safety Properties
+  invariant time_constraint : (beeper -> time <= 30);
+  invariant warning_light_correctness : (warningLight <-> warn);
+
+  // Control Block for simulation and checking
+  control {
+    v = unroll(10);
+    check;
+    print_results;
+  }
+}

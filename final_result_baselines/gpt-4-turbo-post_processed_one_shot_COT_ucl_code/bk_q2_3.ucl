@@ -1,0 +1,68 @@
+type light_state_t = enum { green, yellow, red, amber };
+
+module traffic_light {
+    var state : light_state_t;
+
+    init {
+        state = red;
+    }
+
+    procedure next_state() {
+        state =
+            case
+                state == green : yellow;
+                state == yellow : red;
+                state == red : amber;
+                state == amber : green;
+                true : red;
+            esac;
+    }
+
+    next {
+        state' = state;
+        call next_state();
+    }
+}
+
+module controller {
+    var L1, L2, L3, L4 : traffic_light;
+
+    init {
+        L1.state = green;
+        L3.state = green;
+        L2.state = red;
+        L4.state = red;
+    }
+
+    next {
+        if (L1.state == red && L3.state == red) {
+            L2.state' = green;
+            L4.state' = green;
+        } else {
+            L2.state' = red;
+            L4.state' = red;
+        }
+        call L1.next_state();
+        call L2.next_state();
+        call L3.next_state();
+        call L4.next_state();
+    }
+}
+
+module main {
+    var ctrl : controller;
+
+    init {
+        // Initialize controller
+    }
+
+    next {
+        call ctrl.next();
+    }
+
+    control {
+        v = unroll(10);
+        check;
+        print_results;
+    }
+}

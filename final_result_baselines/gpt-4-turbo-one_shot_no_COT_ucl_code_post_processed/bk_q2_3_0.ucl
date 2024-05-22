@@ -1,0 +1,84 @@
+module traffic_light {
+  type state_t = enum { green, yellow, red, amber };
+
+  var light_state : state_t;
+
+  init {
+    light_state = red;
+  }
+
+  procedure set_state(s : state_t)
+    modifies light_state;
+  {
+    light_state = s;
+  }
+
+  next {
+    case
+      light_state == green : light_state' = yellow;
+      light_state == yellow : light_state' = red;
+      light_state == red : light_state' = amber;
+      light_state == amber : light_state' = green;
+    esac
+  }
+}
+
+module controller {
+  type phase_t = enum { phase1, phase2, phase3, phase4 };
+  var phase : phase_t;
+
+  instance L1, L3 : traffic_light;
+  instance L2, L4 : traffic_light;
+
+  init {
+    phase = phase1;
+    L1.set_state(green);
+    L3.set_state(green);
+    L2.set_state(red);
+    L4.set_state(red);
+  }
+
+  next {
+    case
+      phase == phase1 : {
+        if (L1.light_state == red && L3.light_state == red) {
+          phase' = phase2;
+          L2.set_state(green);
+        }
+      }
+      phase == phase2 : {
+        if (L2.light_state == red) {
+          phase' = phase3;
+          L4.set_state(green);
+        }
+      }
+      phase == phase3 : {
+        if (L4.light_state == red) {
+          phase' = phase4;
+          L1.set_state(green);
+          L3.set_state(green);
+        }
+      }
+      phase == phase4 : {
+        if (L1.light_state == red && L3.light_state == red) {
+          phase' = phase1;
+          L2.set_state(green);
+        }
+      }
+    esac
+  }
+}
+
+module main {
+  instance ctrl : controller;
+
+  init {
+    // Initialize the controller
+    ctrl.init();
+  }
+
+  next {
+    // Update the controller and traffic lights
+    ctrl.next();
+  }
+}

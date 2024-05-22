@@ -1,0 +1,55 @@
+module main {
+  // Define the state variables
+  var ferryman : boolean;
+  var goat : boolean;
+  var cabbage : boolean;
+  var wolf : boolean;
+  var carry : [0:3]; // 0: nothing, 1: goat, 2: cabbage, 3: wolf
+
+  // Initial state: everything is on the initial side (false)
+  init {
+    ferryman = false;
+    goat = false;
+    cabbage = false;
+    wolf = false;
+    carry = 0;
+  }
+
+  // Transition rules
+  next {
+    if (ferryman == carry) {
+      // Ferryman decides to move to the opposite side
+      ferryman' = !ferryman;
+      case
+        carry == 1: goat' = !goat; // carrying the goat
+        carry == 2: cabbage' = !cabbage; // carrying the cabbage
+        carry == 3: wolf' = !wolf; // carrying the wolf
+        true: skip;
+      esac
+      carry' = 0; // nothing is carried after the move
+    } else {
+      carry' = carry; // no change in carry if ferryman does not move
+    }
+  }
+
+  // Safety property: no conflicts
+  constraint {
+    // No goat and cabbage together without ferryman
+    !(goat == cabbage && goat != ferryman);
+    // No goat and wolf together without ferryman
+    !(goat == wolf && goat != ferryman);
+  }
+
+  // Goal state: everything on the other side (true)
+  define goal_state : boolean = (ferryman && goat && cabbage && wolf);
+
+  // Check if the goal state is reachable without conflicts
+  control {
+    init;
+    while (!goal_state) {
+      next;
+    }
+    check;
+    print_results;
+  }
+}

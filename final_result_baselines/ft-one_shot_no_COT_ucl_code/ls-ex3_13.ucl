@@ -1,0 +1,31 @@
+module traffic_light
+{
+  type state_t = enum { RED, GREEN, YELLOW, PENDING };
+
+  var state : state_t;
+  var count : integer;
+  input pedestrian : boolean;
+  output sigG, sigY, sigR : boolean;
+
+  init {
+    state = RED;
+    count = 0;
+    sigG = false;
+    sigY = false;
+    sigR = true;
+  }
+
+  next {
+    count' = count + 1;
+    case
+      (state == RED) && (count == 60) : { state' = GREEN; count' = 0; }
+      (state == GREEN) && (pedestrian) : { state' = YELLOW; count' = 0; }
+      (state == GREEN) && (count == 60) : { state' = PENDING; count' = 0; }
+      (state == PENDING) && (count == 60) : { state' = YELLOW; count' = 0; }
+      (state == YELLOW) && (count == 5) : { state' = RED; count' = 0; }
+    esac
+    sigG' = (state == GREEN);
+    sigY' = (state == YELLOW);
+    sigR' = (state == RED);
+  }
+}

@@ -1,0 +1,51 @@
+// OUTLINE
+// Model Description
+// The model simulates a traffic light with three phases: red, green, and yellow.
+// The primary safety property to verify is that every red phase is immediately preceded by a yellow phase.
+
+// Variables
+// - state: An enumerated type representing the traffic light state.
+// - prev_state: An auxiliary variable used to store the previous state.
+
+// State Transition System
+// Initial State
+// The traffic light starts in the RED state.
+// prev_state is initialized to RED.
+// State Transitions
+// From RED to GREEN.
+// From GREEN to YELLOW.
+// From YELLOW to RED.
+
+// Safety Property Assertion
+// If the current state is RED, then the previous state must have been YELLOW.
+
+// UCLID5 Model Components
+
+// Type Definitions
+type state_t = enum { RED, GREEN, YELLOW };
+
+// State Variables
+var state : state_t;
+var prev_state : state_t;
+
+// State Transition System
+init(state) := RED;
+init(prev_state) := RED;
+
+next(state) :=
+  case
+    state == RED    -> GREEN,
+    state == GREEN  -> YELLOW,
+    state == YELLOW -> RED,
+    true -> state
+  esac;
+next(prev_state) := state;
+
+// Safety Property
+invariant enforce_yellow_before_red: (state == RED) -> (prev_state == YELLOW);
+
+// Control and Verification
+control {
+  mode = simulation;
+  print_cex = true;
+}

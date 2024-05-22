@@ -1,0 +1,82 @@
+
+module automobileFeature
+{
+  var warn : boolean; // warning light status
+  var nowarn : boolean; // no warning event status
+  var time : int; // time elapsed since warning started
+  var ignition : boolean; // ignition status
+  var buckled : boolean; // seat belt buckle status
+
+  init {
+    warn = false; // warning light initially off
+    nowarn = true; // no warning event initially
+    time = 0; // initial time
+    ignition = false; // ignition initially off
+    buckled = true; // seat belt initially buckled
+  }
+
+  event warnEvent;
+  event noWarnEvent;
+  event ignitionOnEvent;
+  event ignitionOffEvent;
+  event seatBeltBuckledEvent;
+  event seatBeltUnbuckledEvent;
+
+  transition {
+    // Ignition is turned on
+    [] (ignition == false) -> ignitionOnEvent;
+    [] (ignition == true) && (nowarn == false) -> ignitionOffEvent;
+
+    // Passenger sits in a seat without buckling seat belt
+    [] (ignition == true) && (buckled == false) -> warnEvent;
+
+    // Passenger departs from a seat or buckles seat belt
+    [] (buckled == true) && (nowarn == false) -> noWarnEvent;
+    [] (buckled == true) && (warn == true) -> noWarnEvent;
+
+    // Time passes
+    [] (time < 30) && (warn == true) -> time' = time + 1;
+    [] (time >= 30) && (warn == true) -> warn' = false;
+  }
+
+  transition {
+    [] ignitionOnEvent -> {
+      ignition' = true;
+      if (buckled == false) {
+        warn' = true;
+      }
+    }
+
+    [] ignitionOffEvent -> {
+      ignition' = false;
+      nowarn' = true;
+      warn' = false;
+    }
+
+    [] warnEvent -> {
+      warn' = true;
+      time' = 0;
+    }
+
+    [] noWarnEvent -> {
+      nowarn' = true;
+      warn' = false;
+    }
+
+    [] seatBeltBuckledEvent -> {
+      buckled' = true;
+      nowarn' = true;
+      warn' = false;
+    }
+
+    [] seatBeltUnbuckledEvent -> {
+      buckled' = false;
+      if (ignition == true) {
+        warn' = true;
+        time' = 0;
+      }
+    }
+  }
+}
+
+This Uclid5 model captures the behavior of the automobile feature as described, including the sounding of the beeper, the indication of the warning light, the timing of the warning, and the conditions for the warning and no warning events based on ignition status and seat belt buckling status.

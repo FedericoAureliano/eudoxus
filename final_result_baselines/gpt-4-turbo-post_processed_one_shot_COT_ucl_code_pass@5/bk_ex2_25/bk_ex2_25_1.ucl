@@ -1,0 +1,58 @@
+module main {
+    // Define shared variables
+    var b1 : boolean; // Indicates if P1 is in waiting or critical section
+    var b2 : boolean; // Indicates if P2 is in waiting or critical section
+    var x : int;      // Scheduling variable to decide turn
+
+    // Initialize variables
+    init {
+        b1 = false;
+        b2 = false;
+        x = 1; // Let P1 have the initial turn
+    }
+
+    // Process P1
+    procedure process1() {
+        while (true) {
+            // P1 sets b1 and gives turn to P2
+            b1 := true;
+            x := 2;
+
+            // P1 waits until it's its turn or P2 is not in critical/waiting
+            havoc x;
+            assume (x == 1 || !b2);
+
+            // P1 enters critical section
+            // Critical section code here
+            // Exit critical section
+            b1 := false;
+        }
+    }
+
+    // Process P2
+    procedure process2() {
+        while (true) {
+            // P2 sets b2 and gives turn to P1
+            b2 := true;
+            x := 1;
+
+            // P2 waits until it's its turn or P1 is not in critical/waiting
+            havoc x;
+            assume (x == 2 || !b1);
+
+            // P2 enters critical section
+            // Critical section code here
+            // Exit critical section
+            b2 := false;
+        }
+    }
+
+    // Safety property: Check for mutual exclusion
+    invariant mutual_exclusion : !(b1 && b2);
+
+    // Control for simulation
+    control {
+        v = simulate(10);
+        print_trace;
+    }
+}

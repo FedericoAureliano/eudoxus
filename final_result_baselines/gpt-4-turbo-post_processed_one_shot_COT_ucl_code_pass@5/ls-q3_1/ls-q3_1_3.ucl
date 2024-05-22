@@ -1,0 +1,33 @@
+module main {
+    type temperature_t = integer;
+    const threshold : temperature_t = 30; // Example threshold temperature
+
+    var temp : temperature_t;
+    var count : integer;
+    var prev_temp : temperature_t;
+
+    init {
+        temp = *; // Non-deterministic initial temperature
+        prev_temp = temp;
+        count = 0;
+    }
+
+    next {
+        prev_temp' = temp;
+        temp' = *; // Non-deterministic temperature change
+        if (temp' > threshold && prev_temp <= threshold) {
+            count' = count + 1;
+        } else {
+            count' = count;
+        }
+    }
+
+    invariant positive_count : count >= 0;
+    invariant correct_counting : (temp > threshold && prev_temp <= threshold) -> (count' == count + 1);
+
+    control {
+        v = unroll(10);
+        check;
+        print_results;
+    }
+}

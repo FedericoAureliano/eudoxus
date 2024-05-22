@@ -1,0 +1,60 @@
+
+module automobile
+{
+  type event_t = enum { warn, noWarn };
+
+  var warn_event : event_t;
+  var nowarn_event : event_t;
+  var time : int;
+  var ignition : boolean;
+  var buckled : boolean;
+
+  init {
+    warn_event = noWarn;
+    nowarn_event = noWarn;
+    time = 0;
+    ignition = false;
+    buckled = true; // Assume all passengers start with seat belts buckled
+  }
+
+  transition {
+    if (warn_event == warn && !buckled) {
+      warn_event' = noWarn;
+      nowarn_event' = warn;
+      time' = 1;
+    } else if (nowarn_event == warn && !buckled) {
+      nowarn_event' = warn;
+      time' = time + 1;
+    } else if (nowarn_event == warn && buckled) {
+      nowarn_event' = noWarn;
+      time' = 0;
+    } else if (warn_event == warn && buckled) {
+      warn_event' = noWarn;
+      time' = 0;
+    } else {
+      warn_event' = noWarn;
+      nowarn_event' = noWarn;
+      time' = 0;
+    }
+
+    if (ignition) {
+      if (time < 30) {
+        time' = time + 1;
+      } else {
+        warn_event' = noWarn;
+        nowarn_event' = noWarn;
+        time' = 0;
+      }
+    }
+
+    if (ignition) {
+      if (!buckled) {
+        warn_event' = warn;
+      }
+    }
+  }
+
+}
+
+
+This code models the behavior of the automobile system as described, tracking events, time, ignition status, and seat belt buckling status. The transition rules capture the conditions under which warnings are issued, the timing of the beeper sounding, and the behavior of the warning light based on the ignition status and seat belt buckling.

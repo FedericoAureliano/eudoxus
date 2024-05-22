@@ -1,0 +1,84 @@
+uclid
+module main {
+    var b1 : boolean;
+    var b2 : boolean;
+    var x : 1..2;
+
+    process P1 {
+        var wait1 : boolean;
+        var crit1 : boolean;
+
+        init {
+            wait1 = false;
+            crit1 = false;
+        }
+
+        transition start_wait1 {
+            wait1' = true;
+            x' = 2;
+        }
+
+        transition enter_critical_section {
+            wait1' = false;
+            crit1' = true;
+        }
+
+        transition end_critical_section {
+            crit1' = false;
+        }
+
+        transition wait_until {
+            wait1' = true;
+        }
+    }
+
+    process P2 {
+        var wait2 : boolean;
+        var crit2 : boolean;
+
+        init {
+            wait2 = false;
+            crit2 = false;
+        }
+
+        transition start_wait2 {
+            wait2' = true;
+            x' = 1;
+        }
+
+        transition enter_critical_section {
+            wait2' = false;
+            crit2' = true;
+        }
+
+        transition end_critical_section {
+            crit2' = false;
+        }
+
+        transition wait_until {
+            wait2' = true;
+        }
+    }
+
+    transition interleaving {
+        if (P1.wait1 && P2.wait2) {
+            if (x == 1) {
+                P1.enter_critical_section;
+            } else {
+                P2.enter_critical_section;
+            }
+        } else if (P1.wait1) {
+            P1.wait_until;
+        } else if (P2.wait2) {
+            P2.wait_until;
+        }
+    }
+
+    transition end_interleaving {
+        if (P1.crit1) {
+            P1.end_critical_section;
+        } else if (P2.crit2) {
+            P2.end_critical_section;
+        }
+    }
+}

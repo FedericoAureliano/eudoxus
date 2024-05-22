@@ -1,0 +1,48 @@
+module main {
+  type carry_t = enum { None, Goat, Cabbage, Wolf };
+
+  var ferryman : boolean;
+  var goat : boolean;
+  var cabbage : boolean;
+  var wolf : boolean;
+  var carry : carry_t;
+
+  init {
+    ferryman = false;
+    goat = false;
+    cabbage = false;
+    wolf = false;
+    carry = None;
+  }
+
+  next {
+    if (carry != None) {
+      // Update location of the carried item
+      if (carry == Goat) { goat' = !goat; }
+      if (carry == Cabbage) { cabbage' = !cabbage; }
+      if (carry == Wolf) { wolf' = !wolf; }
+    }
+    // Ferryman always crosses
+    ferryman' = !ferryman;
+    carry' = None; // Reset carry after crossing
+  }
+
+  // Define conflict constraints
+  constraint (goat == cabbage => ferryman == goat);
+  constraint (goat == wolf => ferryman == goat);
+
+  // Goal state definition
+  define goal_state : (ferryman && goat && cabbage && wolf);
+
+  // Safety property: check if goal state is reachable
+  control {
+    v = unroll(10); // Adjust unroll depth based on problem complexity
+    check;
+    print_results;
+    if (goal_state) {
+      print "Goal state is reachable.";
+    } else {
+      print "Goal state is not reachable.";
+    }
+  }
+}

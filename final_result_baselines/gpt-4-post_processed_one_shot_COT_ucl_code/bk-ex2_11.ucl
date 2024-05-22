@@ -1,0 +1,34 @@
+module sequential_circuit {
+    // Define the state variables
+    var x : boolean;
+    var r : boolean;
+    var y : boolean;
+
+    // Initialization of the register r
+    init {
+        r = false;
+    }
+
+    // Transition relation describing the circuit's behavior
+    next(r) := x | r; // next_r = x OR r
+    next(y) := !(x ^ r); // y = NOT(x XOR r)
+
+    // Initial states
+    init {
+        // State S1: x=0, r=0
+        // State S2: x=1, r=0
+        // Handled by non-deterministic choice in UCLID5
+        havoc x;
+        assume(x == false | x == true);
+        assume(r == false);
+    }
+
+    // LTL property: y is set infinitely often
+    ltl infinitely_often_y { G F y }
+}
+
+// Control block for model checking
+control {
+    check;
+    print_results;
+}

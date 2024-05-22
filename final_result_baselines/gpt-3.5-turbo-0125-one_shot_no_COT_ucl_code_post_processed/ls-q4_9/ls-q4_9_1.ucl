@@ -1,0 +1,66 @@
+uclid
+module TrafficLightSystem {
+    type LightState = enum { R, G, Y };
+
+    var mG, mY, mR : LightState;
+    var sG, sY, sR : LightState;
+    var vehicleDetected : boolean;
+    var mainTimer : int;
+    var secondaryTimer : int;
+
+    const MAIN_GREEN_DURATION = 180; // 3 minutes in seconds
+    const MAIN_YELLOW_DURATION = 5; // 5 seconds
+    const MAIN_RED_DURATION = 55; // 55 seconds
+    const SECONDARY_RED_DURATION = 185; // 3 minutes and 5 seconds
+    const SECONDARY_GREEN_DURATION = 50; // 50 seconds
+    const SECONDARY_YELLOW_DURATION = 5; // 5 seconds
+
+    init {
+        mG = R; mY = R; mR = G;
+        sG = R; sY = R; sR = G;
+        vehicleDetected = false;
+        mainTimer = 0;
+        secondaryTimer = 0;
+    }
+
+    transition {
+        if (vehicleDetected) {
+            mG = Y;
+            secondaryTimer = 0;
+        } else {
+            if (mainTimer < MAIN_GREEN_DURATION) {
+                mG = G;
+                mY = R;
+                mR = R;
+                secondaryTimer = 0;
+                mainTimer = mainTimer + 1;
+            } else if (mainTimer < MAIN_GREEN_DURATION + MAIN_YELLOW_DURATION) {
+                mG = R;
+                mY = Y;
+                mR = R;
+                secondaryTimer = 0;
+                mainTimer = mainTimer + 1;
+            } else {
+                mG = R;
+                mY = R;
+                mR = G;
+                mainTimer = 0;
+                secondaryTimer = secondaryTimer + 1;
+            }
+
+            if (secondaryTimer < SECONDARY_RED_DURATION) {
+                sG = R;
+                sY = R;
+                sR = G;
+            } else if (secondaryTimer < SECONDARY_RED_DURATION + SECONDARY_GREEN_DURATION) {
+                sG = G;
+                sY = R;
+                sR = R;
+            } else {
+                sG = R;
+                sY = Y;
+                sR = R;
+            }
+        }
+    }
+}

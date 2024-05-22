@@ -1,0 +1,30 @@
+module traffic_light {
+  // Define the states of the traffic light
+  type light_state_t = enum { RED, GREEN };
+
+  // Variable to hold the current state of the traffic light
+  var current_state : light_state_t;
+
+  // Initialize the traffic light state to RED
+  init {
+    current_state = RED;
+  }
+
+  // Define the transition between states
+  next {
+    current_state' = match (current_state) {
+      RED   : GREEN;
+      GREEN : RED;
+    };
+  }
+
+  // Safety property: The traffic light cannot be red and green at the same time
+  invariant is_valid_state : (current_state == RED) || (current_state == GREEN);
+
+  // Control block for bounded model checking
+  control {
+    v = unroll(5); // Check the behavior for 5 transitions
+    check;
+    print_results;
+  }
+}

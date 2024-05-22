@@ -1,0 +1,80 @@
+c
+module automobile
+{
+    const BEEP_DURATION : int = 30;
+
+    type ignition_t = enum { OFF, ON };
+    type passenger_t = enum { NO, YES };
+    type buckle_t = enum { BUCKLED, UNBUCKLED };
+    type event_t = enum { WARN, NO_WARN };
+
+    var ignition : ignition_t;
+    var passenger : array[1] of passenger_t;
+    var buckle : array[1] of buckle_t;
+    var warn : boolean;
+    var nowarn : boolean;
+    var time : int;
+
+    init {
+        ignition = OFF;
+        warn = false;
+        nowarn = true;
+        time = 0;
+        forall (i := 1, i <= 1, i := i + 1) {
+            passenger[i] = NO;
+            buckle[i] = BUCKLED;
+        }
+    }
+
+    event ignition_on = (ignition == OFF) && (forall (i := 1, i <= 1, i := i + 1) passenger[i] == YES && buckle[i] == UNBUCKLED);
+    event ignition_off = (ignition == ON);
+
+    event buckle_unbuckled = (forall (i := 1, i <= 1, i := i + 1) passenger[i] == YES && buckle[i] == UNBUCKLED);
+    event buckle_buckled = (forall (i := 1, i <= 1, i := i + 1) passenger[i] == YES && buckle[i] == BUCKLED);
+
+    event passenger_departed = (exists (i := 1, i <= 1, i := i + 1) passenger[i] == NO);
+
+    next {
+        if (ignition_on) {
+            ignition := ON;
+            warn := true;
+            nowarn := false;
+            time := 0;
+        }
+
+        if (ignition_off) {
+            ignition := OFF;
+            warn := false;
+            nowarn := true;
+            time := 0;
+        }
+
+        if (buckle_unbuckled) {
+            warn := true;
+            nowarn := false;
+            time := 0;
+        }
+
+        if (buckle_buckled) {
+            warn := false;
+            nowarn := true;
+            time := 0;
+        }
+
+        if (passenger_departed) {
+            warn := false;
+            nowarn := true;
+            time := 0;
+        }
+
+        if (time < BEEP_DURATION) {
+            time := time + 1;
+        } else {
+            warn := false;
+            nowarn := true;
+        }
+    }
+}
+
+
+This code models the behavior of an automobile system where the warning beeper sounds and the red light warning is indicated based on the status of the ignition, passenger presence, and seat belt buckling. The system tracks the ignition state, passenger presence, seat belt buckling status, warning state, no warning state, and time elapsed.

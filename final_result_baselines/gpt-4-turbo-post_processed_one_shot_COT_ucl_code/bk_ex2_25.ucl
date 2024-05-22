@@ -1,0 +1,66 @@
+type x_t = enum { ONE, TWO };
+
+module process1 {
+    var b1 : boolean;
+    var x : x_t;
+
+    init {
+        b1 = false;
+        x = TWO; // Initial preference given to P2
+    }
+
+    next {
+        if (*) { // Non-deterministic choice to attempt entry
+            b1' = true;
+            x' = TWO;
+        } else if (x == ONE || !b2) {
+            // Enter critical section
+            // Critical section code here
+            b1' = false;
+        }
+    }
+}
+
+module process2 {
+    var b2 : boolean;
+    var x : x_t;
+
+    init {
+        b2 = false;
+        x = ONE; // Initial preference given to P1
+    }
+
+    next {
+        if (*) { // Non-deterministic choice to attempt entry
+            b2' = true;
+            x' = ONE;
+        } else if (x == TWO || !b1) {
+            // Enter critical section
+            // Critical section code here
+            b2' = false;
+        }
+    }
+}
+
+module main {
+    instance p1 : process1;
+    instance p2 : process2;
+
+    init {
+        p1.b1 = false;
+        p2.b2 = false;
+        p1.x = ONE; // Start with P1 having the turn
+        p2.x = ONE;
+    }
+
+    next {
+        // Interleave process executions
+        if (*) {
+            next(p1);
+        } else {
+            next(p2);
+        }
+    }
+
+    invariant mutual_exclusion : !(p1.b1 && p2.b2);
+}

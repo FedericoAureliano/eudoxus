@@ -1,0 +1,55 @@
+// Define the module for the event counter in a weather station
+module weather_station_event_counter
+{
+    // Define the threshold as a constant. Change this value based on the desired threshold.
+    const threshold : int = 25;
+
+    // Define the state variables
+    var temp : int;  // Current temperature
+    var count : int; // Counter for the number of times the temperature rises above the threshold
+
+    // Initialization of the state variables
+    init {
+        temp = 0;
+        count = 0;
+    }
+
+    // Input to simulate the change in temperature
+    input new_temp : int;
+
+    // Transition relation describing how the state changes
+    next {
+        temp' = new_temp;  // Update the temperature to the new input temperature
+        if (new_temp > threshold && temp <= threshold) {
+            count' = count + 1; // Increment the count if the temperature rises above the threshold
+        } else {
+            count' = count; // Otherwise, keep the count the same
+        }
+    }
+}
+
+// Main module to simulate and control the weather station event counter
+module main
+{
+    // Instance of the weather station event counter
+    instance counter : weather_station_event_counter;
+
+    // Define the control block for simulation
+    control {
+        // Initialize the simulation environment
+        init;
+
+        // Simulate different temperature inputs
+        // Example inputs to test the counter behavior
+        havok counter.new_temp;
+        assume(counter.new_temp == 20); next;
+        assume(counter.new_temp == 27); next;
+        assume(counter.new_temp == 22); next;
+        assume(counter.new_temp == 26); next;
+        assume(counter.new_temp == 24); next;
+        assume(counter.new_temp == 30); next;
+
+        // Print the final count of temperature events above the threshold
+        print counter.count;
+    }
+}

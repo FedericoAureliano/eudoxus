@@ -1,0 +1,43 @@
+model parallel_increment {
+    // Shared variable
+    var x : integer;
+
+    // Process definition
+    procedure process()
+    {
+        for (i : int = 1 to 10) {
+            call load_inc_store();
+        }
+    }
+
+    // Simulating LOAD, INC, STORE sequence
+    procedure load_inc_store()
+    {
+        var temp : integer;
+        temp = x;
+        temp = temp + 1;
+        x = temp;
+    }
+
+    // Main module to run processes in parallel
+    init {
+        x = 0;
+    }
+
+    // Running three instances in parallel
+    next {
+        call process(); // Simulate parallel execution of three processes
+        call process();
+        call process();
+    }
+
+    // Property to check if x = 2 after execution
+    invariant check_x_equals_2 : x == 2;
+
+    control {
+        // Setup for bounded model checking
+        v = unroll(30); // Each process runs 10 times, and there are 3 processes
+        check;
+        print_results;
+    }
+}

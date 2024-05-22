@@ -1,0 +1,52 @@
+module main {
+  type state_t = enum { RED, GREEN, PENDING, YELLOW };
+  var state : state_t;
+  var count : integer;
+  input pedestrian : boolean;
+  var sigG, sigY, sigR : boolean;
+
+  // Initialize the state machine
+  init {
+    state = RED;
+    count = 0;
+    sigR = true;
+    sigG = false;
+    sigY = false;
+  }
+
+  // Define the next state logic
+  next {
+    count' = count + 1;
+    case
+      state == RED && count == 60 : {
+        state' = GREEN;
+        count' = 0;
+      }
+      state == GREEN && pedestrian && count >= 60 : {
+        state' = YELLOW;
+        count' = 0;
+      }
+      state == GREEN && pedestrian && count < 60 : {
+        state' = PENDING;
+      }
+      state == PENDING && count == 60 : {
+        state' = YELLOW;
+        count' = 0;
+      }
+      state == YELLOW && count == 5 : {
+        state' = RED;
+        count' = 0;
+      }
+      true : {
+        state' = state;
+      }
+    esac
+  }
+
+  // Define the output logic
+  next {
+    sigR = (state' == RED);
+    sigG = (state' == GREEN || state' == PENDING);
+    sigY = (state' == YELLOW);
+  }
+}

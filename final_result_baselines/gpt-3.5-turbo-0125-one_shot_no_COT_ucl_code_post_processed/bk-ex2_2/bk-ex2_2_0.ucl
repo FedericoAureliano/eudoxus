@@ -1,0 +1,42 @@
+java
+module vending_machine
+{
+  type state_t = enum { pay, select, soda, beer };
+
+  var state : state_t;
+  input insert_coin : boolean;
+  output get_soda : boolean;
+  output get_beer : boolean;
+
+  init {
+    state = pay;
+    get_soda = false;
+    get_beer = false;
+  }
+
+  next {
+    if (state == pay && insert_coin) {
+      state' = select;
+    } else if (state == select && get_soda) {
+      state' = soda;
+    } else if (state == select && get_beer) {
+      state' = beer;
+    } else {
+      state' = state;
+    }
+
+    get_soda' = (state == select && get_soda);
+    get_beer' = (state == select && get_beer);
+  }
+
+  ltlspec drink_after_coin = (state == soda || state == beer) -> (state == select);
+}
+
+
+In this model, the vending machine has states `pay`, `select`, `soda`, and `beer`. The input `insert_coin` represents the action of inserting a coin, and the outputs `get_soda` and `get_beer` represent the actions of getting soda and beer, respectively.
+
+The initialization sets the initial state to `pay`, and the `get_soda` and `get_beer` outputs to false.
+
+The `next` block defines the state transitions based on the current state and input actions. The LTL property `drink_after_coin` checks that the vending machine only transitions to the `soda` or `beer` state after transitioning from the `pay` state to the `select` state.
+
+This model can be used to verify the behavior of the vending machine and ensure that it follows the specified requirements.

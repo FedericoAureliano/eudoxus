@@ -1,0 +1,65 @@
+module main {
+  type light_state_t = enum { R, G, Y };
+
+  var main_light : light_state_t;
+  var sec_light : light_state_t;
+  var vehicle_detected : boolean;
+  var timer : int;
+
+  const GREEN_DURATION : int = 180;
+  const YELLOW_DURATION : int = 5;
+  const RED_DURATION : int = 55;
+  const SEC_GREEN_DURATION : int = 50;
+  const SEC_RED_DURATION : int = 185; // 180s green + 5s yellow of main light
+
+  init {
+    main_light = G;
+    sec_light = R;
+    timer = 0;
+  }
+
+  next {
+    if (vehicle_detected && main_light == G) {
+      main_light' = Y;
+      timer' = 0; // Reset the timer for the yellow phase
+    } else if (timer >= GREEN_DURATION && main_light == G) {
+      main_light' = Y;
+      timer' = 0;
+    } else if (timer >= YELLOW_DURATION && main_light == Y) {
+      main_light' = R;
+      timer' = 0;
+    } else if (timer >= RED_DURATION && main_light == R) {
+      main_light' = G;
+      timer' = 0;
+    } else {
+      timer' = timer + 1;
+    }
+
+    // Secondary light logic
+    if (sec_light == R && main_light == R && timer >= SEC_RED_DURATION) {
+      sec_light' = G;
+      timer' = 0;
+    } else if (sec_light == G && timer >= SEC_GREEN_DURATION) {
+      sec_light' = Y;
+      timer' = 0;
+    } else if (sec_light == Y && timer >= YELLOW_DURATION) {
+      sec_light' = R;
+      timer' = 0;
+    }
+  }
+
+  define mG = (main_light == G);
+  define mY = (main_light == Y);
+  define mR = (main_light == R);
+  define sG = (sec_light == G);
+  define sY = (sec_light == Y);
+  define sR = (sec_light == R);
+
+  invariant safety_requirement :
+    (mG || mY) -> sR && (sG || sY) -> mR;
+
+  control {
+    check;
+    print_results;
+  }
+}

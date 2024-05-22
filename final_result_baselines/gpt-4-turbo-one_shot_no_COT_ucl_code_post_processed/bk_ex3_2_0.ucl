@@ -1,0 +1,64 @@
+module main {
+    type state_t = enum { THINKING, HUNGRY, EATING };
+    type chopstick_t = enum { AVAILABLE, IN_USE };
+
+    var phil1, phil2, phil3, phil4, phil5 : state_t;
+    var chopstick1, chopstick2, chopstick3, chopstick4, chopstick5 : chopstick_t;
+
+    init {
+        phil1 = THINKING; phil2 = THINKING; phil3 = THINKING; phil4 = THINKING; phil5 = THINKING;
+        chopstick1 = AVAILABLE; chopstick2 = AVAILABLE; chopstick3 = AVAILABLE; chopstick4 = AVAILABLE; chopstick5 = AVAILABLE;
+    }
+
+    procedure try_to_eat(i : int)
+        modifies phil1, phil2, phil3, phil4, phil5, chopstick1, chopstick2, chopstick3, chopstick4, chopstick5;
+    {
+        if (i == 1 && phil1 == HUNGRY && chopstick1 == AVAILABLE && chopstick5 == AVAILABLE) {
+            phil1 = EATING;
+            chopstick1 = IN_USE;
+            chopstick5 = IN_USE;
+        } else if (i == 2 && phil2 == HUNGRY && chopstick2 == AVAILABLE && chopstick1 == AVAILABLE) {
+            phil2 = EATING;
+            chopstick2 = IN_USE;
+            chopstick1 = IN_USE;
+        } else if (i == 3 && phil3 == HUNGRY && chopstick3 == AVAILABLE && chopstick2 == AVAILABLE) {
+            phil3 = EATING;
+            chopstick3 = IN_USE;
+            chopstick2 = IN_USE;
+        } else if (i == 4 && phil4 == HUNGRY && chopstick4 == AVAILABLE && chopstick3 == AVAILABLE) {
+            phil4 = EATING;
+            chopstick4 = IN_USE;
+            chopstick3 = IN_USE;
+        } else if (i == 5 && phil5 == HUNGRY && chopstick5 == AVAILABLE && chopstick4 == AVAILABLE) {
+            phil5 = EATING;
+            chopstick5 = IN_USE;
+            chopstick4 = IN_USE;
+        }
+    }
+
+    next {
+        choice {
+            try_to_eat(1);
+            try_to_eat(2);
+            try_to_eat(3);
+            try_to_eat(4);
+            try_to_eat(5);
+        }
+        // Philosophers can also stop eating and start thinking
+        if (*) { phil1 = THINKING; chopstick1 = AVAILABLE; chopstick5 = AVAILABLE; }
+        if (*) { phil2 = THINKING; chopstick2 = AVAILABLE; chopstick1 = AVAILABLE; }
+        if (*) { phil3 = THINKING; chopstick3 = AVAILABLE; chopstick2 = AVAILABLE; }
+        if (*) { phil4 = THINKING; chopstick4 = AVAILABLE; chopstick3 = AVAILABLE; }
+        if (*) { phil5 = THINKING; chopstick5 = AVAILABLE; chopstick4 = AVAILABLE; }
+    }
+
+    invariant no_deadlock : !(phil1 == HUNGRY && phil2 == HUNGRY && phil3 == HUNGRY && phil4 == HUNGRY && phil5 == HUNGRY &&
+                              chopstick1 == AVAILABLE && chopstick2 == AVAILABLE && chopstick3 == AVAILABLE &&
+                              chopstick4 == AVAILABLE && chopstick5 == AVAILABLE);
+
+    control {
+        v = unroll(10);
+        check;
+        print_results;
+    }
+}

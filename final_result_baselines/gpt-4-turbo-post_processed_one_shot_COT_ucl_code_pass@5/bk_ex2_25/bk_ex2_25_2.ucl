@@ -1,0 +1,48 @@
+module main {
+  type state_t = enum { IDLE, WAIT, CRIT };
+  var b1 : boolean;
+  var b2 : boolean;
+  var x : [1..2];
+
+  procedure P1() {
+    b1 := true;
+    x := 2;
+    while (!(x == 1 || !b2)) {
+      // wait
+    }
+    // Enter critical section
+    b1 := false;
+  }
+
+  procedure P2() {
+    b2 := true;
+    x := 1;
+    while (!(x == 2 || !b1)) {
+      // wait
+    }
+    // Enter critical section
+    b2 := false;
+  }
+
+  init {
+    b1 = false;
+    b2 = false;
+    x = 1; // Initially, give P1 the turn
+  }
+
+  next {
+    if (*) {
+      call P1();
+    } else {
+      call P2();
+    }
+  }
+
+  control {
+    v = unroll(10);
+    check;
+    print_results;
+  }
+
+  invariant mutual_exclusion : !(b1 && b2);
+}

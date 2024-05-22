@@ -1,0 +1,61 @@
+uclid
+module TrafficLightControlSystem {
+    const R = 0; // Red phase
+    const G = 1; // Green phase
+    const Y = 2; // Yellow phase
+
+    var mainLightState : int;
+    var secondaryLightState : int;
+    var vehicleDetected : boolean;
+
+    output mG : boolean; // Main light green
+    output mY : boolean; // Main light yellow
+    output mR : boolean; // Main light red
+    output sG : boolean; // Secondary light green
+    output sY : boolean; // Secondary light yellow
+    output sR : boolean; // Secondary light red
+
+    init {
+        mainLightState = G; // Main light starts in green phase
+        secondaryLightState = R; // Secondary light starts in red phase
+        vehicleDetected = false;
+    }
+
+    // Transition function for main light
+    function transitionMainLight() : int {
+        if (vehicleDetected) {
+            return Y; // If vehicle detected, switch to yellow
+        } else {
+            if (mainLightState == G) {
+                return (now() % 240 < 180) ? G : ((now() % 240 < 185) ? Y : R);
+            } else {
+                return (now() % 240 < 55) ? R : ((now() % 240 < 60) ? G : Y);
+            }
+        }
+    }
+
+    // Transition function for secondary light
+    function transitionSecondaryLight() : int {
+        if (vehicleDetected && mainLightState == G) {
+            return R; // If vehicle detected while main light is green, switch to red
+        } else {
+            if (secondaryLightState == R) {
+                return (now() % 240 < 185) ? R : ((now() % 240 < 235) ? G : Y);
+            } else {
+                return (now() % 240 < 55) ? Y : ((now() % 240 < 60) ? R : G);
+            }
+        }
+    }
+
+    next {
+        mainLightState := transitionMainLight();
+        secondaryLightState := transitionSecondaryLight();
+
+        mG := (mainLightState == G);
+        mY := (mainLightState == Y);
+        mR := (mainLightState == R);
+        sG := (secondaryLightState == G);
+        sY := (secondaryLightState == Y);
+        sR := (secondaryLightState == R);
+    }
+}

@@ -1,0 +1,55 @@
+javascript
+module thermostat
+{
+  type state_t = enum { HEATING, COOLING };
+
+  var state : state_t;
+  var temp : real;
+  var heatOn, heatOff : boolean;
+
+  const setpoint : real = 20.0;
+  const upperThreshold : real = 22.0;
+  const lowerThreshold : real = 18.0;
+
+  init {
+    state = COOLING; // Start in cooling state
+    temp = setpoint;
+    heatOn = false;
+    heatOff = false;
+  }
+
+  procedure update_state()
+    modifies state;
+  {
+    if (state == HEATING && temp >= upperThreshold) {
+      state = COOLING;
+    } else if (state == COOLING && temp <= lowerThreshold) {
+      state = HEATING;
+    }
+  }
+
+  procedure update_outputs()
+    modifies heatOn;
+    modifies heatOff;
+  {
+    if (state == COOLING && temp <= setpoint) {
+      heatOn = true;
+      heatOff = false;
+    } else if (state == HEATING && temp >= setpoint) {
+      heatOn = false;
+      heatOff = true;
+    } else {
+      heatOn = false;
+      heatOff = false;
+    }
+  }
+
+  next {
+    havoc temp; // Input temperature
+    call update_state();
+    call update_outputs();
+  }
+}
+
+
+This code models a simple thermostat with hysteresis that regulates temperature around a setpoint by controlling the heating and cooling states. The `update_state` procedure transitions between heating and cooling states based on temperature thresholds, while the `update_outputs` procedure determines when to turn the heater on or off based on the current state and temperature.

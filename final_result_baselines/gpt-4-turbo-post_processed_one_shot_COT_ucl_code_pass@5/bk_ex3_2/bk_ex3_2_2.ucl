@@ -1,0 +1,63 @@
+module philosopher
+{
+  type state_t = enum { THINKING, WAITING, EATING, PUTTING_DOWN };
+  var state : state_t;
+  var left_chopstick, right_chopstick : boolean;
+
+  init {
+    state = THINKING;
+    left_chopstick = true;
+    right_chopstick = true;
+  }
+
+  next {
+    case
+      state == THINKING : {
+        state' = WAITING;
+      }
+      state == WAITING && left_chopstick && right_chopstick : {
+        state' = EATING;
+        left_chopstick' = false;
+        right_chopstick' = false;
+      }
+      state == EATING : {
+        state' = PUTTING_DOWN;
+        left_chopstick' = true;
+        right_chopstick' = true;
+      }
+      state == PUTTING_DOWN : {
+        state' = THINKING;
+      }
+    esac
+  }
+}
+
+module main
+{
+  instance phil1 : philosopher;
+  instance phil2 : philosopher;
+  instance phil3 : philosopher;
+  instance phil4 : philosopher;
+  instance phil5 : philosopher;
+
+  init {
+    phil1.left_chopstick = true;  // chopstick1
+    phil1.right_chopstick = true; // chopstick5
+    phil2.left_chopstick = true;  // chopstick2
+    phil2.right_chopstick = true; // chopstick1
+    phil3.left_chopstick = true;  // chopstick3
+    phil3.right_chopstick = true; // chopstick2
+    phil4.left_chopstick = true;  // chopstick4
+    phil4.right_chopstick = true; // chopstick3
+    phil5.left_chopstick = true;  // chopstick5
+    phil5.right_chopstick = true; // chopstick4
+  }
+
+  invariant no_deadlock :
+    !(phil1.state == WAITING && phil2.state == WAITING && phil3.state == WAITING && phil4.state == WAITING && phil5.state == WAITING);
+
+  control {
+    check;
+    print_results;
+  }
+}

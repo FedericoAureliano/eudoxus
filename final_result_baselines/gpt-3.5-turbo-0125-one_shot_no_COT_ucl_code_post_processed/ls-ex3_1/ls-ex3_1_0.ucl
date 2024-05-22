@@ -1,0 +1,82 @@
+javascript
+module ArrivalDetector {
+    input arrival : boolean;
+    output arrival_event : boolean;
+
+    init {
+        arrival_event = false;
+    }
+
+    next {
+        arrival_event' = arrival;
+    }
+}
+
+module DepartureDetector {
+    input departure : boolean;
+    output departure_event : boolean;
+
+    init {
+        departure_event = false;
+    }
+
+    next {
+        departure_event' = departure;
+    }
+}
+
+module Counter {
+    input arrival_event : boolean;
+    input departure_event : boolean;
+    input i : int; // initial count
+
+    output count : int;
+    output display_update : boolean;
+
+    var counter : int;
+
+    init {
+        counter = i;
+        count = i;
+        display_update = false;
+    }
+
+    next {
+        if (arrival_event && !departure_event) {
+            counter' = counter + 1;
+            display_update' = true;
+        } else if (!arrival_event && departure_event && counter > 0) {
+            counter' = counter - 1;
+            display_update' = true;
+        } else {
+            counter' = counter;
+            display_update' = false;
+        }
+        count' = counter';
+    }
+}
+
+module main {
+    var arrival : boolean;
+    var departure : boolean;
+    var i : int;
+
+    instance ad : ArrivalDetector(arrival, arrival_event);
+    instance dd : DepartureDetector(departure, departure_event);
+    instance c : Counter(arrival_event, departure_event, i, count, display_update);
+
+    init {
+        i = 0; // initial count
+        arrival = false;
+        departure = false;
+    }
+
+    control {
+        havoc arrival; havoc departure;
+        havoc i;
+        next;
+    }
+}
+
+
+This code models the system with three modules: `ArrivalDetector`, `DepartureDetector`, and `Counter`. The `main` module orchestrates the interactions between these modules. The `Counter` module keeps track of the count of cars in the garage and updates the display when the count changes. The `ArrivalDetector` and `DepartureDetector` modules simulate the arrival and departure events.

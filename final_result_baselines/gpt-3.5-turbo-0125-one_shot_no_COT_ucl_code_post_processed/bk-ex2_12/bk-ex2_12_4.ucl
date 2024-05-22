@@ -1,0 +1,61 @@
+
+module vending_machine {
+
+    const max : int; // maximum capacity of both bottle repositories
+
+    var nsoda : int; // number of soda bottles
+    var nbeer : int; // number of beer bottles
+
+    var sget_enabled : boolean; // indicates if soda can be obtained
+    var bget_enabled : boolean; // indicates if beer can be obtained
+    var refill_enabled : boolean; // indicates if refill action is enabled
+    var coin_enabled : boolean; // indicates if coin insertion is enabled
+
+    init {
+        nsoda = max; // initialize number of soda bottles to maximum capacity
+        nbeer = max; // initialize number of beer bottles to maximum capacity
+        sget_enabled = false; // soda obtain action is disabled initially
+        bget_enabled = false; // beer obtain action is disabled initially
+        refill_enabled = false; // refill action is disabled initially
+        coin_enabled = true; // coin insertion is enabled initially
+    }
+
+    transition {
+        start -- (true: coin) -> select {
+            // Coin insertion action
+            assume(coin_enabled);
+            coin_enabled := false; // disable coin insertion
+        }
+
+        start -- (true: refill) -> start {
+            // Refill action
+            assume(refill_enabled);
+            nsoda := max; // refill soda bottles
+            nbeer := max; // refill beer bottles
+            refill_enabled := false; // disable refill action
+            coin_enabled := true; // enable coin insertion
+        }
+
+        select -- (nsoda > 0: sget) -> start {
+            // Soda obtain action
+            assume(sget_enabled);
+            nsoda := nsoda - 1; // decrement soda bottles
+            sget_enabled := false; // disable soda obtain action
+            coin_enabled := true; // enable coin insertion
+        }
+
+        select -- (nbeer > 0: bget) -> start {
+            // Beer obtain action
+            assume(bget_enabled);
+            nbeer := nbeer - 1; // decrement beer bottles
+            bget_enabled := false; // disable beer obtain action
+            coin_enabled := true; // enable coin insertion
+        }
+
+        select -- (nsoda == 0 && nbeer == 0: ret_coin) -> start {
+            // Return coin action
+            assume(!sget_enabled && !bget_enabled && !refill_enabled); // ensure no other action is enabled
+            coin_enabled := true; // enable coin insertion
+        }
+    }
+}

@@ -1,0 +1,52 @@
+module process
+{
+    input x_in : integer;
+    output x_out : integer;
+
+    procedure execute(x : integer) returns (new_x : integer)
+    {
+        var loaded_x : integer;
+        var incremented_x : integer;
+
+        // Simulate LOAD
+        loaded_x = x;
+        // Simulate INC
+        incremented_x = loaded_x + 1;
+        // Simulate STORE
+        new_x = incremented_x;
+    }
+
+    init {
+        x_out = x_in;
+    }
+
+    next {
+        x_out = execute(x_out);
+    }
+}
+
+module main
+{
+    var x : integer;
+    instance p1 : process(x_in : x, x_out : x);
+    instance p2 : process(x_in : x, x_out : x);
+    instance p3 : process(x_in : x, x_out : x);
+
+    init {
+        x = 0;
+    }
+
+    next {
+        x = p1.execute(x);
+        x = p2.execute(x);
+        x = p3.execute(x);
+    }
+
+    invariant check_x : (x == 2);
+}
+
+control {
+    v = unroll(10);
+    check;
+    print_results;
+}

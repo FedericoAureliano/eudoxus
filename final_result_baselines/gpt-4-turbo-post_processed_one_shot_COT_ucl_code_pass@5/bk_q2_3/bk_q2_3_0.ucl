@@ -1,0 +1,79 @@
+type light_state_t = enum { green, yellow, red, amber };
+type light_id_t = enum { L1, L2, L3, L4 };
+
+module traffic_light
+{
+    var state : light_state_t;
+
+    init {
+        state = red;
+    }
+
+    next {
+        case
+            state == green : state' = yellow;
+            state == yellow : state' = red;
+            state == red : state' = amber;
+            state == amber : state' = green;
+        esac
+    }
+}
+
+module controller
+{
+    var current_light : light_id_t;
+
+    init {
+        current_light = L1;
+    }
+
+    next {
+        switch (current_light) {
+            case L1:
+            case L3: current_light' = L2; break;
+            case L2: current_light' = L4; break;
+            case L4: current_light' = L1; break;
+        }
+    }
+}
+
+module main
+{
+    instance L1 : traffic_light;
+    instance L2 : traffic_light;
+    instance L3 : traffic_light;
+    instance L4 : traffic_light;
+    instance C : controller;
+
+    init {
+        L1.state = green;
+        L3.state = green;
+        L2.state = red;
+        L4.state = red;
+    }
+
+    next {
+        if (C.current_light == L1 || C.current_light == L3) {
+            L1.state' = green;
+            L3.state' = green;
+            L2.state' = red;
+            L4.state' = red;
+        } else if (C.current_light == L2) {
+            L2.state' = green;
+            L1.state' = red;
+            L3.state' = red;
+            L4.state' = red;
+        } else if (C.current_light == L4) {
+            L4.state' = green;
+            L1.state' = red;
+            L2.state' = red;
+            L3.state' = red;
+        }
+    }
+}
+
+control {
+    v = unroll(10);
+    check;
+    print_results;
+}

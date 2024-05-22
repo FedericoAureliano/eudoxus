@@ -1,0 +1,86 @@
+module main {
+  // Define the state of the traffic lights
+  type light_state_t = enum { GREEN, YELLOW, RED };
+
+  // Define the phases of the main and secondary lights
+  var main_light : light_state_t;
+  var secondary_light : light_state_t;
+  var main_timer : int;
+  var secondary_timer : int;
+  var vehicle_detected : boolean;
+
+  // Define the output signals for the traffic lights
+  define mG = (main_light == GREEN);
+  define mY = (main_light == YELLOW);
+  define mR = (main_light == RED);
+  define sG = (secondary_light == GREEN);
+  define sY = (secondary_light == YELLOW);
+  define sR = (secondary_light == RED);
+
+  // Constants for time durations
+  const green_duration_main : int = 180; // 3 minutes in seconds
+  const yellow_duration : int = 5; // 5 seconds
+  const red_duration_main : int = 55; // 55 seconds
+  const green_duration_secondary : int = 50; // 50 seconds
+  const red_duration_secondary : int = 185; // 3 minutes and 5 seconds
+
+  // Initialization
+  init {
+    main_light = GREEN;
+    secondary_light = RED;
+    main_timer = green_duration_main;
+    secondary_timer = red_duration_secondary;
+    vehicle_detected = false;
+  }
+
+  // Transition function
+  next {
+    if (vehicle_detected) {
+      if (main_light == GREEN) {
+        main_light' = YELLOW;
+        main_timer' = yellow_duration;
+        secondary_light' = secondary_light;
+        secondary_timer' = secondary_timer;
+      } else {
+        main_light' = main_light;
+        main_timer' = main_timer;
+        secondary_light' = secondary_light;
+        secondary_timer' = secondary_timer;
+      }
+    } else {
+      if (main_timer > 0) {
+        main_timer' = main_timer - 1;
+      } else {
+        if (main_light == GREEN) {
+          main_light' = YELLOW;
+          main_timer' = yellow_duration;
+        } else if (main_light == YELLOW) {
+          main_light' = RED;
+          main_timer' = red_duration_main;
+          secondary_light' = GREEN;
+          secondary_timer' = green_duration_secondary;
+        } else { // main_light == RED
+          main_light' = GREEN;
+          main_timer' = green_duration_main;
+          secondary_light' = YELLOW;
+          secondary_timer' = yellow_duration;
+        }
+      }
+
+      if (secondary_timer > 0) {
+        secondary_timer' = secondary_timer - 1;
+      } else {
+        if (secondary_light == GREEN) {
+          secondary_light' = YELLOW;
+          secondary_timer' = yellow_duration;
+        } else if (secondary_light == YELLOW) {
+          secondary_light' = RED;
+          secondary_timer' = red_duration_secondary;
+        }
+      }
+    }
+  }
+
+  // Safety property: When one light is green or yellow, the other must be red
+  invariant safety_requirement : (mG || mY) -> sR && (sG || sY) -> mR;
+}

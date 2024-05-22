@@ -1,0 +1,55 @@
+model concurrent_processes {
+    // Define the shared variable
+    var x : integer;
+
+    // Initialize x with a non-deterministic value within the expected range
+    init {
+        havoc x;
+        assume(x >= 0 && x <= 200);
+    }
+
+    // Process Inc
+    procedure Inc() {
+        while (true) {
+            if (x < 200) {
+                x := x + 1;
+            }
+        }
+    }
+
+    // Process Dec
+    procedure Dec() {
+        while (true) {
+            if (x > 0) {
+                x := x - 1;
+            }
+        }
+    }
+
+    // Process Reset
+    procedure Reset() {
+        while (true) {
+            if (x == 200) {
+                x := 0;
+            }
+        }
+    }
+
+    // Main execution module
+    module main {
+        // Instance each process
+        instance inc_process : Inc();
+        instance dec_process : Dec();
+        instance reset_process : Reset();
+
+        // Define the invariant to ensure x remains within the bounds
+        invariant x_bounds : x >= 0 && x <= 200;
+
+        control {
+            // Use bounded model checking to verify the invariant
+            v = unroll(5);
+            check;
+            print_results;
+        }
+    }
+}

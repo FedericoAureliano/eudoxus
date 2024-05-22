@@ -1,0 +1,30 @@
+module traffic_light_system {
+  type state_t = enum { RED, GREEN, YELLOW };
+
+  var current_state : state_t;
+  var prev_state : state_t; // Auxiliary variable to track the previous state
+
+  init {
+    current_state = RED; // Initialize the traffic light in the Red state
+    prev_state = YELLOW; // Assuming the cycle starts from a safe transition
+  }
+
+  next {
+    prev_state' = current_state; // Update previous state before changing current state
+    current_state' = case
+      current_state == RED    : GREEN;
+      current_state == GREEN  : YELLOW;
+      current_state == YELLOW : RED;
+      true                    : RED; // Default case to handle unexpected states
+    esac;
+  }
+
+  // Safety Property: Every RED phase is immediately preceded by a YELLOW phase
+  invariant safety_property : !(current_state == RED) || (prev_state == YELLOW);
+
+  control {
+    v = unroll(10); // Check the model for 10 transitions
+    check;
+    print_results;
+  }
+}

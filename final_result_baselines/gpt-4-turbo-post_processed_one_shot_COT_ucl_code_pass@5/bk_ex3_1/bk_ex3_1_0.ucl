@@ -1,0 +1,42 @@
+
+module main {
+  type color_t = enum { red, green };
+
+  var traffic_light1 : color_t;
+  var traffic_light2 : color_t;
+
+  init {
+    traffic_light1 = red; // Initialize traffic light 1 to red
+    traffic_light2 = green; // Initialize traffic light 2 to green
+  }
+
+  next {
+    // Action A: traffic_light1 goes from red to green and traffic_light2 goes from green to red
+    if (traffic_light1 == red && traffic_light2 == green) {
+      traffic_light1' = green;
+      traffic_light2' = red;
+    }
+    // Action B: traffic_light1 goes from green to red and traffic_light2 goes from red to green
+    else if (traffic_light1 == green && traffic_light2 == red) {
+      traffic_light1' = red;
+      traffic_light2' = green;
+    }
+    // If none of the actions can be taken, retain the current state (this should never happen in this model)
+    else {
+      traffic_light1' = traffic_light1;
+      traffic_light2' = traffic_light2;
+    }
+  }
+
+  // Define a predicate to check for deadlock: a deadlock occurs if no transitions are possible
+  define deadlock := (traffic_light1 == green && traffic_light2 == green) || (traffic_light1 == red && traffic_light2 == red);
+
+  // Safety property: Check that a deadlock never occurs
+  invariant no_deadlock : !deadlock;
+
+  control {
+    v = unroll(5);
+    check;
+    print_results;
+  }
+}

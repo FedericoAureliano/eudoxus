@@ -1,0 +1,67 @@
+module traffic_light {
+  // Define the states of the traffic light
+  type state_t = enum { red, green, pending, yellow };
+  // Define the state variable
+  var state : state_t;
+  // Define the counter
+  var count : int;
+  // Define the nondeterministic input for pedestrian presence
+  input pedestrian : boolean;
+  // Define the outputs for the traffic light signals
+  var sigG, sigY, sigR : boolean;
+
+  // Initialize the state machine
+  init {
+    state = red;
+    count = 0;
+    sigG = false;
+    sigY = false;
+    sigR = true; // Traffic light starts in red state
+  }
+
+  // Define the state transition logic
+  next {
+    case
+      // Transition from red to green
+      state == red && count == 60 : {
+        state' = green;
+        count' = 0;
+        sigG' = true;
+        sigY' = false;
+        sigR' = false;
+      }
+      // Transition from green to pending or yellow based on pedestrian input
+      state == green && pedestrian && count < 60 : {
+        state' = pending;
+        // count remains unchanged to ensure green state lasts at least 60 seconds
+      }
+      state == green && pedestrian && count >= 60 : {
+        state' = yellow;
+        count' = 0;
+        sigG' = false;
+        sigY' = true;
+        sigR' = false;
+      }
+      // Transition from pending to yellow after the remainder of 60 seconds
+      state == pending && count == 60 : {
+        state' = yellow;
+        count' = 0;
+        sigG' = false;
+        sigY' = true;
+        sigR' = false;
+      }
+      // Transition from yellow to red
+      state == yellow && count == 5 : {
+        state' = red;
+        count' = 0;
+        sigG' = false;
+        sigY' = false;
+        sigR' = true;
+      }
+      // Default case to handle time progression
+      default: {
+        count' = count + 1;
+      }
+    esac
+  }
+}

@@ -1,0 +1,57 @@
+module main {
+  type stack_t = record {
+    elements : [int] int;
+    count : int;
+  };
+
+  // Fixed capacity of the stack
+  const n : int = 10;
+
+  // State variable representing the stack
+  var s : stack_t;
+
+  // Initial state of the stack: empty
+  init {
+    s.count = 0;
+  }
+
+  // Push operation
+  procedure push(x : int)
+    modifies s;
+  {
+    if (s.count < n && x >= 0) {
+      s.elements[s.count] = x;
+      s.count = s.count + 1;
+    }
+  }
+
+  // Pop operation
+  procedure pop()
+    modifies s;
+  {
+    if (s.count > 0) {
+      s.count = s.count - 1;
+    }
+  }
+
+  // Top operation
+  function top() : int
+  {
+    if (s.count > 0) {
+      return s.elements[s.count - 1];
+    } else {
+      return -1; // Indicate an error or empty stack
+    }
+  }
+
+  // Safety properties
+  invariant capacity_limit : s.count <= n;
+  invariant nonnegative_elements : (forall i : int :: (i >= 0 && i < s.count) => s.elements[i] >= 0);
+  invariant non_empty_pop_top : (s.count > 0) or (top() == -1);
+
+  control {
+    v = unroll(5);
+    check;
+    print_results;
+  }
+}

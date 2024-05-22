@@ -1,0 +1,98 @@
+c
+module SenderReceiverSystem {
+    const MAX_TIMEOUT = 10; // Maximum number of cycles to wait for acknowledgement before retransmitting
+
+    module Sender {
+        var m : int; // Message to send
+        var b : bool; // Control bit
+        var timeout : int; // Timeout counter
+
+        init {
+            m = 0;
+            b = false;
+            timeout = 0;
+        }
+
+        // Sender sends a message with control bit
+        procedure send_message()
+            modifies m;
+            modifies b;
+            modifies timeout;
+        {
+            assume(timeout <= MAX_TIMEOUT);
+            havoc b;
+            m = nondet();
+        }
+
+        // Sender retransmits the message
+        procedure retransmit_message()
+            modifies timeout;
+        {
+            timeout = 0;
+        }
+
+        // Sender handles acknowledgement from receiver
+        procedure handle_acknowledgement(received_b : bool)
+            modifies timeout;
+        {
+            if (received_b == b) {
+                timeout = 0;
+                b = !b;
+            } else {
+                timeout = timeout + 1;
+            }
+        }
+    }
+
+    module Receiver {
+        var m : int; // Received message
+        var b : bool; // Received control bit
+
+        init {
+            m = 0;
+            b = false;
+        }
+
+        // Receiver sends an acknowledgement
+        procedure send_acknowledgement()
+            modifies b;
+        {
+            b = !b;
+        }
+    }
+
+    var c : int; // Channel from sender to receiver
+    var d : int; // Channel from receiver to sender
+
+    // Sender and Receiver instances
+    instance sender : Sender;
+    instance receiver : Receiver;
+
+    // Communication between Sender and Receiver
+    init {
+        c = 0;
+        d = 0;
+    }
+
+    // Sender sends message to Receiver
+    next {
+        if (c == 0) {
+            sender.send_message();
+            c = sender.m;
+            receiver.m = sender.m;
+            receiver.b = sender.b;
+        }
+    }
+
+    // Receiver sends acknowledgement to Sender
+    next {
+        if (d == 0) {
+            receiver.send_acknowledgement();
+            d = receiver.b;
+            sender.handle_acknowledgement(receiver.b);
+        }
+    }
+}
+
+
+This model captures the communication protocol between the sender and receiver, including message transmission, acknowledgements, timeouts, and retransmissions. The sender and receiver submodules handle their respective tasks, and the main module orchestrates the communication between them through the channels c and d.

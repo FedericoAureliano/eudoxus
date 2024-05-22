@@ -1,0 +1,52 @@
+type light_state_t = enum { RED, GREEN };
+
+module traffic_light {
+    var current_state : light_state_t;
+
+    init {
+        // Non-deterministic initialization
+        current_state = nondet[light_state_t]();
+    }
+
+    next {
+        current_state' = nondet[light_state_t]();
+    }
+
+    define red() : bool {
+        return current_state == RED;
+    }
+
+    define green() : bool {
+        return current_state == GREEN;
+    }
+}
+
+module main {
+    instance light1 : traffic_light;
+    instance light2 : traffic_light;
+
+    var red1 : bool;
+    var green1 : bool;
+    var red2 : bool;
+    var green2 : bool;
+
+    init {
+        red1 = light1.red();
+        green1 = light1.green();
+        red2 = light2.red();
+        green2 = light2.green();
+    }
+
+    next {
+        red1' = light1.red();
+        green1' = light1.green();
+        red2' = light2.red();
+        green2' = light2.green();
+    }
+
+    control {
+        v = unroll(5);
+        check;
+        print_results;
+    }
+}

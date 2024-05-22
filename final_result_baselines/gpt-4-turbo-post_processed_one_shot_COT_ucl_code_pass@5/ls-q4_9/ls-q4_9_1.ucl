@@ -1,0 +1,49 @@
+module main {
+  type light_state = enum { R, G, Y };
+
+  var main_light : light_state;
+  var secondary_light : light_state;
+  var main_timer : int;
+  var secondary_timer : int;
+  var vehicle_detected : boolean;
+
+  // Outputs indicating the state of each light
+  define mG = (main_light == G);
+  define mY = (main_light == Y);
+  define mR = (main_light == R);
+  define sG = (secondary_light == G);
+  define sY = (secondary_light == Y);
+  define sR = (secondary_light == R);
+
+  init {
+    main_light = G;
+    secondary_light = R;
+    main_timer = 0;
+    secondary_timer = 0;
+    vehicle_detected = false;
+  }
+
+  next {
+    // Update timers
+    main_timer' = (main_timer + 1) % 240; // 4-minute cycle for Main
+    secondary_timer' = (secondary_timer + 1) % 240; // 4-minute cycle for Secondary
+
+    // Detect vehicle
+    if (vehicle_detected && main_light == G) {
+      main_light' = Y;
+      main_timer' = 0; // Reset timer for Yellow phase
+    } else {
+      // Normal cycle transitions
+      if (main_light == G && main_timer == 180) { main_light' = Y; }
+      if (main_light == Y && main_timer == 5) { main_light' = R; }
+      if (main_light == R && main_timer == 55) { main_light' = G; }
+
+      if (secondary_light == R && secondary_timer == 185) { secondary_light' = G; }
+      if (secondary_light == G && secondary_timer == 50) { secondary_light' = Y; }
+      if (secondary_light == Y && secondary_timer == 5) { secondary_light' = R; }
+    }
+  }
+
+  // Safety requirement: non-overlapping Green and Yellow phases
+  invariant safety_requirement : !( (mG || mY) && (sG || sY) );
+}

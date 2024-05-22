@@ -1,0 +1,52 @@
+module circuit_c1 {
+    var y1 : boolean;
+    var r1 : boolean;
+
+    init {
+        y1 = false;
+        r1 = false;
+    }
+
+    next {
+        y1' = r1;
+        r1' = !r1;
+    }
+}
+
+module circuit_c2 {
+    input x2 : boolean;
+    var y2 : boolean;
+    var r2 : boolean;
+
+    init {
+        y2 = false;
+        r2 = false;
+    }
+
+    next {
+        y2' = x2' | r2;
+        r2' = x2' | r2;
+    }
+}
+
+module main {
+    var x2 : boolean;
+    instance c1 : circuit_c1();
+    instance c2 : circuit_c2();
+
+    init {
+        havoc x2;
+    }
+
+    next {
+        havoc x2;
+        next(c1);
+        next(c2);
+    }
+
+    control {
+        v = unroll(5);
+        check;
+        print_results;
+    }
+}

@@ -1,0 +1,42 @@
+module main {
+    // Define the enumeration type for status
+    type status_t = enum { ready, busy };
+
+    // Declare the variables
+    var request : boolean;
+    var status : status_t;
+
+    // Initialize the variables
+    init {
+        status = ready;
+    }
+
+    // Define the next-state behavior
+    next {
+        if (request) {
+            status' = busy;
+        }
+    }
+
+    // Auxiliary variable to track if the system was ever requested
+    var was_requested : boolean;
+    init {
+        was_requested = false;
+    }
+    next {
+        // If request is true at any step, set was_requested to true
+        was_requested' = was_requested || request;
+    }
+
+    // Safety property to check
+    invariant prop_eventually_busy :
+        was_requested -> (status == busy);
+
+    // Control block to enable model checking
+    control {
+        // Unroll the system for a number of steps and check properties
+        v = unroll(5);
+        check;
+        print_results;
+    }
+}

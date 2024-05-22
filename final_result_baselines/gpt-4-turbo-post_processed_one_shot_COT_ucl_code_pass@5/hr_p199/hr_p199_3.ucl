@@ -1,0 +1,61 @@
+module main {
+    type Carry = enum { NONE, GOAT, CABBAGE, WOLF };
+
+    var ferryman : boolean;
+    var goat : boolean;
+    var cabbage : boolean;
+    var wolf : boolean;
+    var carry : Carry;
+
+    init {
+        ferryman = false;
+        goat = false;
+        cabbage = false;
+        wolf = false;
+        carry = NONE;
+    }
+
+    next {
+        case
+            carry == NONE : {
+                choose {
+                    carry' = GOAT;
+                    carry' = CABBAGE;
+                    carry' = WOLF;
+                    carry' = NONE;
+                }
+            }
+            ferryman == goat && carry == GOAT : {
+                ferryman' = !ferryman;
+                goat' = !goat;
+                carry' = NONE;
+            }
+            ferryman == cabbage && carry == CABBAGE : {
+                ferryman' = !ferryman;
+                cabbage' = !cabbage;
+                carry' = NONE;
+            }
+            ferryman == wolf && carry == WOLF : {
+                ferryman' = !ferryman;
+                wolf' = !wolf;
+                carry' = NONE;
+            }
+            carry == NONE && ferryman' != ferryman : {
+                carry' = NONE;
+            }
+        esac
+    }
+
+    invariant safe_condition :
+        !(goat == cabbage && goat != ferryman) && !(goat == wolf && goat != ferryman);
+
+    goal goal_state :
+        ferryman && goat && cabbage && wolf;
+
+    control {
+        v = unroll(10);
+        check;
+        print_results;
+        v.print_cex(ferryman, goat, cabbage, wolf, carry);
+    }
+}

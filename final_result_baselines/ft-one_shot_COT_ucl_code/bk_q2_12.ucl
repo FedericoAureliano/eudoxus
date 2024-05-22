@@ -1,0 +1,143 @@
+// Model of the leader election protocol in a ring topology.
+// n processes are arranged in a ring. Each process sends its id to the next process.
+// A process stops when it receives its own id. All other processes must also stop.
+// A process forwards a message if the message's id is less than its own id.
+
+module process (id : integer)
+{
+    const id : integer;
+    var m : integer;
+    var status : boolean;
+
+    init {
+        m = 0;
+        status = false;
+    }
+
+    next {
+        // send your id to the next process
+        call channels[id].send(id);
+        if (m == id) {
+            status' = true;
+        } else {
+            if (m > id) {
+                call channels[id].send(m);
+            }
+        }
+    }
+
+    output { id, m, status }
+}
+
+module channel
+{
+    var msg : integer;
+
+    define send (m : integer) : void {
+        msg' = m;
+    }
+
+    define receive () : integer {
+        return msg;
+    }
+}
+
+module main
+{
+    var processes : [1..n]process;
+    var channels  : [1..n]channel;
+
+    init {
+        // initialize all processes and channels
+        for i in range(1, n) {
+            next (processes[i]);
+            next (channels[i]);
+        }
+
+        // start the leader election
+        for i in range(1, n) {
+            call channels[i].send(i);
+        }
+    }
+
+    next {
+        // receive from incoming channel
+        for i in range(1, n) {
+            call (processes[i])msg' = call channels[i].receive();
+        }
+
+        // send to outgoing channel
+        for i in range(1, n) {
+            if (processes[i].status) {
+                call channels[i].send(processes[i].m);
+            }
+        }
+
+        // process the message
+        for i in range(1, n) {
+            if (!processes[i].status) {
+                if (processes[i].m == processes[i].id) {
+                    processes[i].status' = true;
+                } else {
+                    if (processes[i].m < processes[i].id) {
+                        call channels[i].send(processes[i].m);
+                    }
+                }
+            }
+        }
+    }
+
+    // safety properties
+    // 1. only one process should be leader
+    // 2. all others should recognize the leader
+    property p1 : (exists (var i : integer) in range(1, n) :: processes[i].status) &&
+                    (forall (var j : integer) in range(1, n) ::
+                        (j != i) ==> (processes[j].status && processes[j].m == processes[i].id));
+
+    // liveness property
+    // the system should eventually stabilize
+    property p2 : (forall (var i : integer) in range(1, n) :: processes[i].status) ||
+                    (forall (var i : integer) in range(1, n) :: processes[i].m == 0);
+
+    control
+    {
+        v1 = check;
+        v2 = verify(safety);
+        v3 = verify(liveness);
+        print_results;
+    }
+}
+
+// safety properties
+// 1. no two processes should be leaders
+// 2. the leader should have the highest id
+property safety : (forall (var i : integer) in range(1, n) ::
+                        (processes[i].status &&
+                        (forall (var j : integer) in range(1, n) ::
+                            (i != j) ==> !processes[j].status))));
+// 3. the leader should be the one with the highest m
+property safety2 : (forall (var i : integer) in range(1, n) ::
+                        (processes[i].status &&
+                        (forall (var j : integer) in range(1, n) ::
+                            (i != j) ==> (processes[j].m < processes[i].m)))));
+// 4. the leader should have the highest id
+property safety3 : (forall (var i : integer) in range(1, n) ::
+                        (processes[i].status &&
+                        (forall (var j : integer) in range(1, n) ::
+                            (i != j) ==> (processes[j].id < processes[i].id))));
+
+// liveness properties
+// 1. the protocol should eventually terminate with a leader elected
+property liveness : (exists (var i : integer) in range(1, n) :: processes[i].status);
+
+// 2. the leader should have the highest id
+property liveness2 : (exists (var i : integer) in range(1, n) ::
+                        (processes[i].status &&
+                        (forall (var j : integer) in range(1, n) ::
+                            (i != j) ==> (processes[j].id < processes[i].id))));
+
+// 3. the leader should be the one with the highest m
+property liveness3 : (exists (var i : integer) in range(1, n) ::
+                        (processes[i].status &&
+                        (forall (var j : integer) in range(1, n) ::
+                            (i != j) ==> (processes[j].m < processes[i].m))));

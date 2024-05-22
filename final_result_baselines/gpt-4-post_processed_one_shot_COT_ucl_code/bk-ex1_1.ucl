@@ -1,0 +1,54 @@
+// Define a module for the concurrent program
+module concurrent_program {
+  // Shared variable
+  var x : int;
+
+  // Initialize x with an arbitrary value within the bounds
+  init {
+    assume(x >= 0 && x <= 200);
+  }
+
+  // Process Inc: increment x if x < 200
+  procedure Inc() {
+    if (x < 200) {
+      x := x + 1;
+    }
+  }
+
+  // Process Dec: decrement x if x > 0
+  procedure Dec() {
+    if (x > 0) {
+      x := x - 1;
+    }
+  }
+
+  // Process Reset: reset x to 0 if x == 200
+  procedure Reset() {
+    if (x == 200) {
+      x := 0;
+    }
+  }
+
+  // Model the concurrent execution of processes
+  // This is a simplified representation as UCLID5 does not directly model concurrency
+  // Instead, we model potential interleavings of process executions
+  next {
+    choice {
+      Inc();
+    } or {
+      Dec();
+    } or {
+      Reset();
+    }
+  }
+
+  // Invariant: x is always between 0 and 200
+  invariant x_bounds : x >= 0 && x <= 200;
+
+  // Control block for bounded model checking
+  control {
+    v = unroll(10); // Example unroll depth
+    check;
+    print_results;
+  }
+}

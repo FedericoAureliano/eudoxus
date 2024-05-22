@@ -1,0 +1,51 @@
+uclid
+module thermostat {
+    var temp : int; // temperature in degrees Celsius
+    var heatOn : boolean; // heater state - on (true) or off (false)
+    var heatOff : boolean; // heater state - on (true) or off (false)
+    var time : int; // time in seconds
+
+    const THRESHOLD : int = 20; // temperature threshold for turning on/off the heater
+    const MIN_ON_TIME : int = 30; // minimum time the heater stays on in seconds
+    const MIN_OFF_TIME : int = 120; // minimum time the heater stays off in seconds
+
+    init {
+        temp = 18; // initial temperature
+        heatOn = false; // initial heater state - off
+        heatOff = true; // initial heater state - off
+        time = 0; // initial time
+    }
+
+    transition {
+        // Temperature update
+        temp' = temp;
+
+        // Heater state updates
+        heatOn' = heatOn;
+        heatOff' = heatOff;
+
+        // Time update
+        time' = time + 30; // time advances by 30 seconds
+
+        // Transition logic
+        if (temp <= THRESHOLD && !heatOn) {
+            heatOn' = true; // turn on the heater
+            heatOff' = false;
+        } else if (temp > THRESHOLD && heatOn) {
+            heatOn' = false; // turn off the heater
+            heatOff' = true;
+        } else if (temp <= THRESHOLD && heatOff && time >= MIN_OFF_TIME) {
+            heatOn' = true; // turn on the heater after minimum off time
+            heatOff' = false;
+            time' = 0; // reset time
+        }
+    }
+
+    invariant heat_consistency : !(heatOn && heatOff); // Heater cannot be in both on and off states simultaneously
+    invariant heat_on_for_min_time : (!heatOn || time >= MIN_ON_TIME); // Heater stays on for at least 30 seconds
+    invariant heat_off_for_min_time : (!heatOff || time >= MIN_OFF_TIME); // Heater stays off for at least 2 minutes
+}
+
+
+
+This Uclid5 model captures the behavior of the thermostat system as described, ensuring that the heater turns on and off based on the temperature conditions and time constraints specified.

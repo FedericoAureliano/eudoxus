@@ -1,0 +1,59 @@
+
+module thermostat
+{
+  type state_t = enum { ON, OFF };
+
+  var state : state_t;
+  var temp : int;
+  var heatOn : bool;
+  var heatOff : bool;
+  var time : int;
+
+  init {
+    state = OFF;
+    temp = 20;
+    heatOn = false;
+    heatOff = false;
+    time = 0;
+  }
+
+  procedure control()
+    modifies state;
+    modifies heatOn;
+    modifies heatOff;
+    modifies time;
+  {
+    if (state == OFF && temp <= 20) {
+      heatOn = true;
+      time = 0;
+    } else if (state == ON && temp > 20) {
+      heatOff = true;
+      time = 0;
+    }
+
+    if (heatOn && time >= 30) {
+      state = ON;
+      heatOn = false;
+    } else if (heatOff && time >= 120) {
+      state = OFF;
+      heatOff = false;
+    }
+
+    if (state == OFF && temp <= 20) {
+      heatOn = true;
+      time = 0;
+    }
+  }
+
+  procedure react()
+    modifies time;
+  {
+    time = time + 30;
+  }
+
+  next {
+    control();
+    react();
+  }
+
+}

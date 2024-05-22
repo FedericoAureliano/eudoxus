@@ -1,0 +1,25 @@
+module vending_machine
+{
+  type states_t = enum { pay, select, soda, beer };
+
+  var state : states_t;
+  input insert_coin : boolean;
+  output get_soda : boolean;
+  output get_beer : boolean;
+
+  init {
+    state = pay;
+    get_soda = false;
+    get_beer = false;
+  }
+
+  next {
+    case
+      (state == pay) && insert_coin : { state = select; }
+      (state == select) && get_soda : { state = soda; }
+      (state == select) && get_beer : { state = beer; }
+    esac
+  }
+
+  property only_delivers_with_coin : []((state == soda || state == beer) -> (state == select));
+}

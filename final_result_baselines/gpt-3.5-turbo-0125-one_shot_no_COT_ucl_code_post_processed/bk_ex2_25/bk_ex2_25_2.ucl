@@ -1,0 +1,69 @@
+uclid
+module process
+{
+  type loc_t = enum { wait1, crit1, wait2, crit2 };
+
+  var b1, b2 : boolean;
+  var x : 1..2;
+  var loc : loc_t;
+
+  procedure P1()
+  {
+    while (true) {
+      b1 := true;
+      x := 2;
+      wait {
+        x == 1 || !b2;
+      }
+      do {
+        loc := crit1;
+      }
+      b1 := false;
+      loc := wait1;
+    }
+  }
+
+  procedure P2()
+  {
+    while (true) {
+      b2 := true;
+      x := 1;
+      wait {
+        x == 2 || !b1;
+      }
+      do {
+        loc := crit2;
+      }
+      b2 := false;
+      loc := wait2;
+    }
+  }
+}
+
+module main
+{
+  var p1, p2 : process;
+
+  init {
+    p1.b1 := false;
+    p1.b2 := false;
+    p1.x := 1;
+    p1.loc := wait1;
+
+    p2.b1 := false;
+    p2.b2 := false;
+    p2.x := 2;
+    p2.loc := wait2;
+  }
+
+  next {
+    if (p1.loc == wait1) {
+      call P1();
+    } else if (p2.loc == wait2) {
+      call P2();
+    }
+  }
+}
+
+
+This code models the interleaving behavior of processes P1 and P2 as described, with shared variables b1, b2, and x. The processes take turns entering their critical sections based on the value of x and the status of the other process.

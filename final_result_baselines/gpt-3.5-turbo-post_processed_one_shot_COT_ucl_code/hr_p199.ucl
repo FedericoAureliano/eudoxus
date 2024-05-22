@@ -1,0 +1,71 @@
+
+type location_t = enum { left, right };
+type carry_t = enum { nothing, goat, cabbage, wolf };
+
+var ferryman : location_t;
+var goat : location_t;
+var cabbage : location_t;
+var wolf : location_t;
+var carry : carry_t;
+
+init {
+  ferryman = left;
+  goat = left;
+  cabbage = left;
+  wolf = left;
+  carry = nothing;
+}
+
+procedure cross_ferry(item: carry_t)
+  modifies ferryman;
+  modifies goat;
+  modifies cabbage;
+  modifies wolf;
+  modifies carry;
+{
+  assume(ferryman == left);
+  assume(carry == nothing || carry == item);
+
+  if (item == goat) {
+    assume(goat == ferryman);
+    assume(cabbage != goat && wolf != goat);
+    goat = right;
+  } else if (item == cabbage) {
+    assume(cabbage == ferryman);
+    assume(goat != cabbage);
+    cabbage = right;
+  } else if (item == wolf) {
+    assume(wolf == ferryman);
+    assume(goat != wolf);
+    wolf = right;
+  }
+
+  ferryman = right;
+  carry = item;
+}
+
+procedure return_ferry()
+  modifies ferryman;
+  modifies goat;
+  modifies cabbage;
+  modifies wolf;
+  modifies carry;
+{
+  assume(ferryman == right);
+
+  if (carry == goat) {
+    goat = left;
+  } else if (carry == cabbage) {
+    cabbage = left;
+  } else if (carry == wolf) {
+    wolf = left;
+  }
+
+  ferryman = left;
+  carry = nothing;
+}
+
+property goal_reached()
+{
+  return ferryman == right && goat == right && cabbage == right && wolf == right;
+}

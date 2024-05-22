@@ -1,0 +1,39 @@
+java
+module vendingMachine {
+  type state_t = enum { pay, select, soda, beer };
+  var state : state_t;
+
+  init {
+    state = pay;
+  }
+
+  transition {
+    // Inserting a coin transitions the machine from the pay state to the select state
+    state == pay && insert_coin -> state' = select;
+
+    // Selecting soda transitions the machine from the select state to the soda state
+    state == select && get_soda -> state' = soda;
+
+    // Selecting beer transitions the machine from the select state to the beer state
+    state == select && get_beer -> state' = beer;
+  }
+}
+
+module main {
+  var insert_coin : boolean;
+  var get_soda : boolean;
+  var get_beer : boolean;
+
+  // Instantiate the vending machine module
+  instance vm : vendingMachine;
+
+  // LTL property to check that a drink is only delivered after a coin is inserted
+  property drink_after_coin {
+    always {
+      (vm.state == soda || vm.state == beer) -> (vm.state == select);
+    }
+  }
+}
+
+
+In this code snippet, the `vendingMachine` module models the state transitions of the vending machine, including the insertion of a coin and the delivery of soda and beer. The `main` module instantiates the `vendingMachine` module and defines an LTL property `drink_after_coin` that ensures that a drink is only delivered after a coin is inserted.

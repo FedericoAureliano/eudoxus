@@ -1,0 +1,70 @@
+type state_t = enum { green, yellow, red, amber };
+
+module TrafficLight {
+    var current_state : state_t;
+
+    init {
+        current_state = red;
+    }
+
+    next {
+        case
+            current_state == green : current_state' = yellow;
+            current_state == yellow : current_state' = red;
+            current_state == red : current_state' = amber;
+            current_state == amber : current_state' = green;
+        esac
+    }
+}
+
+module Controller {
+    type phase_t = enum { phase1, phase2, phase3, phase4 };
+    var phase : phase_t;
+
+    init {
+        phase = phase1;
+    }
+
+    next {
+        case
+            phase == phase1 : phase' = phase2;
+            phase == phase2 : phase' = phase3;
+            phase == phase3 : phase' = phase4;
+            phase == phase4 : phase' = phase1;
+        esac
+    }
+}
+
+module main {
+    var L1, L2, L3, L4 : TrafficLight.state_t;
+    var control : Controller.phase_t;
+
+    instance light1 : TrafficLight;
+    instance light2 : TrafficLight;
+    instance light3 : TrafficLight;
+    instance light4 : TrafficLight;
+    instance controller : Controller;
+
+    init {
+        light1.current_state = red;
+        light2.current_state = red;
+        light3.current_state = red;
+        light4.current_state = red;
+        control = controller.phase;
+    }
+
+    next {
+        light1.current_state' = (control == phase1 || control == phase4) ? green : light1.current_state;
+        light2.current_state' = (control == phase2) ? green : light2.current_state;
+        light3.current_state' = (control == phase1 || control == phase4) ? green : light3.current_state;
+        light4.current_state' = (control == phase3) ? green : light4.current_state;
+        control' = controller.phase';
+    }
+
+    invariant no_conflict : (L1 != green || L2 != green) && (L3 != green || L4 != green);
+}
+
+control {
+    v = simulate(20);
+    print_results;
+}

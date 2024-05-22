@@ -1,0 +1,69 @@
+module process
+{
+  type id_t = int;
+  type msg_t = int;
+  type status_t = enum { active, stopped };
+
+  var id : id_t;
+  var m : msg_t;
+  var status : status_t;
+
+  init {
+    status = active;
+  }
+
+  input in_msg : msg_t;
+
+  procedure receive_message()
+    modifies m, status;
+  {
+    m = in_msg;
+    if (m == id) {
+      status = stopped;
+    } else if (m > id) {
+      send_message(m);
+    }
+  }
+
+  procedure send_message(message : msg_t)
+    modifies m;
+  {
+    m = message;
+  }
+
+  next {
+    if (status == active) {
+      call receive_message();
+    }
+  }
+}
+
+module main
+{
+  const n : int;
+  var channels : array [0 .. n-1] of process.msg_t;
+  var processes : array [0 .. n-1] of process;
+
+  init {
+    for (i : int :: 0 <= i && i < n) {
+      processes[i].id = i + 1;
+      processes[i].send_message(processes[i].id);
+      channels[i] = processes[i].id;
+    }
+  }
+
+  next {
+    for (i : int :: 0 <= i && i < n) {
+      if (processes[i].status == process.active) {
+        processes[i].receive_message(channels[(i - 1 + n) % n]);
+        channels[i] = processes[i].m;
+      }
+    }
+  }
+
+  control {
+    v = unroll(n);
+    check;
+    print_results;
+  }
+}

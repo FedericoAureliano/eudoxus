@@ -1,0 +1,80 @@
+smt
+// Define the module for a traffic light
+module traffic_light
+{
+  type state_t = enum { red, green }; // Possible states of the traffic light
+
+  var light : state_t; // Current state of the traffic light
+
+  // Initial state of the traffic light
+  init {
+    light = red; // Assume both traffic lights start at red for simplicity
+  }
+
+  // Transition function to change the state of the traffic light
+  procedure toggle()
+    modifies light;
+  {
+    if (light == red) {
+      light = green;
+    } else {
+      light = red;
+    }
+  }
+
+  // Define the next state based on an external action
+  next {
+    if (*) { // Non-deterministic choice
+      call toggle();
+    }
+  }
+}
+
+// Main module to handle two traffic lights and check for deadlocks
+module main
+{
+  // Create two instances of traffic lights
+  instance traffic_light1 : traffic_light;
+  instance traffic_light2 : traffic_light;
+
+  // Define an action type for synchronization
+  type action_t = enum { A, B, none }; // A and B for synchronization, none for no action
+
+  var action : action_t; // Current action
+
+  // Initialize the action to none
+  init {
+    action = none;
+  }
+
+  // Define the next state based on the current action
+  next {
+    case
+      // Action A: traffic_light1 goes green, traffic_light2 goes red
+      action == A : {
+        assume (traffic_light1.light == red && traffic_light2.light == green);
+        next(traffic_light1); // Toggle traffic_light1 to green
+        next(traffic_light2); // Toggle traffic_light2 to red
+      }
+      // Action B: traffic_light1 goes red, traffic_light2 goes green
+      action == B : {
+        assume (traffic_light1.light == green && traffic_light2.light == red);
+        next(traffic_light1); // Toggle traffic_light1 to red
+        next(traffic_light2); // Toggle traffic_light2 to green
+      }
+      // No action, no change
+      action == none : {}
+    esac
+    havoc action; // Allow any action in the next state
+  }
+
+  // Check for deadlock: both lights are red
+  invariant no_deadlock : !(traffic_light1.light == red && traffic_light2.light == red);
+
+  control {
+    // Setup for bounded model checking
+    v = unroll(5); // Unroll the transition system 5 times
+    check; // Check all properties including invariants
+    print_results; // Print the results of the checks
+  }
+}

@@ -1,0 +1,97 @@
+module MessageChannel {
+  input message1 : {bit: boolean, valid: boolean};
+  output message2 : {bit: boolean, valid: boolean};
+
+  procedure transmit() {
+    if (nondet()) {
+      message2.bit = message1.bit;
+      message2.valid = true;
+    } else {
+      message2.valid = false; // simulate loss
+    }
+  }
+}
+
+module AckChannel {
+  input ack1 : {bit: boolean, valid: boolean};
+  output ack2 : {bit: boolean, valid: boolean};
+
+  procedure transmit() {
+    if (nondet()) {
+      ack2.bit = ack1.bit;
+      ack2.valid = true;
+    } else {
+      ack2.valid = false; // simulate loss
+    }
+  }
+}
+
+module Sender {
+  var st : enum { WAIT_ACK, SEND_MSG };
+  var control_bit : boolean;
+
+  input ack : {bit: boolean, valid: boolean};
+  output message : {bit: boolean, valid: boolean};
+
+  init {
+    st = SEND_MSG;
+    control_bit = false;
+  }
+
+  next {
+    if (st == SEND_MSG) {
+      message.bit = control_bit;
+      message.valid = true;
+      st = WAIT_ACK;
+    } else if (st == WAIT_ACK && ack.valid && ack.bit == control_bit) {
+      control_bit = !control_bit;
+      st = SEND_MSG;
+    }
+  }
+}
+
+module Receiver {
+  var expected_bit : boolean;
+
+  input message : {bit: boolean, valid: boolean};
+  output ack : {bit: boolean, valid: boolean};
+
+  init {
+    expected_bit = false;
+  }
+
+  next {
+    if (message.valid && message.bit == expected_bit) {
+      ack.bit = expected_bit;
+      ack.valid = true;
+      expected_bit = !expected_bit;
+    } else {
+      ack.bit = !expected_bit; // resend last ack
+      ack.valid = true;
+    }
+  }
+}
+
+module main {
+  instance sender : Sender;
+  instance receiver : Receiver;
+  instance msg_channel : MessageChannel(sender.message, receiver.message);
+  instance ack_channel : AckChannel(receiver.ack, sender.ack);
+
+  init {
+    // Initialize all modules
+  }
+
+  next {
+    msg_channel.transmit();
+    ack_channel.transmit();
+    sender.next();
+    receiver.next();
+  }
+
+  control {
+    v = unroll(10);
+    check;
+    print_results;
+  }
+}

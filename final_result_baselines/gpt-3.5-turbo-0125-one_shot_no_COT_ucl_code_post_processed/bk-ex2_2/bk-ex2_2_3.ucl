@@ -1,0 +1,53 @@
+
+module vending_machine
+{
+  type state_t = enum { pay, select, soda, beer };
+  var state : state_t;
+
+  init {
+    state = pay;
+  }
+
+  transition {
+    // Insert coin
+    if state == pay {
+      state' = select;
+    }
+    // Get soda
+    else if state == select {
+      state' = soda;
+    }
+    // Get beer
+    else if state == select {
+      state' = beer;
+    }
+  }
+}
+
+module main
+{
+  var coin_inserted : boolean;
+
+  instance vm : vending_machine;
+
+  init {
+    coin_inserted = false;
+  }
+
+  next {
+    // Liveness property: Drink can only be delivered after a coin is inserted
+    if vm.state == select {
+      assert coin_inserted;
+    }
+  }
+
+  transition {
+    // Insert coin action
+    if !coin_inserted {
+      coin_inserted' = true;
+    }
+  }
+}
+
+
+In this code, the vending machine module defines the state space and transitions between states based on actions. The main module models the insertion of a coin and checks the LTL property that a drink is only delivered after a coin is inserted.

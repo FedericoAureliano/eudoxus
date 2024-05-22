@@ -1,0 +1,49 @@
+module main {
+    type time_t = integer;
+    var ignition : boolean;
+    var buckled : boolean;
+    var time : time_t;
+    var beeper : boolean;
+    var warning_light : boolean;
+
+    init {
+        ignition = false;
+        buckled = true;
+        time = 0;
+        beeper = false;
+        warning_light = false;
+    }
+
+    input warn : boolean;
+    input noWarn : boolean;
+
+    next {
+        if (warn) {
+            ignition' = true;
+            beeper' = true;
+            warning_light' = !buckled;
+        } else if (noWarn) {
+            ignition' = false;
+            beeper' = false;
+            warning_light' = false;
+        }
+
+        if (ignition) {
+            time' = time + 1;
+            if (time >= 30) {
+                beeper' = false;
+            }
+        } else {
+            time' = 0;
+        }
+    }
+
+    invariant beeper_on_condition : (beeper == true) -> (time < 30 && !buckled);
+    invariant warning_light_condition : (warning_light == true) <-> (!buckled);
+
+    control {
+        v = unroll(35);
+        check;
+        print_results;
+    }
+}

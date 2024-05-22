@@ -1,0 +1,50 @@
+module traffic_light {
+  type state_t = enum { Red, Green };
+
+  var light : state_t;
+
+  init {
+    light = Red; // Initialize to Red by default
+  }
+
+  next {
+    // Nondeterministic transition between Red and Green
+    light' = case
+      light == Red : Green;
+      light == Green : Red;
+      esac;
+  }
+}
+
+module main {
+  type t1_state_t = traffic_light.state_t;
+  type t2_state_t = traffic_light.state_t;
+
+  // Instantiate two traffic lights
+  instance light1 : traffic_light;
+  instance light2 : traffic_light;
+
+  init {
+    // Nondeterministic initialization
+    light1.light = Red;
+    light2.light = Red;
+    havoc light1.light;
+    havoc light2.light;
+  }
+
+  next {
+    // Execute the next state for both lights independently
+    next(light1);
+    next(light2);
+  }
+
+  // Ensure no light is both Red and Green at the same time (sanity check)
+  invariant valid_states1 : (light1.light == Red || light1.light == Green);
+  invariant valid_states2 : (light2.light == Red || light2.light == Green);
+
+  control {
+    v = unroll(5);
+    check;
+    print_results;
+  }
+}

@@ -1,0 +1,44 @@
+
+module program
+{
+  type status_t = enum { ready, busy };
+
+  var request : boolean;
+  var status : status_t;
+
+  init {
+    status = ready;
+  }
+
+  next {
+    if (request) {
+      status' = busy;
+    }
+    // else status remains unchanged
+  }
+
+  property eventually_status_busy {
+    var found_busy : boolean;
+
+    found_busy := false;
+
+    while (!found_busy) {
+      if (request) {
+        assert status == busy;
+        found_busy := true;
+      }
+      else {
+        next;
+      }
+    }
+  }
+}
+
+
+In this code:
+- The module `program` defines a boolean variable `request` and an enumeration variable `status` with values `ready` and `busy`.
+- The `init` block sets the initial value of `status` to `ready`.
+- The `next` block specifies that if `request` is true, the `status` transitions to `busy`, otherwise, `status` remains unchanged.
+- The property `eventually_status_busy` checks that if `request` is true, eventually the `status` becomes `busy`. This is achieved by introducing an auxiliary variable `found_busy` which is used to track if the status has become busy.
+
+This model can be used for verification to ensure that the property `eventually_status_busy` holds in the system.

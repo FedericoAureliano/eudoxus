@@ -1,0 +1,47 @@
+c
+module main {
+    type status_t = enum { ready, busy };
+
+    var request : boolean;
+    var status : status_t;
+
+    init {
+        status = ready;
+    }
+
+    next {
+        if (request) {
+            status' = busy;
+        } else {
+            // status remains unchanged if request is false
+            status' = status;
+        }
+    }
+
+    property eventually_status_busy {
+        var request_aux : boolean;
+        var status_aux : status_t;
+
+        init {
+            request_aux = request;
+            status_aux = status;
+        }
+
+        transition {
+            if (request_aux && status_aux == ready) {
+                request_aux' = request_aux;
+                status_aux' = busy;
+            } else {
+                request_aux' = request_aux;
+                status_aux' = status_aux;
+            }
+        }
+
+        assert {
+            !request_aux && status_aux == ready || status_aux == busy;
+        }
+    }
+}
+
+
+This code models a program with two variables `request` and `status`, where the value of `request` is not specified and `status` transitions to `busy` only when `request` is true. The property `eventually_status_busy` checks that if `request` is true, eventually `status` becomes `busy`.

@@ -1,0 +1,256 @@
+system :: You're an expert in writing uclid5 models.You will be given a docstring and asked to write a model. Remember uclid5 is a state machine language and has it's own specific syntax.
+====================
+user :: Write a uclid5 model for the following description:
+    This UCLID5 model simulates a process interaction environment to evaluate confidentiality properties through non-interference simulations, inspired by an example in Chapter 17 on Security from "Introduction to Embedded Systems" by Lee & Seshia. The model consists of two types of process modules (`process1` and `process2`) and a main module that orchestrates the interaction between instances of these processes.
+
+    Process Modules:
+    1. `process1`: This module captures a simplified process that reflects non-deterministic behavior based on public input. It uses an enumerated type `pc_t` with a single state `A`. It has:
+        - Inputs:
+        * `s`: A boolean representing a secret input.
+        * `x`: A boolean representing a public input.
+        - Output:
+        * `z`: A boolean public output that toggles based on the inverse of input `x`.
+        - Behavior:
+        * The process starts in state `A` and outputs `z` as `false` initially.
+        * In subsequent cycles, the output `z` becomes the negation of `x`.
+
+    2. `process2`: This module is a more complex process with an internal state machine described using state enum `pc_t` with states `B` and `C`. It demonstrates state-dependent output behavior.
+        - Inputs are the same as in `process1`.
+        - Output and state transitions:
+        * The process starts in state `B` with the output `z` as `false`.
+        * Based on the input combination (state, `s`, and `x`), the process transitions between states `B` and `C`, toggling the output `z`.
+        * The transitions are specifically:
+            - From `B` to `C` (output `z` is set to `true`) when `s` is true and `x` is false.
+            - From `C` back to `B` (output `z` is reset to `false`) under the same input conditions.
+
+    Main Module:
+    - Sets up instances of `process2` (`p21` and `p22`) to interact under controlled input conditions.
+    - Inputs `x1`, `x2` (public), and `s1`, `s2` (secret) are used for driving the process instances.
+    - Controls non-determinism by initially assuming both `x1` and `x2` are equal, and it maintains this assumption in all subsequent states.
+    - Evaluates confidentiality by asserting the invariant `same_output_z`, ensuring that outputs `z1` and `z2` of both process instances are always equal, thereby checking for consistent behavior across different runs with potentially varying secret inputs.
+
+    Control:
+    - The control block is used to perform bounded model checking and to produce counterexamples. It specifies that up to 5 unrolling should be checked.
+    - The `print_cex` function is used for displaying counterexamples for the states of inputs and outputs along with the internal state of `process2` instances (`p21` and `p22`).
+
+    This model is particularly useful for demonstrating the effects of secret data manipulations on the outputs, which can be analyzed to study security vulnerability or proof of non-interference in systems.
+
+====================
+assistant :: module process1
+    {
+    type pc_t = enum { A };
+
+    var pc : pc_t;
+    input s : boolean; // secret input
+    input x : boolean; // public input
+    output z: boolean; // public output
+
+    init {
+        pc = A;
+        z = false;
+    }
+
+    next {
+        z' = !x;
+    }
+
+    }
+
+    module process2
+    {
+    type pc_t = enum { B, C };
+
+    var pc : pc_t;
+    input s : boolean; // secret input
+    input x : boolean; // public input
+    output z: boolean; // public output
+
+    procedure next_state()
+        modifies z;
+        modifies pc;
+    {
+        case
+        (pc == B) && s && !x : { pc = C; z = true; }
+        (pc == C) && s && !x : { pc = B; z = false; }
+        esac
+    }
+
+    init {
+        pc = B;
+        z = false;
+    }
+
+    next {
+        call next_state();
+    }
+    }
+
+
+    module main
+    {
+    type t1pc_t = process1.pc_t;
+    type t2pc_t = process2.pc_t;
+
+    var x1,x2 : boolean;
+    var s1,s2 : boolean;
+    var z1,z2 : boolean;
+
+    /*
+    instance p11 : process1(z: (z1), s : (s1), x : (x1));
+    instance p12 : process1(z: (z2), s : (s2), x : (x2));
+    */
+
+    /*
+    */
+    instance p21 : process2(z: (z1), s : (s1), x : (x1));
+    instance p22 : process2(z: (z2), s : (s2), x : (x2));
+
+    init {
+        havoc x1; havoc x2;
+        havoc s1; havoc s2;
+        assume(x1 == x2);
+    }
+
+    next {
+        havoc x1; havoc x2;
+        havoc s1; havoc s2;
+        assume(x1' == x2');
+        // next(p11); next(p12);
+        next(p21); next(p22);
+    }
+
+    invariant same_output_z : (z1 == z2);
+
+
+    control {
+        // *** BASIC ASSERTIONS/INVARIANT
+    /*
+    */
+        v = unroll(5);
+        check;
+        print_results;
+        //v.print_cex(x1,x2,s1,s2,z1,z2,p11.pc,p12.pc);
+        v.print_cex(x1,x2,s1,s2,z1,z2,p21.pc,p22.pc);
+
+    /*
+        // *** INDUCTION
+        v = induction(1);
+        check;
+        print_results;
+        v.print_cex(x1,x2,s1,s2,z1,z2,p11.pc,p12.pc);
+    */
+    }
+    }
+====================
+user :: Write a uclid5 model for the following description:
+To model the described system in UCLID5, we'll outline the necessary elements such as state variables, initialization, transitions, and properties to be verified. We'll also introduce an auxiliary variable to help in verifying the property.
+
+--OUTLINE--
+
+1. **Model Variables:**
+   - `request`: A boolean variable representing external input.
+   - `status`: An enumeration type variable with possible values `ready` and `busy`.
+   - Auxiliary variable `was_requested`: A boolean variable to track if `request` was ever true.
+
+2. **Type Definitions:**
+   - Define an enumeration type for `status` with values `ready` (0) and `busy` (1).
+
+3. **State Variables Initialization:**
+   - `status` is initialized to `ready`.
+   - `request` is not initialized as its value is determined by the external environment.
+   - `was_requested` is initialized to `false`.
+
+4. **Transition Relation:**
+   - The value of `status` depends on the value of `request`:
+     - If `request` is true, `status` transitions to `busy`.
+     - If `request` is false, the next value of `status` remains non-deterministic (could be either `ready` or `busy`).
+   - Update `was_requested`:
+     - It becomes true if `request` is true.
+     - It remains unchanged otherwise.
+
+5. **Properties to Verify:**
+   - **Safety Property:** If `request` is true at any state, then `status` must eventually be `busy`.
+   - This can be expressed using a temporal logic formula in UCLID5.
+
+6. **Control and Verification:**
+   - Use UCLID5's model checking capabilities to verify the property.
+   - Optionally, specify bounds or conditions under which the model should be checked.
+
+7. **Model Checking and Counterexamples:**
+   - Configure the model checker to search for counterexamples where `status` does not become `busy` despite `request` being true.
+   - Use `print_cex` to print counterexamples if the property is violated.
+
+--UCLID5 Model Sketch--
+
+```uclid
+module main {
+    type status_t = enum { ready, busy };
+    var request : boolean;
+    var status : status_t;
+    var was_requested : boolean;
+
+    init {
+        status = status_t.ready;
+        was_requested = false;
+    }
+
+    next {
+        if (request) {
+            status' = status_t.busy;
+            was_requested' = true;
+        } else {
+            status' = choose {
+                status_t.ready,
+                status_t.busy
+            };
+        }
+    }
+
+    control {
+        check;
+        print_cex;
+    }
+
+    property eventually_busy_if_requested {
+        always (request -> eventually (status == status_t.busy))
+    }
+}
+```
+
+This model outlines how to set up the UCLID5 model based on the given description. The `choose` construct is used to represent the non-deterministic behavior of `status` when `request` is false. The property `eventually_busy_if_requested` checks that whenever `request` is true, `status` must eventually become `busy`.
+====================
+assistant :: // This is a simple sketch of the model.
+module main {
+    type status_t = enum { ready, busy };
+    var request : boolean;
+    var status : status_t;
+    var was_requested : boolean;
+
+    init {
+        status = status_t.ready;
+        was_requested = false;
+    }
+
+    next {
+        if (request) {
+            status' = status_t.busy;
+            was_requested' = true;
+        } else {
+            status' = choose {
+                status_t.ready,
+                status_t.busy
+            };
+        }
+    }
+
+    control {
+        check;
+        print_cex;
+    }
+
+    property eventually_busy_if_requested {
+        always (request -> eventually (status == status_t.busy))
+    }
+}
+
+====================

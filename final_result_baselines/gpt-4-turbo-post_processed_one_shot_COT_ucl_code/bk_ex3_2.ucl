@@ -1,0 +1,49 @@
+module philosopher
+{
+  type state_t = enum { THINKING, WAITING, EATING };
+  var state : state_t;
+
+  init {
+    state = THINKING;
+  }
+}
+
+module system
+{
+  type chopstick_t = boolean; // true if available, false if in use
+  var phil1, phil2, phil3, phil4, phil5 : philosopher.state_t;
+  var chopstick1, chopstick2, chopstick3, chopstick4, chopstick5 : chopstick_t;
+
+  init {
+    phil1 = phil2 = phil3 = phil4 = phil5 = philosopher.THINKING;
+    chopstick1 = chopstick2 = chopstick3 = chopstick4 = chopstick5 = true;
+  }
+
+  // Define transitions for philosophers based on chopstick availability
+  next {
+    if (phil1 == philosopher.THINKING) {
+      if (chopstick1 && chopstick5) {
+        phil1' = philosopher.EATING;
+        chopstick1' = false;
+        chopstick5' = false;
+      } else {
+        phil1' = philosopher.WAITING;
+      }
+    } else if (phil1 == philosopher.EATING) {
+      phil1' = philosopher.THINKING;
+      chopstick1' = true;
+      chopstick5' = true;
+    }
+
+    // Repeat similar transitions for phil2, phil3, phil4, and phil5
+  }
+
+  // Check for deadlock scenario: all philosophers are waiting
+  invariant no_deadlock : !(phil1 == philosopher.WAITING && phil2 == philosopher.WAITING && phil3 == philosopher.WAITING && phil4 == philosopher.WAITING && phil5 == philosopher.WAITING);
+
+  control {
+    v = unroll(10);
+    check;
+    print_results;
+  }
+}

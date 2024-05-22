@@ -1,0 +1,76 @@
+module main {
+  type state_t = enum { start, select };
+  const max : int; // Maximum capacity for soda and beer
+
+  var nsoda : int; // Number of soda bottles
+  var nbeer : int; // Number of beer bottles
+  var current_state : state_t;
+
+  // Actions
+  var coin : boolean;
+  var refill : boolean;
+  var sget : boolean;
+  var bget : boolean;
+  var ret_coin : boolean;
+
+  init {
+    current_state = start;
+    nsoda = max;
+    nbeer = max;
+    coin = false;
+    refill = false;
+    sget = false;
+    bget = false;
+    ret_coin = false;
+  }
+
+  next {
+    coin' = false;
+    refill' = false;
+    sget' = false;
+    bget' = false;
+    ret_coin' = false;
+
+    switch (current_state) {
+      case start: {
+        if (coin) {
+          current_state' = select;
+        } else if (refill) {
+          nsoda' = max;
+          nbeer' = max;
+          current_state' = start;
+        } else {
+          current_state' = start;
+        }
+      }
+      case select: {
+        if (nsoda > 0 && sget) {
+          nsoda' = nsoda - 1;
+          current_state' = start;
+        } else if (nbeer > 0 && bget) {
+          nbeer' = nbeer - 1;
+          current_state' = start;
+        } else if (nsoda == 0 && nbeer == 0) {
+          ret_coin' = true;
+          current_state' = start;
+        } else {
+          current_state' = select;
+        }
+      }
+    }
+  }
+
+  // Enabling conditions for actions
+  control {
+    if (current_state == start) {
+      coin = true; // Coin can always be inserted
+      refill = true; // Machine can always be refilled
+    } else if (current_state == select) {
+      sget = (nsoda > 0);
+      bget = (nbeer > 0);
+      ret_coin = (nsoda == 0 && nbeer == 0);
+    }
+    check;
+    print_results;
+  }
+}

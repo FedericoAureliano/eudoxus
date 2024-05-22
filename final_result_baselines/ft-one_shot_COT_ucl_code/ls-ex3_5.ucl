@@ -1,0 +1,71 @@
+module thermostat
+{
+    type state_t = enum { HEATING, COOLING };
+    input temp : real;
+    output heatOn, heatOff : boolean;
+    var current_state : state_t;
+
+    init {
+        current_state = COOLING;
+        heatOn = false;
+        heatOff = false;
+    }
+
+    next {
+        call (current_state') = transition(temp, current_state);
+        heatOn' = false;
+        heatOff' = false;
+    }
+
+    function transition (temp_n : real, state : state_t) : (state_t)
+    {
+        if (state == COOLING) {
+            if (temp_n <= 18.0) {
+                return (HEATING);
+            }
+            else {
+                return (COOLING);
+            }
+        }
+        else {
+            if (temp_n >= 22.0) {
+                return (COOLING);
+            }
+            else {
+                return (HEATING);
+            }
+        }
+    }
+}
+
+module main {
+    type state_t = thermostat.state_t;
+
+    var temp : real;
+    var heatOn, heatOff : boolean;
+    var current_state : state_t;
+
+    instance t : thermostat(temp: (temp), heatOn: (heatOn), heatOff: (heatOff));
+
+    input temp_seq : [real];
+
+    init {
+        temp = 0.0;
+        heatOn = false;
+        heatOff = false;
+        assume (temp_seq[0] == 0.0);
+    }
+
+    next {
+        temp' = temp_seq[0];
+        next (t);
+        assert (current_state == COOLING) ==> !heatOn;
+        assert (current_state == HEATING) ==> !heatOff;
+        assert (!heatOn || !heatOff);
+    }
+
+    control {
+        v = verify[keepGoing=true];
+        v.print_cex(temp, heatOn, heatOff, current_state, t.current_state);
+    }
+}

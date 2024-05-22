@@ -1,0 +1,94 @@
+module supermarket
+{
+    type state_t = enum { 0, 1 };
+    var BCR_state, BP_state, Printer_state : state_t;
+
+    process BCR
+    {
+        input scan : boolean;
+        output data_to_BP : boolean;
+
+        init { pc = 0; }
+        next {
+            case
+            (pc == 0) && scan : { data_to_BP' = true; pc' = 1; }
+            (pc == 1) && (BP_state == 0) : { pc' = 0; }
+            esac
+        }
+    }
+
+    process BP
+    {
+        input data_from_BCR : boolean;
+        output print : boolean;
+
+        init { pc = 0; }
+        next {
+            case
+            (pc == 0) && data_from_BCR : { pc' = 1; }
+            (pc == 1) && (Printer_state == 0) : { print' = true; pc' = 0; }
+            esac
+        }
+    }
+
+    process Printer
+    {
+        input print_command : boolean;
+
+        init { pc = 0; }
+        next {
+            case
+            (pc == 0) && print_command : { pc' = 1; }
+            (pc == 1) : { pc' = 0; }
+            esac
+        }
+    }
+
+    module main
+    {
+        var scan : boolean;
+        var data_to_BP : boolean;
+        var data_from_BCR : boolean;
+        var print : boolean;
+
+        instance BCR_module : BCR(scan : (scan), data_to_BP : (data_to_BP));
+        instance BP_module : BP(data_from_BCR : (data_from_BCR), print : (print));
+        instance Printer_module : Printer(print_command : (BP_module.print));
+
+        init {
+            BCR_state = 0;
+            BP_state = 0;
+            Printer_state = 0;
+        }
+        next {
+            next(BCR_module);
+            next(BP_module);
+            next(Printer_module);
+
+            case
+            (BCR_module.pc == 0) && (scan' == true) : { BCR_state' = 1; }
+            (BCR_module.pc == 1) && (BP_module.BP_state == 0) : { BCR_state' = 0; }
+
+            (BP_module.pc == 0) && (BP_state' == 1) : { BP_state' = 1; }
+            (BP_module.pc == 1) && (Printer_module.Printer_state == 0) : { BP_state' = 0; }
+            esac
+        }
+
+        property p1 : (BCR_state == 0) || (BCR_state == 1);
+        property p2 : (BP_state == 0) || (BP_state == 1);
+        property p3 : (Printer_state == 0) || (Printer_state == 1);
+
+        property handshaking : (p1 && p2) && (p2 && p3) && (p3 && p1);
+
+        control
+        {
+            v1 = check_property[1](p1);
+            v2 = check_property[1](p2);
+            v3 = check_property[1](p3);
+            v4 = check_property[1](handshaking);
+            v5 = scan_event_order[1](BCR_module);
+            v6 = print_event_order[1](Printer_module);
+            check;
+        }
+    }
+}

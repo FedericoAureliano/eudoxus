@@ -1,0 +1,45 @@
+uclid
+module sequential_circuit {
+    var x : boolean;
+    var y : boolean;
+    var r : boolean;
+
+    init {
+        r = false;
+    }
+
+    next {
+        var next_r : boolean;
+        next_r = x || r;
+        r' = (r == true) ? r : next_r;
+        y' = !(x ^ r);
+    }
+}
+
+module main {
+    var s1_x, s2_x : boolean;
+
+    instance seq_circuit : sequential_circuit(x, y, r);
+
+    init {
+        s1_x = false;
+        s2_x = true;
+    }
+
+    next {
+        assume (s1_x == false && s2_x == true) || (s1_x == true && s2_x == false);
+        seq_circuit.x = (s1_x == true) ? true : false;
+        s1_x' = !s1_x;
+        s2_x' = !s2_x;
+        next(seq_circuit);
+    }
+
+    ltl property y_set_infinitely_often {
+        exists i: 0..100 {
+            always { i <= 100 -> seq_circuit.y == true }
+        }
+    }
+}
+
+
+This code models the sequential circuit behavior as described and checks the LTL property that the output bit y is set infinitely often. The initial states S1 and S2 are represented by the variables `s1_x` and `s2_x`. The property `y_set_infinitely_often` checks if the output bit y is set to true infinitely often within the first 100 steps of the system.

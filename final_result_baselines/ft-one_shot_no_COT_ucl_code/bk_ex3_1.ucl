@@ -1,0 +1,72 @@
+module traffic_light1 {
+  type state_t = enum { RED, GREEN };
+
+  var state : state_t;
+
+  init {
+    state = RED;
+  }
+
+  next {
+    if (state == RED) {
+      call state' = GREEN;
+    } else {
+      call state' = RED;
+    }
+  }
+}
+
+module traffic_light2 {
+  type state_t = enum { RED, GREEN };
+
+  var state : state_t;
+
+  init {
+    state = GREEN;
+  }
+
+  next {
+    if (state == RED) {
+      call state' = GREEN;
+    } else {
+      call state' = RED;
+    }
+  }
+}
+
+module main {
+  type state_t1 = traffic_light1.state_t;
+  type state_t2 = traffic_light2.state_t;
+
+  var traffic_light1 : traffic_light1.state_t;
+  var traffic_light2 : traffic_light2.state_t;
+  var green1 : boolean;
+  var red1 : boolean;
+  var green2 : boolean;
+  var red2 : boolean;
+
+  init {
+    traffic_light1 = RED;
+    traffic_light2 = GREEN;
+    green1 = false;
+    red1 = true;
+    green2 = true;
+    red2 = false;
+  }
+
+  next {
+    call traffic_light1';
+    call traffic_light2';
+    call green1';
+    call red1';
+    call green2';
+    call red2';
+  }
+
+  control {
+    v = unroll(5);
+    check;
+    print_results;
+    v.print_cex(traffic_light1, traffic_light2, green1, red1, green2, red2);
+  }
+}

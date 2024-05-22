@@ -1,0 +1,58 @@
+c
+module traffic_light
+{
+    type state_t = enum { RED, GREEN, YELLOW, PENDING };
+
+    var state : state_t;
+    var count : int;
+    input pedestrian : boolean;
+    output sigG : boolean;
+    output sigY : boolean;
+    output sigR : boolean;
+
+    init {
+        state = RED;
+        count = 0;
+        sigG = false;
+        sigY = false;
+        sigR = true;
+    }
+
+    next {
+        if (state == RED) {
+            count = count + 1;
+            if (count == 60) {
+                state = GREEN;
+                count = 0;
+            }
+        } else if (state == GREEN) {
+            if (pedestrian) {
+                if (count >= 60) {
+                    state = YELLOW;
+                    count = 0;
+                } else {
+                    state = PENDING;
+                }
+            }
+        } else if (state == PENDING) {
+            count = count + 1;
+            if (count == 60) {
+                state = YELLOW;
+                count = 0;
+            }
+        } else if (state == YELLOW) {
+            count = count + 1;
+            if (count == 5) {
+                state = RED;
+                count = 0;
+            }
+        }
+
+        sigG = (state == GREEN);
+        sigY = (state == YELLOW);
+        sigR = (state == RED);
+    }
+}
+
+
+This code defines a module that models the traffic light behavior as described in the task. The state machine transitions between the states RED, GREEN, YELLOW, and PENDING based on the specified conditions and inputs. The outputs sigG, sigY, and sigR are updated accordingly to control the traffic light signals.

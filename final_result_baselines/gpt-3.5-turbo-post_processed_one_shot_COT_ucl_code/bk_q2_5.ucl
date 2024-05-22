@@ -1,0 +1,90 @@
+
+module process0
+{
+  var y0 : boolean;
+  input s : int;
+
+  init {
+    y0 = false;
+  }
+
+  loop {
+    non_critical:
+    // Non-critical section
+
+    critical:
+    // Multiple assignment
+    y0 := true;
+    s := 0;
+
+    wait:
+    wait until ((y1 == false) || (s != 0));
+
+    critical_section:
+    // Critical section
+
+    reset_y0:
+    y0 := false;
+  }
+}
+
+module process1
+{
+  var y1 : boolean;
+  input s : int;
+
+  init {
+    y1 = false;
+  }
+
+  loop {
+    non_critical:
+    // Non-critical section
+
+    critical:
+    // Multiple assignment
+    y1 := true;
+    s := 1;
+
+    wait:
+    wait until ((y0 == false) || (s != 1));
+
+    critical_section:
+    // Critical section
+
+    reset_y1:
+    y1 := false;
+  }
+}
+
+module main
+{
+  var s : int;
+  var y0 : boolean;
+  var y1 : boolean;
+
+  init {
+    s = 1;
+    y0 = false;
+    y1 = false;
+  }
+
+  instance p0 : process0(y0, s);
+  instance p1 : process1(y1, s);
+
+  property mutual_exclusion {
+    always { !(p0.critical && p1.critical) }
+  }
+
+  property starvation_freedom {
+    always { !(p0.non_critical && p0.critical) && !(p1.non_critical && p1.critical) }
+  }
+
+  control {
+    p0.non_critical; p0.critical; p0.wait; p0.critical_section; p0.reset_y0;
+    p1.non_critical; p1.critical; p1.wait; p1.critical_section; p1.reset_y1;
+
+    check mutual_exclusion;
+    check starvation_freedom;
+  }
+}

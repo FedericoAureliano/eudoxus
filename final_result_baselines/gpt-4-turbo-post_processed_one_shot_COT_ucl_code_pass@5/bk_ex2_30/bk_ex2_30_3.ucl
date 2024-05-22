@@ -1,0 +1,68 @@
+module Train {
+  type state_t = enum { far, near, in };
+  var train_state : state_t;
+
+  init {
+    train_state = far;
+  }
+
+  next {
+    switch (train_state) {
+      far: train_state' = near;
+      near: train_state' = in;
+      in: train_state' = far;
+    }
+  }
+}
+
+module Gate {
+  type state_t = enum { up, down };
+  var gate_state : state_t;
+
+  init {
+    gate_state = up;
+  }
+
+  next {
+    switch (gate_state) {
+      up: gate_state' = down;
+      down: gate_state' = up;
+    }
+  }
+}
+
+module Controller {
+  type state_t = enum { s0, s1, s2, s3 };
+  var controller_state : state_t;
+
+  init {
+    controller_state = s0;
+  }
+
+  next {
+    switch (controller_state) {
+      s0: controller_state' = s1;
+      s1: controller_state' = s2;
+      s2: controller_state' = s3;
+      s3: controller_state' = s0;
+    }
+  }
+}
+
+module main {
+  instance train : Train;
+  instance gate : Gate;
+  instance controller : Controller;
+
+  init {
+    assume(train.train_state == far);
+    assume(gate.gate_state == up);
+    assume(controller.controller_state == s0);
+  }
+
+  next {
+    // Synchronize the transitions based on the state machine rules
+  }
+
+  invariant safety_property : (train.train_state != in) || (gate.gate_state == down);
+}

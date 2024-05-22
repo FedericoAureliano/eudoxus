@@ -1,0 +1,54 @@
+module ferryman
+{
+  type loc_t = enum { left, right };
+
+  var ferryman, goat, cabbage, wolf : loc_t;
+  var carry : enum { empty, goat, cabbage, wolf };
+
+  init {
+    ferryman = left;
+    goat = left;
+    cabbage = left;
+    wolf = left;
+    carry = empty;
+  }
+
+  transition {
+    case
+      (ferryman == left) && (goat == left) && (cabbage == left) && (wolf == left) && (carry == empty) : {
+        // ferryman takes the goat
+        ferryman' = right;
+        goat' = right;
+        carry' = goat;
+      }
+      (ferryman == right) && (goat == right) && (cabbage == left) && (wolf == left) && (carry == goat) : {
+        // ferryman takes the cabbage
+        ferryman' = left;
+        cabbage' = right;
+        carry' = cabbage;
+      }
+      (ferryman == left) && (goat == right) && (cabbage == right) && (wolf == left) && (carry == cabbage) : {
+        // ferryman takes the wolf
+        ferryman' = right;
+        wolf' = right;
+        carry' = wolf;
+      }
+      (ferryman == right) && (goat == right) && (cabbage == right) && (wolf == right) && (carry == wolf) : {
+        // ferryman takes the goat
+        ferryman' = left;
+        goat' = left;
+        carry' = goat;
+      }
+    esac
+  }
+
+  property no_conflict : {
+    always(no_conflict)
+  }
+
+  goal {
+    goat == right;
+    cabbage == right;
+    wolf == right;
+  }
+}

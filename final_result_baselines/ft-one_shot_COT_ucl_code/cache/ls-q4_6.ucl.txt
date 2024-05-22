@@ -1,0 +1,243 @@
+system :: You're an expert in writing uclid5 models.You will be given a docstring and asked to write a model. Remember uclid5 is a state machine language and has it's own specific syntax.
+====================
+user :: Write a uclid5 model for the following description:
+    This UCLID5 model simulates a process interaction environment to evaluate confidentiality properties through non-interference simulations, inspired by an example in Chapter 17 on Security from "Introduction to Embedded Systems" by Lee & Seshia. The model consists of two types of process modules (`process1` and `process2`) and a main module that orchestrates the interaction between instances of these processes.
+
+    Process Modules:
+    1. `process1`: This module captures a simplified process that reflects non-deterministic behavior based on public input. It uses an enumerated type `pc_t` with a single state `A`. It has:
+        - Inputs:
+        * `s`: A boolean representing a secret input.
+        * `x`: A boolean representing a public input.
+        - Output:
+        * `z`: A boolean public output that toggles based on the inverse of input `x`.
+        - Behavior:
+        * The process starts in state `A` and outputs `z` as `false` initially.
+        * In subsequent cycles, the output `z` becomes the negation of `x`.
+
+    2. `process2`: This module is a more complex process with an internal state machine described using state enum `pc_t` with states `B` and `C`. It demonstrates state-dependent output behavior.
+        - Inputs are the same as in `process1`.
+        - Output and state transitions:
+        * The process starts in state `B` with the output `z` as `false`.
+        * Based on the input combination (state, `s`, and `x`), the process transitions between states `B` and `C`, toggling the output `z`.
+        * The transitions are specifically:
+            - From `B` to `C` (output `z` is set to `true`) when `s` is true and `x` is false.
+            - From `C` back to `B` (output `z` is reset to `false`) under the same input conditions.
+
+    Main Module:
+    - Sets up instances of `process2` (`p21` and `p22`) to interact under controlled input conditions.
+    - Inputs `x1`, `x2` (public), and `s1`, `s2` (secret) are used for driving the process instances.
+    - Controls non-determinism by initially assuming both `x1` and `x2` are equal, and it maintains this assumption in all subsequent states.
+    - Evaluates confidentiality by asserting the invariant `same_output_z`, ensuring that outputs `z1` and `z2` of both process instances are always equal, thereby checking for consistent behavior across different runs with potentially varying secret inputs.
+
+    Control:
+    - The control block is used to perform bounded model checking and to produce counterexamples. It specifies that up to 5 unrolling should be checked.
+    - The `print_cex` function is used for displaying counterexamples for the states of inputs and outputs along with the internal state of `process2` instances (`p21` and `p22`).
+
+    This model is particularly useful for demonstrating the effects of secret data manipulations on the outputs, which can be analyzed to study security vulnerability or proof of non-interference in systems.
+
+====================
+assistant :: module process1
+    {
+    type pc_t = enum { A };
+
+    var pc : pc_t;
+    input s : boolean; // secret input
+    input x : boolean; // public input
+    output z: boolean; // public output
+
+    init {
+        pc = A;
+        z = false;
+    }
+
+    next {
+        z' = !x;
+    }
+
+    }
+
+    module process2
+    {
+    type pc_t = enum { B, C };
+
+    var pc : pc_t;
+    input s : boolean; // secret input
+    input x : boolean; // public input
+    output z: boolean; // public output
+
+    procedure next_state()
+        modifies z;
+        modifies pc;
+    {
+        case
+        (pc == B) && s && !x : { pc = C; z = true; }
+        (pc == C) && s && !x : { pc = B; z = false; }
+        esac
+    }
+
+    init {
+        pc = B;
+        z = false;
+    }
+
+    next {
+        call next_state();
+    }
+    }
+
+
+    module main
+    {
+    type t1pc_t = process1.pc_t;
+    type t2pc_t = process2.pc_t;
+
+    var x1,x2 : boolean;
+    var s1,s2 : boolean;
+    var z1,z2 : boolean;
+
+    /*
+    instance p11 : process1(z: (z1), s : (s1), x : (x1));
+    instance p12 : process1(z: (z2), s : (s2), x : (x2));
+    */
+
+    /*
+    */
+    instance p21 : process2(z: (z1), s : (s1), x : (x1));
+    instance p22 : process2(z: (z2), s : (s2), x : (x2));
+
+    init {
+        havoc x1; havoc x2;
+        havoc s1; havoc s2;
+        assume(x1 == x2);
+    }
+
+    next {
+        havoc x1; havoc x2;
+        havoc s1; havoc s2;
+        assume(x1' == x2');
+        // next(p11); next(p12);
+        next(p21); next(p22);
+    }
+
+    invariant same_output_z : (z1 == z2);
+
+
+    control {
+        // *** BASIC ASSERTIONS/INVARIANT
+    /*
+    */
+        v = unroll(5);
+        check;
+        print_results;
+        //v.print_cex(x1,x2,s1,s2,z1,z2,p11.pc,p12.pc);
+        v.print_cex(x1,x2,s1,s2,z1,z2,p21.pc,p22.pc);
+
+    /*
+        // *** INDUCTION
+        v = induction(1);
+        check;
+        print_results;
+        v.print_cex(x1,x2,s1,s2,z1,z2,p11.pc,p12.pc);
+    */
+    }
+    }
+====================
+user :: Write a uclid5 model for the following description:
+To create a UCLID5 model for the described dome light feature in an automobile, we will outline the model into several parts: types, state variables, initialization, transition relation, and specifications. Here's how the outline would look like:
+
+--OUTLINE--
+
+1. **Types and Constants:**
+    - `bool`: Boolean type for binary state variables.
+    - `time_type`: Integer type to represent time in seconds.
+
+2. **State Variables:**
+    - `light_on: bool`: Indicates whether the dome light is currently on (`true`) or off (`false`).
+    - `door_open: bool`: Indicates whether any door is open (`true`) or all doors are closed (`false`).
+    - `time: time_type`: Counts the time in seconds since the last door was closed.
+
+3. **Initialization:**
+    - The dome light (`light_on`) should be initialized to `false`, assuming all doors are closed at the start.
+    - The door state (`door_open`) should also be initialized to `false`.
+    - The timer (`time`) should be initialized to 0.
+
+4. **Transition Relation:**
+    - **When a door is opened:**
+        * `door_open` is set to `true`.
+        * `light_on` is set to `true`.
+        * Reset `time` to 0.
+    - **When all doors are closed:**
+        * `door_open` is set to `false`.
+        * Begin or continue counting `time`.
+    - **Timer Behavior:**
+        * If `door_open` is `false`, increment `time` by 1 second per transition until it reaches 30 seconds.
+        * If `time` reaches 30 seconds and `door_open` is still `false`, set `light_on` to `false`.
+    - **Light Control:**
+        * If `door_open` becomes `true` at any point, `light_on` should immediately be set to `true` and `time` reset to 0.
+
+5. **Specifications:**
+    - **Safety Specification:**
+        * The light must be on whenever any door is open: `assert (door_open -> light_on);`
+    - **Timing Specification:**
+        * The light must stay on for exactly 30 seconds after all doors are closed: `assert (!door_open && time <= 30 -> light_on);`
+        * The light must turn off after 30 seconds if no doors are reopened: `assert (!door_open && time > 30 -> !light_on);`
+
+6. **Control (Model Checking):**
+    - Use bounded model checking to verify the specifications up to a certain number of transitions.
+    - Check for scenarios where the light fails to turn on when a door is opened, stays on after 30 seconds when all doors are closed, or turns off before 30 seconds erroneously.
+
+This outline structures the UCLID5 model to simulate and verify the behavior of a dome light in response to doors being opened and closed, incorporating a timing element to manage the light's duration. The model can be expanded or adjusted based on further detailed requirements or integration into a larger system model.
+====================
+assistant :: /* Dome light example */
+
+module DomeLight
+{
+    type time_type = integer;
+    var light_on  : boolean;
+    var door_open : boolean;
+    var time      : time_type;
+
+    init {
+        light_on  = false;
+        door_open = false;
+        time      = 0;
+    }
+
+    next {
+        case
+        (door_open') : {
+            light_on' = true;
+            time'     = 0;
+        }
+        (door_open == false) : {
+            if (time < 30) {
+                time' = time + 1;
+            } else {
+                time' = 30;
+                light_on' = false;
+            }
+        }
+        esac
+
+        if (door_open) {
+            light_on' = true;
+            time' = 0;
+        }
+    }
+
+    /* Safety property: light_on should be true whenever door_open is true. */
+    // assert (door_open -> light_on);
+
+    /* Timing property: light_on should be true for exactly 30 seconds after all doors are closed. */
+    // assert (!door_open && time <= 30 -> light_on);
+    /* Another timing property: light_on should be false after 30 seconds if no doors are reopened. */
+    assert (!door_open && time > 30 -> !light_on);
+}
+
+control {
+    v = bmc[properties=[1,2], invariants=[DomeLight]];
+    check;
+    v.print_cex;
+}
+
+====================

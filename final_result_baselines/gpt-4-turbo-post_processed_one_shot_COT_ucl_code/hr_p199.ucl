@@ -1,0 +1,68 @@
+module main {
+    type Location = boolean; // true for initial side, false for other side
+    type Cargo = enum { none, goat, cabbage, wolf };
+
+    var ferryman : Location;
+    var goat : Location;
+    var cabbage : Location;
+    var wolf : Location;
+    var carry : Cargo;
+
+    init {
+        ferryman = true;
+        goat = true;
+        cabbage = true;
+        wolf = true;
+        carry = none;
+    }
+
+    // Define safe conditions
+    define is_safe() : boolean {
+        return !((goat == cabbage && ferryman != goat) || (goat == wolf && ferryman != goat));
+    }
+
+    // Transition rules
+    next {
+        var new_side : Location = !ferryman;
+        if (is_safe()) {
+            case
+                carry == none : {
+                    ferryman' = new_side;
+                }
+                carry == goat : {
+                    ferryman' = new_side;
+                    goat' = new_side;
+                }
+                carry == cabbage : {
+                    ferryman' = new_side;
+                    cabbage' = new_side;
+                }
+                carry == wolf : {
+                    ferryman' = new_side;
+                    wolf' = new_side;
+                }
+                true : skip;
+            esac
+        }
+    }
+
+    // Goal state
+    define goal_state() : boolean {
+        return !ferryman && !goat && !cabbage && !wolf;
+    }
+
+    // Safety invariant to maintain throughout the execution
+    invariant safety : is_safe();
+
+    // Check if the goal state is reachable
+    control {
+        v = unroll(10);
+        check;
+        print_results;
+        if (goal_state()) {
+            print "Goal state reachable.";
+        } else {
+            print "Goal state not reachable.";
+        }
+    }
+}

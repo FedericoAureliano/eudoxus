@@ -1,0 +1,84 @@
+
+module sender_S {
+  var m : int; // message
+  var b : bool; // control bit
+  var timeout : bool; // timeout flag
+
+  input send : bool; // signal to send message
+  input ack : bool; // acknowledgement from receiver
+
+  output c : (int, bool); // channel c to receiver
+  output d : (int, bool); // channel d to sender
+
+  init {
+    m = 0;
+    b = false;
+    timeout = false;
+  }
+
+  next {
+    if (send && !timeout) {
+      c = (m, b);
+    }
+
+    if (ack) {
+      b' = !b;
+      timeout = false;
+    } else {
+      timeout = true;
+    }
+  }
+}
+
+module receiver_R {
+  var m : int; // received message
+  var b : bool; // received control bit
+
+  input c : (int, bool); // channel c from sender
+  input d : (int, bool); // channel d from receiver
+
+  output ack : bool; // acknowledgement to sender
+
+  init {
+    m = 0;
+    b = false;
+  }
+
+  next {
+    if (c != (0, false)) {
+      m = c.0;
+      b = c.1;
+      ack = b;
+    } else {
+      ack = false;
+    }
+
+    d = (m, b);
+  }
+}
+
+module main {
+  var send_signal : bool;
+  var ack_signal : bool;
+
+  var c_channel : (int, bool);
+  var d_channel : (int, bool);
+
+  instance sender : sender_S(send, ack, c_channel, d_channel);
+  instance receiver : receiver_R(c_channel, d_channel, ack);
+
+  init {
+    send_signal = true;
+    ack_signal = false;
+    c_channel = (0, false);
+    d_channel = (0, false);
+  }
+
+  next {
+    send_signal' = !sender.timeout;
+    ack_signal' = receiver.ack;
+  }
+}
+
+
+This code models the sender S and receiver R submodules with their respective inputs, outputs, and internal states. The main module orchestrates the interaction between sender and receiver over channels c and d, ensuring the communication protocol described in the problem statement.

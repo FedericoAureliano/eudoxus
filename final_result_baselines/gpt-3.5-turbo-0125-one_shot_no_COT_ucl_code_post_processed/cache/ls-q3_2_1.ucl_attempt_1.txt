@@ -1,0 +1,187 @@
+system :: You are an expert in program verification (hoare logic style). You are an expert user of UCLID5 which is a state transition modeling language. You will be given a description of a task and asked to write code.
+====================
+user :: Please write code in Uclid5 to model the following description:
+
+  This UCLID5 model, inspired by Lee & Seshia's "Introduction to Embedded Systems," simulates interactions between processes to evaluate confidentiality through non-interference simulations. It features two modules, `process1` and `process2`, each handling inputs and outputs differently based on internal states and external inputs. `process1` uses a simple state and toggles its output based on the negation of a public input, while `process2` incorporates a more complex state transition system that toggles outputs based on both secret and public inputs. The main module orchestrates interactions between instances of these processes under controlled conditions, ensuring that the output remains consistent across different runs despite variations in secret inputs. This setup is used for bounded model checking to analyze potential security vulnerabilities or to demonstrate non-interference, with functionalities to unroll process behaviors up to five times and print counterexamples for detailed analysis.
+
+
+====================
+assistant :: Certainly!
+  ```
+
+  /*
+  * Based on an example from Lee & Seshia, "Introduction to Embedded Systems", Chapter 17 on Security
+  */
+  module process1
+  {
+    type pc_t = enum { A };
+
+    var pc : pc_t;
+    input s : boolean; // secret input
+    input x : boolean; // public input
+    output z: boolean; // public output
+
+    init {
+      pc = A;
+      z = false;
+    }
+
+    next {
+      z' = !x;
+    }
+
+  }
+
+  module process2
+  {
+    type pc_t = enum { B, C };
+
+    var pc : pc_t;
+    input s : boolean; // secret input
+    input x : boolean; // public input
+    output z: boolean; // public output
+
+    procedure next_state()
+      modifies z;
+      modifies pc;
+    {
+      case
+        (pc == B) && s && !x : { pc = C; z = true; }
+        (pc == C) && s && !x : { pc = B; z = false; }
+      esac
+    }
+
+    init {
+      pc = B;
+      z = false;
+    }
+
+    next {
+      call next_state();
+    }
+  }
+
+
+  module main
+  {
+    type t1pc_t = process1.pc_t;
+    type t2pc_t = process2.pc_t;
+
+    var x1,x2 : boolean;
+    var s1,s2 : boolean;
+    var z1,z2 : boolean;
+
+  /*
+    instance p11 : process1(z: (z1), s : (s1), x : (x1));
+    instance p12 : process1(z: (z2), s : (s2), x : (x2));
+  */
+
+  /*
+  */
+    instance p21 : process2(z: (z1), s : (s1), x : (x1));
+    instance p22 : process2(z: (z2), s : (s2), x : (x2));
+
+    init {
+      havoc x1; havoc x2;
+      havoc s1; havoc s2;
+      assume(x1 == x2);
+    }
+
+    next {
+      havoc x1; havoc x2;
+      havoc s1; havoc s2;
+      assume(x1' == x2');
+      // next(p11); next(p12);
+      next(p21); next(p22);
+    }
+
+    invariant same_output_z : (z1 == z2);
+
+
+    control {
+      // *** BASIC ASSERTIONS/INVARIANT
+  /*
+  */
+      v = unroll(5);
+      check;
+      print_results;
+      //v.print_cex(x1,x2,s1,s2,z1,z2,p11.pc,p12.pc);
+      v.print_cex(x1,x2,s1,s2,z1,z2,p21.pc,p22.pc);
+
+  /*
+      // *** INDUCTION
+      v = induction(1);
+      check;
+      print_results;
+      v.print_cex(x1,x2,s1,s2,z1,z2,p11.pc,p12.pc);
+  */
+    }
+  }
+
+  ```
+
+====================
+user :: Please write code in Uclid5 to model the following description:
+  Model a thermostat that controls a heater. The heater has two states: on and off.
+
+In the initial state, if the temperature is less than or equal to 20 degrees Celsius, it turns the heater on, and leaves it on for at least 30 seconds. After that, if the temperature is greater than 20 degrees, it turns the heater off and leaves it off for at least 2 minutes. It turns it on again only if the temperature is less than or equal to 20 degrees.
+
+Model a system that behaves as described above, assuming it reacts exactly only once every 30 seconds.
+
+Use the variable names temp, heatOn, heatOff and time.
+
+====================
+assistant :: Here is the Uclid5 code that models the described thermostat system:
+
+```uclid
+module thermostat {
+    var temp : int; // temperature in degrees Celsius
+    var heatOn : boolean; // heater state - on (true) or off (false)
+    var heatOff : boolean; // heater state - on (true) or off (false)
+    var time : int; // time in seconds
+
+    const THRESHOLD : int = 20; // temperature threshold for turning on/off the heater
+    const MIN_ON_TIME : int = 30; // minimum time the heater stays on in seconds
+    const MIN_OFF_TIME : int = 120; // minimum time the heater stays off in seconds
+
+    init {
+        temp = 18; // initial temperature
+        heatOn = false; // initial heater state - off
+        heatOff = true; // initial heater state - off
+        time = 0; // initial time
+    }
+
+    transition {
+        // Temperature update
+        temp' = temp;
+
+        // Heater state updates
+        heatOn' = heatOn;
+        heatOff' = heatOff;
+
+        // Time update
+        time' = time + 30; // time advances by 30 seconds
+
+        // Transition logic
+        if (temp <= THRESHOLD && !heatOn) {
+            heatOn' = true; // turn on the heater
+            heatOff' = false;
+        } else if (temp > THRESHOLD && heatOn) {
+            heatOn' = false; // turn off the heater
+            heatOff' = true;
+        } else if (temp <= THRESHOLD && heatOff && time >= MIN_OFF_TIME) {
+            heatOn' = true; // turn on the heater after minimum off time
+            heatOff' = false;
+            time' = 0; // reset time
+        }
+    }
+
+    invariant heat_consistency : !(heatOn && heatOff); // Heater cannot be in both on and off states simultaneously
+    invariant heat_on_for_min_time : (!heatOn || time >= MIN_ON_TIME); // Heater stays on for at least 30 seconds
+    invariant heat_off_for_min_time : (!heatOff || time >= MIN_OFF_TIME); // Heater stays off for at least 2 minutes
+}
+
+```
+
+This Uclid5 model captures the behavior of the thermostat system as described, ensuring that the heater turns on and off based on the temperature conditions and time constraints specified.
+====================

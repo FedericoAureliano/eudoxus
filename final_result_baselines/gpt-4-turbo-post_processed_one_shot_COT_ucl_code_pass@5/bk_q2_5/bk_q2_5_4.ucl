@@ -1,0 +1,50 @@
+module main {
+    // Define types and variables
+    type state_t = enum { NONCRITICAL, TRY, WAIT, CRITICAL, EXIT };
+    var s : [0:1];
+    var y0 : boolean;
+    var y1 : boolean;
+    var pc0 : state_t;
+    var pc1 : state_t;
+
+    // Initial conditions
+    init {
+        s = 1;
+        y0 = false;
+        y1 = false;
+        pc0 = NONCRITICAL;
+        pc1 = NONCRITICAL;
+    }
+
+    // Process P0
+    next(pc0) {
+        case
+            pc0 == NONCRITICAL : TRY;
+            pc0 == TRY : { y0' = true; s' = 0; WAIT; }
+            pc0 == WAIT : (y1 == 0 || s != 0) ? CRITICAL : WAIT;
+            pc0 == CRITICAL : { y0' = false; EXIT; }
+            pc0 == EXIT : NONCRITICAL;
+            true : pc0;
+        esac
+    }
+
+    // Process P1
+    next(pc1) {
+        case
+            pc1 == NONCRITICAL : TRY;
+            pc1 == TRY : { y1' = true; s' = 1; WAIT; }
+            pc1 == WAIT : (y0 == 0 || s != 1) ? CRITICAL : WAIT;
+            pc1 == CRITICAL : { y1' = false; EXIT; }
+            pc1 == EXIT : NONCRITICAL;
+            true : pc1;
+        esac
+    }
+
+    // Property: Mutual Exclusion
+    invariant mutual_exclusion : !(pc0 == CRITICAL && pc1 == CRITICAL);
+
+    // Property: Starvation Freedom
+    // Assuming fairness, each process should eventually reach CRITICAL if it keeps trying.
+    invariant starvation_freedom_0 : pc0 != WAIT || (y1 == 0 || s != 0);
+    invariant starvation_freedom_1 : pc1 != WAIT || (y0 == 0 || s != 1);
+}

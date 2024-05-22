@@ -1,0 +1,66 @@
+module main {
+  type light_state_t = enum { G, Y, R };
+
+  // Light state variables
+  var mainLight : light_state_t;
+  var secLight : light_state_t;
+
+  // Timing counters
+  var mainTimer : int;
+  var secTimer : int;
+
+  // Vehicle detection on secondary road
+  var vehicleDetected : boolean;
+
+  // Outputs
+  var mG, mY, mR, sG, sY, sR : boolean;
+
+  // Constants for timing
+  const mainGreenTime : int = 180;
+  const mainYellowTime : int = 5;
+  const mainRedTime : int = 55;
+  const secGreenTime : int = 50;
+  const secYellowTime : int = 5;
+  const secRedTime : int = 185;
+
+  // Initialize the system
+  init {
+    mainLight = G;
+    secLight = R;
+    mainTimer = 0;
+    secTimer = 0;
+    vehicleDetected = false;
+    mG = true; mY = false; mR = false;
+    sG = false; sY = false; sR = true;
+  }
+
+  // Define the next state based on the current state and timing
+  next {
+    if (mainLight == G && mainTimer < mainGreenTime && !vehicleDetected) {
+      mainTimer = mainTimer + 1;
+    } else if (mainLight == G && (mainTimer >= mainGreenTime || vehicleDetected)) {
+      mainLight = Y;
+      mainTimer = 0;
+      mG = false; mY = true;
+    } else if (mainLight == Y && mainTimer < mainYellowTime) {
+      mainTimer = mainTimer + 1;
+    } else if (mainLight == Y && mainTimer >= mainYellowTime) {
+      mainLight = R;
+      mainTimer = 0;
+      mY = false; mR = true;
+    }
+
+    // Similar logic for secondary light
+    // Add transitions for secLight based on secTimer and vehicleDetected
+
+    // Safety requirement checks
+    if ((mainLight == G || mainLight == Y) && (secLight == G || secLight == Y)) {
+      assert false; // This should never happen
+    }
+  }
+}
+
+// Control block for simulation and verification
+control {
+  // Simulation and verification logic here
+}

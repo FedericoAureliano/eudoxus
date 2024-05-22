@@ -1,0 +1,58 @@
+module main {
+  type Location = boolean; // true means original side, false means opposite side
+  type Carry = enum { none, goat, cabbage, wolf };
+
+  var ferryman : Location;
+  var goat : Location;
+  var cabbage : Location;
+  var wolf : Location;
+  var carry : Carry;
+
+  // Initial state: everyone is on the original side
+  init {
+    ferryman = true;
+    goat = true;
+    cabbage = true;
+    wolf = true;
+    carry = none;
+  }
+
+  // Transition rules
+  next {
+    if (ferryman == true) {
+      // Ferryman is on the original side, decides to move to the opposite side
+      case
+        carry == goat : { ferryman' = !ferryman; goat' = !goat; }
+        carry == cabbage : { ferryman' = !ferryman; cabbage' = !cabbage; }
+        carry == wolf : { ferryman' = !ferryman; wolf' = !wolf; }
+        carry == none : { ferryman' = !ferryman; }
+      esac
+    } else {
+      // Ferryman is on the opposite side, decides to move to the original side
+      case
+        carry == goat : { ferryman' = !ferryman; goat' = !goat; }
+        carry == cabbage : { ferryman' = !ferryman; cabbage' = !cabbage; }
+        carry == wolf : { ferryman' = !ferryman; wolf' = !wolf; }
+        carry == none : { ferryman' = !ferryman; }
+      esac
+    }
+  }
+
+  // Safety conditions
+  invariant safe_conditions :
+    !(goat == cabbage && ferryman != goat) && // Goat and cabbage are not alone without ferryman
+    !(goat == wolf && ferryman != goat); // Goat and wolf are not alone without ferryman
+
+  // Goal state
+  define goal_state : (ferryman == false && goat == false && cabbage == false && wolf == false);
+
+  // Check if goal state is reachable
+  control {
+    v = unroll(10);
+    check;
+    print_results;
+    if (goal_state) {
+      print "Goal state reached.";
+    }
+  }
+}

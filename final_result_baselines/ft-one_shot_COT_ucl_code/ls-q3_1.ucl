@@ -1,0 +1,28 @@
+// Event counter example.
+
+module counter
+{
+    var temp   : integer;
+    var count  : integer;
+
+    const THRESHOLD : integer;
+
+    init {
+        temp = 25;
+        count = 0;
+    }
+
+    next {
+        temp' = nondet();
+        count' = if (temp' > THRESHOLD && temp <= THRESHOLD) then count + 1 else count;
+    }
+
+    // property to verify
+    property counter_correct : count == (0 |-> count[0]) + (range(1, k+1) |-> (count[1] > count[0] ? 1 : 0));
+
+    control {
+        v = bmc[properties=[counter_correct]];
+        check;
+        v.print_cex();
+    }
+}

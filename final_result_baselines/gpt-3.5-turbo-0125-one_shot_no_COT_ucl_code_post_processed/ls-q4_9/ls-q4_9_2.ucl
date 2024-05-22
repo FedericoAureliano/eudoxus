@@ -1,0 +1,65 @@
+c
+module TrafficLights {
+    type lightState = enum { R, G, Y };
+
+    var mG, mY, mR, sG, sY, sR : lightState;
+
+    init {
+        mG = R; mY = R; mR = G;
+        sG = R; sY = R; sR = G;
+    }
+
+    procedure mainLightCycle()
+        modifies mG; modifies mY; modifies mR;
+    {
+        mG' = G;
+        mY' = Y;
+        mR' = R;
+    }
+
+    procedure secondaryLightCycle()
+        modifies sG; modifies sY; modifies sR;
+    {
+        sG' = R;
+        sY' = Y;
+        sR' = G;
+    }
+
+    procedure mainLightRightOfWay()
+        modifies mG; modifies mY; modifies mR;
+    {
+        mG' = R;
+        mY' = Y;
+        mR' = G;
+    }
+
+    procedure detectVehicle()
+        modifies mG; modifies mY; modifies mR;
+        modifies sG; modifies sY; modifies sR;
+    {
+        if (sG == G || sY == Y) {
+            mainLightRightOfWay();
+        }
+    }
+
+    rule mainLightCycleRule {
+        mG == G && mY == Y && mR == R ==> {
+            mainLightCycle();
+        }
+    }
+
+    rule secondaryLightCycleRule {
+        sG == G && sY == Y && sR == R ==> {
+            secondaryLightCycle();
+        }
+    }
+
+    rule detectVehicleRule {
+        sG == G || sY == Y ==> {
+            detectVehicle();
+        }
+    }
+}
+
+
+This code models the traffic light system with the specified outputs for the main and secondary lights. The system includes procedures to handle the main light cycle, secondary light cycle, and giving right of way to the secondary road. Rules are defined to ensure that the lights follow the specified behavior based on the state transitions described in the problem statement.

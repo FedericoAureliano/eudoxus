@@ -1,0 +1,28 @@
+module main {
+    type light_state = enum { RED, GREEN, YELLOW };
+    var current_state : light_state;
+    var previous_state : light_state;
+
+    init {
+        current_state = RED;
+        previous_state = RED; // Initialize to RED for simplicity, though this initial value is inconsequential for the check.
+    }
+
+    next {
+        previous_state' = current_state;
+        switch (current_state) {
+            case GREEN:  current_state' = YELLOW;
+            case YELLOW: current_state' = RED;
+            case RED:    current_state' = GREEN;
+        }
+    }
+
+    invariant safety_property :
+        (current_state == RED) -> (previous_state == YELLOW);
+
+    control {
+        v = unroll(10);
+        check;
+        print_results;
+    }
+}

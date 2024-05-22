@@ -1,0 +1,301 @@
+system :: You're an expert in writing uclid5 models.You will be given a docstring and asked to write a model. Remember uclid5 is a state machine language and has it's own specific syntax.
+====================
+user :: Write a uclid5 model for the following description:
+    This UCLID5 model simulates a process interaction environment to evaluate confidentiality properties through non-interference simulations, inspired by an example in Chapter 17 on Security from "Introduction to Embedded Systems" by Lee & Seshia. The model consists of two types of process modules (`process1` and `process2`) and a main module that orchestrates the interaction between instances of these processes.
+
+    Process Modules:
+    1. `process1`: This module captures a simplified process that reflects non-deterministic behavior based on public input. It uses an enumerated type `pc_t` with a single state `A`. It has:
+        - Inputs:
+        * `s`: A boolean representing a secret input.
+        * `x`: A boolean representing a public input.
+        - Output:
+        * `z`: A boolean public output that toggles based on the inverse of input `x`.
+        - Behavior:
+        * The process starts in state `A` and outputs `z` as `false` initially.
+        * In subsequent cycles, the output `z` becomes the negation of `x`.
+
+    2. `process2`: This module is a more complex process with an internal state machine described using state enum `pc_t` with states `B` and `C`. It demonstrates state-dependent output behavior.
+        - Inputs are the same as in `process1`.
+        - Output and state transitions:
+        * The process starts in state `B` with the output `z` as `false`.
+        * Based on the input combination (state, `s`, and `x`), the process transitions between states `B` and `C`, toggling the output `z`.
+        * The transitions are specifically:
+            - From `B` to `C` (output `z` is set to `true`) when `s` is true and `x` is false.
+            - From `C` back to `B` (output `z` is reset to `false`) under the same input conditions.
+
+    Main Module:
+    - Sets up instances of `process2` (`p21` and `p22`) to interact under controlled input conditions.
+    - Inputs `x1`, `x2` (public), and `s1`, `s2` (secret) are used for driving the process instances.
+    - Controls non-determinism by initially assuming both `x1` and `x2` are equal, and it maintains this assumption in all subsequent states.
+    - Evaluates confidentiality by asserting the invariant `same_output_z`, ensuring that outputs `z1` and `z2` of both process instances are always equal, thereby checking for consistent behavior across different runs with potentially varying secret inputs.
+
+    Control:
+    - The control block is used to perform bounded model checking and to produce counterexamples. It specifies that up to 5 unrolling should be checked.
+    - The `print_cex` function is used for displaying counterexamples for the states of inputs and outputs along with the internal state of `process2` instances (`p21` and `p22`).
+
+    This model is particularly useful for demonstrating the effects of secret data manipulations on the outputs, which can be analyzed to study security vulnerability or proof of non-interference in systems.
+
+====================
+assistant :: module process1
+    {
+    type pc_t = enum { A };
+
+    var pc : pc_t;
+    input s : boolean; // secret input
+    input x : boolean; // public input
+    output z: boolean; // public output
+
+    init {
+        pc = A;
+        z = false;
+    }
+
+    next {
+        z' = !x;
+    }
+
+    }
+
+    module process2
+    {
+    type pc_t = enum { B, C };
+
+    var pc : pc_t;
+    input s : boolean; // secret input
+    input x : boolean; // public input
+    output z: boolean; // public output
+
+    procedure next_state()
+        modifies z;
+        modifies pc;
+    {
+        case
+        (pc == B) && s && !x : { pc = C; z = true; }
+        (pc == C) && s && !x : { pc = B; z = false; }
+        esac
+    }
+
+    init {
+        pc = B;
+        z = false;
+    }
+
+    next {
+        call next_state();
+    }
+    }
+
+
+    module main
+    {
+    type t1pc_t = process1.pc_t;
+    type t2pc_t = process2.pc_t;
+
+    var x1,x2 : boolean;
+    var s1,s2 : boolean;
+    var z1,z2 : boolean;
+
+    /*
+    instance p11 : process1(z: (z1), s : (s1), x : (x1));
+    instance p12 : process1(z: (z2), s : (s2), x : (x2));
+    */
+
+    /*
+    */
+    instance p21 : process2(z: (z1), s : (s1), x : (x1));
+    instance p22 : process2(z: (z2), s : (s2), x : (x2));
+
+    init {
+        havoc x1; havoc x2;
+        havoc s1; havoc s2;
+        assume(x1 == x2);
+    }
+
+    next {
+        havoc x1; havoc x2;
+        havoc s1; havoc s2;
+        assume(x1' == x2');
+        // next(p11); next(p12);
+        next(p21); next(p22);
+    }
+
+    invariant same_output_z : (z1 == z2);
+
+
+    control {
+        // *** BASIC ASSERTIONS/INVARIANT
+    /*
+    */
+        v = unroll(5);
+        check;
+        print_results;
+        //v.print_cex(x1,x2,s1,s2,z1,z2,p11.pc,p12.pc);
+        v.print_cex(x1,x2,s1,s2,z1,z2,p21.pc,p22.pc);
+
+    /*
+        // *** INDUCTION
+        v = induction(1);
+        check;
+        print_results;
+        v.print_cex(x1,x2,s1,s2,z1,z2,p11.pc,p12.pc);
+    */
+    }
+    }
+====================
+user :: Write a uclid5 model for the following description:
+To model this simplified supermarket booking system in UCLID5, we will outline the system comprising three processes (BCR, BP, and Printer), each with two states (0 and 1). The transitions between these states are triggered by specific events, and the interactions are based on handshaking protocols. Here's how the UCLID5 model can be structured:
+
+--OUTLINE--
+
+### Model Components
+1. **Enumerated Types**:
+   - Define an enumerated type for the states of each process (`state_t` with values `0` and `1`).
+
+2. **Global Variables**:
+   - `BCR_state`, `BP_state`, `Printer_state` of type `state_t` to keep track of the current state of each process.
+
+### Process Definitions
+Each process can be defined with its behavior depending on its current state and the interaction with other processes:
+
+1. **Bar Code Reader (BCR)**:
+   - **Transitions**:
+     - From state `0` to `1`: Triggered by scanning a bar code.
+     - From state `1` to `0`: Triggered by sending data to BP.
+
+2. **Booking Program (BP)**:
+   - **Transitions**:
+     - From state `0` to `1`: Triggered by receiving data from BCR.
+     - From state `1` to `0`: Triggered by sending the print command to the Printer.
+
+3. **Printer**:
+   - **Transitions**:
+     - From state `0` to `1`: Triggered by receiving a print command from BP.
+     - From state `1` to `0`: Triggered by completing the printing of the article.
+
+### Main Module
+- **Initialization**:
+  - Start all processes in state `0`.
+
+- **Transitions**:
+  - Define the conditions under which each process transitions between its states, respecting the handshaking protocol:
+    - BCR transitions to `1` when a bar code is scanned (external event).
+    - BCR transitions back to `0` after sending data to BP.
+    - BP transitions to `1` when it receives data from BCR.
+    - BP transitions back to `0` after sending the print command to the Printer.
+    - Printer transitions to `1` when it receives the print command from BP.
+    - Printer transitions back to `0` after printing.
+
+- **Handshaking Protocol**:
+  - Ensure that transitions between states are synchronized between the processes. For example, BCR can only transition from `1` to `0` if BP is ready to transition from `0` to `1`.
+
+### Verification
+- **Safety Properties**:
+  - Check that no process is in an invalid state.
+  - Verify that the transitions follow the handshaking protocol correctly.
+
+- **Liveness Properties**:
+  - Every scan event by BCR should eventually lead to a print event by the Printer.
+
+### Simulation and Testing
+- Define scenarios to simulate the system behavior:
+  - Scenario where multiple bar codes are scanned in succession.
+  - Scenario where there is a delay in the handshaking between BP and the Printer.
+
+This outline provides a structured approach to model the supermarket booking system in UCLID5, focusing on the interaction between processes and ensuring the system adheres to the specified handshaking protocol for state transitions.
+====================
+assistant :: module supermarket
+{
+    type state_t = enum { 0, 1 };
+    var BCR_state, BP_state, Printer_state : state_t;
+
+    process BCR
+    {
+        input scan : boolean;
+        output data_to_BP : boolean;
+
+        init { pc = 0; }
+        next {
+            case
+            (pc == 0) && scan : { data_to_BP' = true; pc' = 1; }
+            (pc == 1) && (BP_state == 0) : { pc' = 0; }
+            esac
+        }
+    }
+
+    process BP
+    {
+        input data_from_BCR : boolean;
+        output print : boolean;
+
+        init { pc = 0; }
+        next {
+            case
+            (pc == 0) && data_from_BCR : { pc' = 1; }
+            (pc == 1) && (Printer_state == 0) : { print' = true; pc' = 0; }
+            esac
+        }
+    }
+
+    process Printer
+    {
+        input print_command : boolean;
+
+        init { pc = 0; }
+        next {
+            case
+            (pc == 0) && print_command : { pc' = 1; }
+            (pc == 1) : { pc' = 0; }
+            esac
+        }
+    }
+
+    module main
+    {
+        var scan : boolean;
+        var data_to_BP : boolean;
+        var data_from_BCR : boolean;
+        var print : boolean;
+
+        instance BCR_module : BCR(scan : (scan), data_to_BP : (data_to_BP));
+        instance BP_module : BP(data_from_BCR : (data_from_BCR), print : (print));
+        instance Printer_module : Printer(print_command : (BP_module.print));
+
+        init {
+            BCR_state = 0;
+            BP_state = 0;
+            Printer_state = 0;
+        }
+        next {
+            next(BCR_module);
+            next(BP_module);
+            next(Printer_module);
+
+            case
+            (BCR_module.pc == 0) && (scan' == true) : { BCR_state' = 1; }
+            (BCR_module.pc == 1) && (BP_module.BP_state == 0) : { BCR_state' = 0; }
+
+            (BP_module.pc == 0) && (BP_state' == 1) : { BP_state' = 1; }
+            (BP_module.pc == 1) && (Printer_module.Printer_state == 0) : { BP_state' = 0; }
+            esac
+        }
+
+        property p1 : (BCR_state == 0) || (BCR_state == 1);
+        property p2 : (BP_state == 0) || (BP_state == 1);
+        property p3 : (Printer_state == 0) || (Printer_state == 1);
+
+        property handshaking : (p1 && p2) && (p2 && p3) && (p3 && p1);
+
+        control
+        {
+            v1 = check_property[1](p1);
+            v2 = check_property[1](p2);
+            v3 = check_property[1](p3);
+            v4 = check_property[1](handshaking);
+            v5 = scan_event_order[1](BCR_module);
+            v6 = print_event_order[1](Printer_module);
+            check;
+        }
+    }
+}
+
+====================

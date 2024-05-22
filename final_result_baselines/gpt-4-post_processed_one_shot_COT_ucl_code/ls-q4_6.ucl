@@ -1,0 +1,39 @@
+module DomeLight {
+  // State variables
+  var light_on : boolean;
+  var door_open : boolean;
+  var time : int;
+
+  // Initialization
+  init {
+    light_on = false;
+    door_open = false;
+    time = 0;
+  }
+
+  // State transition logic
+  next {
+    if (door_open) {
+      // If any door is open, turn the light on and reset the timer
+      light_on' = true;
+      time' = 0;
+    } else {
+      // If all doors are closed, start or continue counting up to 30 seconds
+      if (time < 30 && light_on) {
+        time' = time + 1;
+      } else {
+        // Once 30 seconds have passed, turn the light off
+        light_on' = false;
+      }
+    }
+  }
+
+  // Input handling (to simulate the opening/closing of doors and the passage of time)
+  input {
+    door_open : boolean;
+  }
+
+  // Safety property to verify
+  // The light should not be on if the doors have been closed for more than 30 seconds
+  property light_off_after_30_seconds = (time > 30) -> !light_on;
+}

@@ -1,0 +1,43 @@
+
+  module main
+  {
+    type state_t = enum { Heating, Cooling };
+    var state : state_t;
+    input temp : real;
+    output heatOn : boolean;
+    output heatOff : boolean;
+
+    init {
+      state = Cooling; // Assuming initial state is Cooling
+      heatOn = false;
+      heatOff = false;
+    }
+
+    next {
+      heatOn' = false;
+      heatOff' = false;
+
+      case
+        // Transition logic from Cooling to Heating
+        (state == Cooling) && (temp <= 18.0) : {
+          state' = Heating;
+          heatOn' = true;
+        }
+        // Transition logic from Heating to Cooling
+        (state == Heating) && (temp >= 22.0) : {
+          state' = Cooling;
+          heatOff' = true;
+        }
+        // Default case: remain in the current state without changing outputs
+        default : {
+          state' = state;
+        }
+      esac
+    }
+
+    control {
+      unroll(10);
+      check;
+      print_results;
+    }
+  }

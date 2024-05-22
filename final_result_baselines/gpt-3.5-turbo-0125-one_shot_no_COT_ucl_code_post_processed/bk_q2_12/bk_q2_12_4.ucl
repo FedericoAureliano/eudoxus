@@ -1,0 +1,61 @@
+c
+module leaderElection(n : int)
+{
+    type process_id_t = [n] int;
+    type message_t = int;
+
+    var id : process_id_t;
+    var m : message_t;
+    var leader : process_id_t;
+
+    channel send : (from : process_id_t, to : process_id_t, message : message_t);
+    channel receive : (from : process_id_t, to : process_id_t, message : message_t);
+
+    procedure send_message(sender : process_id_t, receiver : process_id_t, msg : message_t)
+    {
+        send!(sender, receiver, msg);
+    }
+
+    procedure receive_message(receiver : process_id_t, sender : process_id_t) returns (received_msg : message_t)
+    {
+        var msg : message_t;
+        receive?(sender, receiver, msg);
+        return msg;
+    }
+
+    procedure process(pid : process_id_t)
+    {
+        id[pid] = pid;
+
+        send_message(pid, (pid % n) + 1, id[pid]);
+
+        while (true)
+        {
+            m = receive_message(pid, (pid - 1 + n) % n + 1);
+
+            if (m == id[pid])
+            {
+                leader = pid;
+                break;
+            }
+            else if (m > id[pid])
+            {
+                send_message(pid, (pid % n) + 1, m);
+            }
+        }
+    }
+
+    init
+    {
+        leader = 0;
+        for i : process_id_t do
+        {
+            fork process(i);
+        }
+    }
+
+    invariant valid_leader_id : leader > 0 && leader <= n;
+}
+
+
+In this model, we define a module `leaderElection` that takes the number of processes `n` as a parameter. Each process is represented by a unique identifier `id` and communicates with its neighbors using `send` and `receive` channels. The leader is elected based on the process with the highest identifier. The `process` procedure implements the leader election algorithm for each process, and the `init` block initializes the processes and starts the leader election protocol. The invariant `valid_leader_id` ensures that the elected leader has a valid identifier within the range `[1, n]`.

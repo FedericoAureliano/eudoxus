@@ -1,0 +1,274 @@
+system :: You're an expert in writing uclid5 models.You will be given a docstring and asked to write a model. Remember uclid5 is a state machine language and has it's own specific syntax.
+====================
+user :: Write a uclid5 model for the following description:
+    This UCLID5 model simulates a process interaction environment to evaluate confidentiality properties through non-interference simulations, inspired by an example in Chapter 17 on Security from "Introduction to Embedded Systems" by Lee & Seshia. The model consists of two types of process modules (`process1` and `process2`) and a main module that orchestrates the interaction between instances of these processes.
+
+    Process Modules:
+    1. `process1`: This module captures a simplified process that reflects non-deterministic behavior based on public input. It uses an enumerated type `pc_t` with a single state `A`. It has:
+        - Inputs:
+        * `s`: A boolean representing a secret input.
+        * `x`: A boolean representing a public input.
+        - Output:
+        * `z`: A boolean public output that toggles based on the inverse of input `x`.
+        - Behavior:
+        * The process starts in state `A` and outputs `z` as `false` initially.
+        * In subsequent cycles, the output `z` becomes the negation of `x`.
+
+    2. `process2`: This module is a more complex process with an internal state machine described using state enum `pc_t` with states `B` and `C`. It demonstrates state-dependent output behavior.
+        - Inputs are the same as in `process1`.
+        - Output and state transitions:
+        * The process starts in state `B` with the output `z` as `false`.
+        * Based on the input combination (state, `s`, and `x`), the process transitions between states `B` and `C`, toggling the output `z`.
+        * The transitions are specifically:
+            - From `B` to `C` (output `z` is set to `true`) when `s` is true and `x` is false.
+            - From `C` back to `B` (output `z` is reset to `false`) under the same input conditions.
+
+    Main Module:
+    - Sets up instances of `process2` (`p21` and `p22`) to interact under controlled input conditions.
+    - Inputs `x1`, `x2` (public), and `s1`, `s2` (secret) are used for driving the process instances.
+    - Controls non-determinism by initially assuming both `x1` and `x2` are equal, and it maintains this assumption in all subsequent states.
+    - Evaluates confidentiality by asserting the invariant `same_output_z`, ensuring that outputs `z1` and `z2` of both process instances are always equal, thereby checking for consistent behavior across different runs with potentially varying secret inputs.
+
+    Control:
+    - The control block is used to perform bounded model checking and to produce counterexamples. It specifies that up to 5 unrolling should be checked.
+    - The `print_cex` function is used for displaying counterexamples for the states of inputs and outputs along with the internal state of `process2` instances (`p21` and `p22`).
+
+    This model is particularly useful for demonstrating the effects of secret data manipulations on the outputs, which can be analyzed to study security vulnerability or proof of non-interference in systems.
+
+====================
+assistant :: module process1
+    {
+    type pc_t = enum { A };
+
+    var pc : pc_t;
+    input s : boolean; // secret input
+    input x : boolean; // public input
+    output z: boolean; // public output
+
+    init {
+        pc = A;
+        z = false;
+    }
+
+    next {
+        z' = !x;
+    }
+
+    }
+
+    module process2
+    {
+    type pc_t = enum { B, C };
+
+    var pc : pc_t;
+    input s : boolean; // secret input
+    input x : boolean; // public input
+    output z: boolean; // public output
+
+    procedure next_state()
+        modifies z;
+        modifies pc;
+    {
+        case
+        (pc == B) && s && !x : { pc = C; z = true; }
+        (pc == C) && s && !x : { pc = B; z = false; }
+        esac
+    }
+
+    init {
+        pc = B;
+        z = false;
+    }
+
+    next {
+        call next_state();
+    }
+    }
+
+
+    module main
+    {
+    type t1pc_t = process1.pc_t;
+    type t2pc_t = process2.pc_t;
+
+    var x1,x2 : boolean;
+    var s1,s2 : boolean;
+    var z1,z2 : boolean;
+
+    /*
+    instance p11 : process1(z: (z1), s : (s1), x : (x1));
+    instance p12 : process1(z: (z2), s : (s2), x : (x2));
+    */
+
+    /*
+    */
+    instance p21 : process2(z: (z1), s : (s1), x : (x1));
+    instance p22 : process2(z: (z2), s : (s2), x : (x2));
+
+    init {
+        havoc x1; havoc x2;
+        havoc s1; havoc s2;
+        assume(x1 == x2);
+    }
+
+    next {
+        havoc x1; havoc x2;
+        havoc s1; havoc s2;
+        assume(x1' == x2');
+        // next(p11); next(p12);
+        next(p21); next(p22);
+    }
+
+    invariant same_output_z : (z1 == z2);
+
+
+    control {
+        // *** BASIC ASSERTIONS/INVARIANT
+    /*
+    */
+        v = unroll(5);
+        check;
+        print_results;
+        //v.print_cex(x1,x2,s1,s2,z1,z2,p11.pc,p12.pc);
+        v.print_cex(x1,x2,s1,s2,z1,z2,p21.pc,p22.pc);
+
+    /*
+        // *** INDUCTION
+        v = induction(1);
+        check;
+        print_results;
+        v.print_cex(x1,x2,s1,s2,z1,z2,p11.pc,p12.pc);
+    */
+    }
+    }
+====================
+user :: Write a uclid5 model for the following description:
+To model the described scenario in UCLID5, we will create a simple state transition system for two independent traffic lights, each with two states (Red and Green). We will then explore the parallel composition of these two systems, ensuring that each traffic light can change states independently of the other. Here's an outline of the model:
+
+--OUTLINE--
+
+1. **Type Definitions**:
+   - Define an enumerated type `light_state` with two values: `Red` and `Green`.
+
+2. **Module Definitions**:
+   - **TrafficLight Module**: This module will encapsulate the behavior of a single traffic light.
+     - **State Variables**:
+       - `state`: of type `light_state`, indicating the current color of the traffic light.
+     - **Init**:
+       - Initialize the traffic light to `Red`.
+     - **Next State Logic**:
+       - Define a transition that toggles the state from `Red` to `Green` and vice versa, representing the non-deterministic change of state.
+
+   - **Main Module**: This module will handle the parallel composition of two TrafficLight modules.
+     - **State Variables**:
+       - `red1`, `green1`, `red2`, `green2`: Boolean variables representing the state of each traffic light.
+     - **Instance Declarations**:
+       - Two instances of the TrafficLight module (`tl1` and `tl2`).
+     - **Init**:
+       - Initialize both traffic lights to `Red`.
+       - Set `red1` and `red2` to `true`, and `green1` and `green2` to `false`.
+     - **Next State Logic**:
+       - Incorporate the state transitions from each instance.
+       - Update `red1`, `green1`, `red2`, `green2` based on the state of `tl1` and `tl2`.
+       - Allow non-deterministic transitions where either `tl1` or `tl2` or both can change states, reflecting their independent operation.
+
+3. **Safety Properties**:
+   - Although the traffic lights operate independently, you might want to check properties such as:
+     - Both lights should not be green at the same time (which in real-world scenarios would be critical, but since these are parallel and non-intersecting, it's just for demonstration).
+     - Each light must be either red or green at any time (i.e., they cannot be both or neither).
+
+4. **Control Logic**:
+   - Use the control block to specify how the model should be simulated or verified.
+   - Define the number of steps for bounded model checking.
+   - Optionally, define commands to print the state of the system at each step or when specific conditions are met.
+
+This outline provides a structured approach to building the UCLID5 model for two independent traffic lights. Each light is modeled as a simple system that can toggle between two states, and the main module manages their parallel operation while allowing for non-deterministic state changes. This model can be used to verify properties related to the operation of the traffic lights and their independence.
+====================
+assistant :: /* Two independent traffic lights.
+   Each light can be in one of two states: Red or Green.
+   Both lights cannot be green at the same time.
+ */
+
+module TrafficLight {
+    type light_state = enum { Red, Green };
+    var state : light_state;
+
+    init {
+        state = Red;
+    }
+
+    next {
+        case
+            state == Red   : { state' = Green; }
+            state == Green : { state' = Red; }
+        esac
+    }
+}
+
+module main {
+    instance tl1 : TrafficLight();
+    instance tl2 : TrafficLight();
+
+    var red1   : boolean;
+    var green1 : boolean;
+    var red2   : boolean;
+    var green2 : boolean;
+
+    init {
+        red1   = true;
+        green1 = false;
+        red2   = true;
+        green2 = false;
+    }
+
+    next {
+        next (tl1);
+        next (tl2);
+
+        red1'   = (tl1.state == Red);
+        green1' = (tl1.state == Green);
+        red2'   = (tl2.state == Red);
+        green2' = (tl2.state == Green);
+
+        case
+            // tl1 changes state
+            (tl1.state' != tl1.state) && (tl2.state' == tl2.state) : { assume false; }
+            // tl2 changes state
+            (tl1.state' == tl1.state) && (tl2.state' != tl2.state) : { assume false; }
+            // both change
+            (tl1.state' != tl1.state) && (tl2.state' != tl2.state) : { assume false; }
+        esac
+    }
+
+    // both cannot be green at the same time
+    safety {
+        (green1 && green2) ==> (red1 && red2);
+        (red1 && red2) ==> (!green1 || !green2);
+    }
+
+    // both must be either red or green
+    safety {
+        !(red1 && green1);
+        !(red2 && green2);
+        (red1 || green1);
+        (red2 || green2);
+    }
+
+    control {
+        // print_module;
+        // print_next;
+        // print_init;
+        // print_spec;
+        // print_system;
+        // print_invs;
+        // print_safety;
+        // print_properties;
+        // print_proof;
+        v = bmc(1);
+        check;
+        print_results;
+        // v.print_cex;
+    }
+}
+
+====================

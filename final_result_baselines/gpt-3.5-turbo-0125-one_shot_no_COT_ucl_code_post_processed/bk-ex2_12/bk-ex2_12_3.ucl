@@ -1,0 +1,69 @@
+
+module vending_machine
+{
+    const max : int; // maximum capacity of bottle repositories
+
+    var nsoda : int; // number of soda bottles
+    var nbeer : int; // number of beer bottles
+
+    var sget_enabled : bool; // flag indicating if soda can be obtained
+    var bget_enabled : bool; // flag indicating if beer can be obtained
+    var refill_enabled : bool; // flag indicating if refill is enabled
+    var coin_enabled : bool; // flag indicating if coin can be inserted
+
+    start : location;
+    select : location;
+
+    transition start --(true:coin)--> select;
+    transition start --(true:refill)--> start;
+
+    transition select --(nsoda > 0:sget)--> start;
+    transition select --(nbeer > 0:bget)--> start;
+    transition select --(nsoda == 0 && nbeer == 0:ret_coin)--> start;
+
+    action coin()
+    {
+        coin_enabled := true;
+    }
+
+    action refill()
+    {
+        refill_enabled := true;
+        nsoda := max;
+        nbeer := max;
+    }
+
+    action sget()
+    {
+        sget_enabled := true;
+        nsoda := nsoda - 1;
+    }
+
+    action bget()
+    {
+        bget_enabled := true;
+        nbeer := nbeer - 1;
+    }
+
+    action ret_coin()
+    {
+        coin_enabled := true;
+    }
+
+    init {
+        nsoda := max / 2; // initial number of soda bottles
+        nbeer := max / 2; // initial number of beer bottles
+
+        sget_enabled := false;
+        bget_enabled := false;
+        refill_enabled := false;
+        coin_enabled := true;
+    }
+
+    next {
+        coin_enabled := false;
+        refill_enabled := false;
+        sget_enabled := false;
+        bget_enabled := false;
+    }
+}

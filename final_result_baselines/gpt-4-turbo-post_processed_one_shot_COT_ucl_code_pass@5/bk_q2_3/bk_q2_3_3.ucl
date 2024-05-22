@@ -1,0 +1,71 @@
+module traffic_light {
+  type light_state_t = enum { green, yellow, red, amber };
+
+  input change : boolean;
+  var current_state : light_state_t;
+
+  init {
+    current_state = red;
+  }
+
+  next {
+    if (change) {
+      current_state' =
+        (current_state == green) ? yellow :
+        (current_state == yellow) ? red :
+        (current_state == red) ? amber :
+        green;
+    } else {
+      current_state' = current_state;
+    }
+  }
+}
+
+module controller {
+  type phase_t = enum { phase1, phase2, phase3 };
+  var phase : phase_t;
+
+  init {
+    phase = phase1;
+  }
+
+  next {
+    phase' =
+      (phase == phase1) ? phase2 :
+      (phase == phase2) ? phase3 :
+      phase1;
+  }
+
+  // Function to determine if a light should change
+  function should_change(light_index : int) : boolean {
+    return (phase == phase1 && (light_index == 1 || light_index == 3)) ||
+           (phase == phase2 && light_index == 2) ||
+           (phase == phase3 && light_index == 4);
+  }
+}
+
+module main {
+  instance L1, L3 : traffic_light;
+  instance L2, L4 : traffic_light;
+  instance C : controller;
+
+  init {
+    L1.current_state = green;
+    L3.current_state = green;
+    L2.current_state = red;
+    L4.current_state = red;
+  }
+
+  next {
+    L1.change = C.should_change(1);
+    L2.change = C.should_change(2);
+    L3.change = C.should_change(3);
+    L4.change = C.should_change(4);
+  }
+
+  invariant no_conflict :
+    !(L1.current_state == green && L2.current_state == green) &&
+    !(L1.current_state == green && L4.current_state == green) &&
+    !(L3.current_state == green && L2.current_state == green) &&
+    !(L3.current_state == green && L4.current_state == green);
+}

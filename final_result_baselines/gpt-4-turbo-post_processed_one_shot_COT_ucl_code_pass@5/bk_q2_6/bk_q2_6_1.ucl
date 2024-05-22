@@ -1,0 +1,60 @@
+model stack_model {
+    // Define the capacity of the stack
+    const n : int;
+
+    // Stack represented as an array, and an index for the top element
+    var s : array[int] of int;
+    var top_index : int;
+
+    // Initialize the stack to be empty
+    init {
+        top_index = -1;
+    }
+
+    // Define the push operation
+    procedure push(x : int) modifies top_index, s {
+        if (top_index < n - 1) {
+            top_index = top_index + 1;
+            s[top_index] = x;
+        }
+    }
+
+    // Define the pop operation
+    procedure pop() modifies top_index {
+        if (top_index > -1) {
+            top_index = top_index - 1;
+        }
+    }
+
+    // Define the top operation
+    function top() returns (int) {
+        if (top_index > -1) {
+            return s[top_index];
+        } else {
+            return -1; // Error code for empty stack
+        }
+    }
+
+    // Define the next state based on possible operations
+    next {
+        if (*) { // Non-deterministic choice
+            var x : int;
+            havoc x;
+            assume x >= 0; // Ensure nonnegative integers
+            call push(x);
+        } else {
+            call pop();
+        }
+    }
+
+    // Invariants or properties to check
+    invariant no_overflow : top_index < n;
+    invariant no_underflow : top_index >= -1;
+
+    // Control block for model checking
+    control {
+        v = unroll(10);
+        check;
+        print_results;
+    }
+}

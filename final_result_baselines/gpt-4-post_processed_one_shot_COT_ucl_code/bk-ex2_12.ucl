@@ -1,0 +1,70 @@
+module vending_machine {
+    type State = enum { start, select };
+    const max : int;
+    var nsoda, nbeer : int;
+    var current_state : State;
+
+    // Define actions as procedures
+    procedure refill() {
+        nsoda := max;
+        nbeer := max;
+    }
+
+    procedure coin() {
+        // This action does not change the number of bottles
+    }
+
+    procedure sget() {
+        if (nsoda > 0) {
+            nsoda := nsoda - 1;
+            current_state := start;
+        }
+    }
+
+    procedure bget() {
+        if (nbeer > 0) {
+            nbeer := nbeer - 1;
+            current_state := start;
+        }
+    }
+
+    procedure ret_coin() {
+        // This action does not change the number of bottles
+        current_state := start;
+    }
+
+    // Initialization
+    init {
+        nsoda := 0;
+        nbeer := 0;
+        current_state := start;
+    }
+
+    // Transitions
+    next {
+        if (current_state == start) {
+            if (*) { // non-deterministic choice
+                coin();
+                current_state := select;
+            } else {
+                refill();
+            }
+        } else if (current_state == select) {
+            if (nsoda == 0 && nbeer == 0) {
+                ret_coin();
+            } else if (nsoda > 0) {
+                sget();
+            } else if (nbeer > 0) {
+                bget();
+            }
+        }
+    }
+
+    // Safety property: soda and beer counts never go negative
+    invariant nsoda >= 0 && nbeer >= 0;
+}
+
+// Control block for model checking
+control {
+    // Specify checks here
+}

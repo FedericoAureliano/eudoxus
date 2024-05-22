@@ -1,0 +1,60 @@
+module main {
+    type state_t = enum { RED, GREEN, PENDING, YELLOW };
+
+    var state : state_t;
+    var count : int;
+    input pedestrian : boolean;
+    output sigG, sigY, sigR : boolean;
+
+    init {
+        state = RED;
+        count = 0;
+        sigR = true;
+        sigG = false;
+        sigY = false;
+    }
+
+    next {
+        case
+            state == RED && count == 60 : {
+                state' = GREEN;
+                count' = 0;
+                sigR' = false;
+                sigG' = true;
+            }
+            state == GREEN && pedestrian && count >= 60 : {
+                state' = YELLOW;
+                count' = 0;
+                sigG' = false;
+                sigY' = true;
+            }
+            state == GREEN && pedestrian && count < 60 : {
+                state' = PENDING;
+                count' = count + 1; // Continue counting until 60 seconds
+            }
+            state == PENDING && count == 60 : {
+                state' = YELLOW;
+                count' = 0;
+                sigG' = false;
+                sigY' = true;
+            }
+            state == YELLOW && count == 5 : {
+                state' = RED;
+                count' = 0;
+                sigY' = false;
+                sigR' = true;
+            }
+            default : {
+                count' = count + 1; // Default behavior is to increment the count
+            }
+        esac
+    }
+
+    invariant check_minimum_time : (state == GREEN -> count >= 60) || (state == YELLOW -> count >= 5);
+
+    control {
+        v = unroll(120);
+        check;
+        print_results;
+    }
+}

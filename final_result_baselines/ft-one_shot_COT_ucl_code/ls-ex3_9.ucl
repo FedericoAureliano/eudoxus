@@ -1,0 +1,37 @@
+module trafficLight
+{
+    type state_t = enum { RED, GREEN, YELLOW, PENDING };
+    var current_state : state_t;
+    var count : int;
+    input pedestrian : boolean;
+
+    init {
+        current_state = RED;
+        count = 0;
+    }
+
+    next(count) := if (current_state == GREEN && pedestrian && count >= 60) || current_state == YELLOW then 0 else count + 1;
+
+    next(current_state) :=
+        case
+            current_state == RED && count == 60 : GREEN;
+            current_state == GREEN && pedestrian && count >= 60 : PENDING;
+            current_state == PENDING && count == 60 : YELLOW;
+            current_state == GREEN && count == 60 && !pedestrian : YELLOW;
+            current_state == YELLOW && count == 5 : RED;
+            true : current_state;
+        esac;
+
+    define sigG = (current_state == GREEN);
+    define sigY = (current_state == YELLOW);
+    define sigR = (current_state == RED || current_state == PENDING);
+
+    /* safety */
+    invariant (current_state == GREEN -> count <= 60);
+    invariant (current_state == YELLOW -> count <= 5);
+
+    control {
+        check;
+        print_cex;
+    }
+}

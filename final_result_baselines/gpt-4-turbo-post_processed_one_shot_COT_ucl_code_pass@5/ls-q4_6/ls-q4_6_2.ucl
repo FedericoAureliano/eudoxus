@@ -1,0 +1,40 @@
+module main {
+    // State variables
+    var door_open : boolean;
+    var light_on : boolean;
+    var time : int;
+
+    // Initial state
+    init {
+        door_open = false;
+        light_on = false;
+        time = 0;
+    }
+
+    // State transition
+    next {
+        if (door_open) {
+            // Door is opened
+            light_on' = true;
+            time' = 0;
+        } else if (light_on && time < 30) {
+            // Counting down 30 seconds after the door is closed
+            light_on' = true;
+            time' = time + 1;
+        } else {
+            // Time has elapsed or door is not open
+            light_on' = false;
+            time' = 0;
+        }
+    }
+
+    // Safety properties
+    invariant light_on_when_door_open: door_open -> light_on;
+    invariant light_stays_on_30_seconds: (light_on && !door_open) -> (time <= 30);
+
+    // Control block for simulation and checking
+    control {
+        v = simulate(50);
+        print_trace;
+    }
+}

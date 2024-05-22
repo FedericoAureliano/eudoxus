@@ -1,0 +1,51 @@
+/* Dome light example */
+
+module DomeLight
+{
+    type time_type = integer;
+    var light_on  : boolean;
+    var door_open : boolean;
+    var time      : time_type;
+
+    init {
+        light_on  = false;
+        door_open = false;
+        time      = 0;
+    }
+
+    next {
+        case
+        (door_open') : {
+            light_on' = true;
+            time'     = 0;
+        }
+        (door_open == false) : {
+            if (time < 30) {
+                time' = time + 1;
+            } else {
+                time' = 30;
+                light_on' = false;
+            }
+        }
+        esac
+
+        if (door_open) {
+            light_on' = true;
+            time' = 0;
+        }
+    }
+
+    /* Safety property: light_on should be true whenever door_open is true. */
+    // assert (door_open -> light_on);
+
+    /* Timing property: light_on should be true for exactly 30 seconds after all doors are closed. */
+    // assert (!door_open && time <= 30 -> light_on);
+    /* Another timing property: light_on should be false after 30 seconds if no doors are reopened. */
+    assert (!door_open && time > 30 -> !light_on);
+}
+
+control {
+    v = bmc[properties=[1,2], invariants=[DomeLight]];
+    check;
+    v.print_cex;
+}

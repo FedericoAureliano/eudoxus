@@ -1,0 +1,58 @@
+module main {
+    // Define variables
+    var warn : boolean;
+    var noWarn : boolean;
+    var time : int;
+    var ignition : boolean;
+    var buckled : boolean;
+    var beeper : boolean;
+    var warning_light : boolean;
+
+    // Initial states
+    init {
+        warn = false;
+        noWarn = true;
+        time = 0;
+        ignition = false;
+        buckled = true;
+        beeper = false;
+        warning_light = false;
+    }
+
+    // State transitions
+    next {
+        // Handle ignition and buckling events
+        if (ignition && !buckled) {
+            warn = true;
+            noWarn = false;
+        } else if (!ignition || buckled) {
+            warn = false;
+            noWarn = true;
+        }
+
+        // Manage beeper and warning light
+        if (warn) {
+            beeper = true;
+            warning_light = true;
+        }
+        if (noWarn) {
+            beeper = false;
+            warning_light = false;
+        }
+
+        // Manage beeper timing
+        if (beeper) {
+            if (time < 30) {
+                time = time + 1;
+            } else {
+                beeper = false;
+            }
+        } else {
+            time = 0;
+        }
+    }
+
+    // Invariants and safety checks
+    invariant beeper_safety : (time <= 30);
+    invariant warning_light_accuracy : (warning_light == !buckled && ignition);
+}

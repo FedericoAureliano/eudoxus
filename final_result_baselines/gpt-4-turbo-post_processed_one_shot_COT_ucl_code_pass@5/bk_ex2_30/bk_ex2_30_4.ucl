@@ -1,0 +1,84 @@
+module Train {
+  type state_t = enum { far, near, in };
+  var train_state : state_t;
+
+  init {
+    train_state = far;
+  }
+
+  next {
+    switch (train_state) {
+      case far: train_state' = near;
+      case near: train_state' = in;
+      case in: train_state' = far;
+    }
+  }
+}
+
+module Gate {
+  type state_t = enum { up, down };
+  var gate_state : state_t;
+
+  init {
+    gate_state = up;
+  }
+
+  next {
+    switch (gate_state) {
+      case up: gate_state' = down;
+      case down: gate_state' = up;
+    }
+  }
+}
+
+module Controller {
+  type state_t = enum { s0, s1, s2, s3 };
+  var controller_state : state_t;
+
+  init {
+    controller_state = s0;
+  }
+
+  next {
+    switch (controller_state) {
+      case s0: controller_state' = s1;
+      case s1: controller_state' = s2;
+      case s2: controller_state' = s3;
+      case s3: controller_state' = s0;
+    }
+  }
+}
+
+module main {
+  var train : Train.state_t;
+  var gate : Gate.state_t;
+  var controller : Controller.state_t;
+
+  instance t : Train();
+  instance g : Gate();
+  instance c : Controller();
+
+  init {
+    train = t.train_state;
+    gate = g.gate_state;
+    controller = c.controller_state;
+  }
+
+  next {
+    t.next();
+    g.next();
+    c.next();
+    train' = t.train_state;
+    gate' = g.gate_state;
+    controller' = c.controller_state;
+  }
+
+  invariant safety_property : (train == in) -> (gate == down);
+
+  control {
+    v = unroll(10);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

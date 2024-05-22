@@ -1,0 +1,70 @@
+module traffic_light
+{
+    type t = enum { RED, GREEN, PENDING, YELLOW };
+    var state  : t;
+    var count  : integer;
+    input pedestrian : boolean;
+    output sigR, sigG, sigY : boolean;
+
+    next {
+        if (state == RED) {
+            count' = count + 1;
+            if (count == 59) {
+                state' = GREEN;
+            }
+        } else {
+            if (state == GREEN) {
+                count' = 0;
+                if (pedestrian && count >= 60) {
+                    state' = YELLOW;
+                } else {
+                    if (pedestrian && count < 60) {
+                        state' = PENDING;
+                    }
+                }
+            } else {
+                if (state == PENDING) {
+                    count' = count + 1;
+                    if (count == 59) {
+                        state' = YELLOW;
+                    }
+                } else {
+                    if (state == YELLOW) {
+                        count' = 0;
+                        if (count == 4) {
+                            state' = RED;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    init {
+        state = RED;
+        count = 0;
+    }
+
+    next {
+        sigR' = (state == RED);
+        sigG' = (state == GREEN) || (state == PENDING);
+        sigY' = (state == YELLOW);
+    }
+
+    safety {
+        // if the light is green, it must stay green for at least 60 seconds,
+        // unless it is interrupted by a pedestrian.
+        // if the light is yellow, it must stay yellow for exactly 5 seconds.
+        case
+        (state == GREEN) : { count >= 60 && state' != GREEN && state' != PENDING; }
+        (state == YELLOW) : { count == 4 && state' != YELLOW; }
+        esac
+    }
+
+    control {
+        v = bmc(2);
+        check;
+        // print_module;
+        v.print_cex(pedestrian, count, state, sigR, sigG, sigY);
+    }
+}

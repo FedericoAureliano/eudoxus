@@ -1,0 +1,33 @@
+// This is a simple sketch of the model.
+module main {
+    type status_t = enum { ready, busy };
+    var request : boolean;
+    var status : status_t;
+    var was_requested : boolean;
+
+    init {
+        status = status_t.ready;
+        was_requested = false;
+    }
+
+    next {
+        if (request) {
+            status' = status_t.busy;
+            was_requested' = true;
+        } else {
+            status' = choose {
+                status_t.ready,
+                status_t.busy
+            };
+        }
+    }
+
+    control {
+        check;
+        print_cex;
+    }
+
+    property eventually_busy_if_requested {
+        always (request -> eventually (status == status_t.busy))
+    }
+}

@@ -1,0 +1,106 @@
+module unreliable_channel {
+    type msg_t = record { m: int; b: boolean };
+
+    var buffer : [int]msg_t;
+    var head : int;
+    var tail : int;
+
+    procedure send(msg : msg_t) {
+        if (*) { // nondeterministically decide if the message is lost
+            buffer[tail] = msg;
+            tail = tail + 1;
+        }
+    }
+
+    procedure receive() returns (msg : msg_t) {
+        if (head < tail) {
+            msg = buffer[head];
+            head = head + 1;
+        } else {
+            msg = {m: -1, b: false}; // indicate no message
+        }
+    }
+}
+
+module reliable_channel {
+    type ack_t = boolean;
+
+    var ack : ack_t;
+
+    procedure send_ack(b : ack_t) {
+        ack = b;
+    }
+
+    procedure receive_ack() returns (b : ack_t) {
+        return ack;
+    }
+}
+
+module sender {
+    var current_message : int;
+    var control_bit : boolean;
+    var timeout : boolean;
+
+    instance channel_c : unreliable_channel;
+
+    procedure send() {
+        channel_c.send({m: current_message, b: control_bit});
+        timeout = true; // start timeout
+    }
+
+    procedure handle_ack() {
+        var ack : boolean;
+        ack = channel_d.receive_ack();
+        if (ack == control_bit) {
+            control_bit = !control_bit; // toggle control bit
+            timeout = false; // reset timeout
+            current_message = current_message + 1; // next message
+        }
+    }
+
+    next {
+        if (timeout) {
+            send();
+        }
+    }
+}
+
+module receiver {
+    var last_received_bit : boolean;
+
+    instance channel_c : unreliable_channel;
+    instance channel_d : reliable_channel;
+
+    procedure receive() {
+        var msg : unreliable_channel.msg_t;
+        msg = channel_c.receive();
+        if (msg.m != -1) { // if message received
+            last_received_bit = msg.b;
+            channel_d.send_ack(msg.b);
+        }
+    }
+}
+
+module main {
+    instance S : sender;
+    instance R : receiver;
+
+    init {
+        S.current_message = 0;
+        S.control_bit = false;
+        S.timeout = false;
+        R.last_received_bit = false;
+    }
+
+    next {
+        S.send();
+        R.receive();
+        S.handle_ack();
+    }
+
+    control {
+        v = unroll(10);
+        check;
+        print_results;
+    }
+}

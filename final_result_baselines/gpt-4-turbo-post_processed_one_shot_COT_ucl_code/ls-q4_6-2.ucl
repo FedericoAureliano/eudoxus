@@ -1,0 +1,41 @@
+module seat_belt_warning_system {
+  type time_t = integer;
+  var ignition : boolean;
+  var buckled : boolean;
+  var warn : boolean;
+  var nowarn : boolean;
+  var time : time_t;
+
+  init {
+    ignition = false;
+    buckled = true;
+    warn = false;
+    nowarn = true;
+    time = 0;
+  }
+
+  next {
+    if (ignition && !buckled) {
+      warn = true;
+      nowarn = false;
+    } else {
+      warn = false;
+      nowarn = true;
+    }
+
+    if (warn && time < 30) {
+      time = time + 1;
+    } else {
+      warn = false;
+    }
+
+    if (buckled || !ignition) {
+      warn = false;
+      nowarn = true;
+      time = 0;
+    }
+  }
+
+  invariant no_beeper_when_off : (!ignition -> !warn);
+  invariant correct_warning_light : (warn <-> !buckled && ignition);
+}

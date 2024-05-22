@@ -1,0 +1,69 @@
+module process
+{
+    type State = { ACTIVE, STOPPED };
+    var id : int;
+    var state : State;
+    var m : int;
+
+    init {
+        state = ACTIVE;
+        m = id; // Initially, each process sends its own ID.
+    }
+
+    procedure send()
+    modifies m;
+    {
+        // Send current message to next process.
+    }
+
+    procedure receive(new_m : int)
+    modifies m;
+    {
+        m = new_m;
+    }
+
+    procedure evaluate()
+    modifies state;
+    {
+        if (m == id) {
+            state = STOPPED;
+        } else if (m > id) {
+            send(m);
+        }
+    }
+}
+
+module channel
+{
+    var buffer : int;
+
+    procedure send(m : int)
+    modifies buffer;
+    {
+        buffer = m;
+    }
+
+    procedure receive() returns (int)
+    {
+        return buffer;
+    }
+}
+
+module main
+{
+    instance p1, p2, ..., pn : process;
+    instance c1, c2, ..., cn : channel;
+
+    init {
+        // Link processes and channels in a ring.
+        // Initialize processes to send their IDs.
+    }
+
+    next {
+        // Simulate the send and receive operations.
+    }
+
+    control {
+        // Check properties and run bounded model checking.
+    }
+}

@@ -1,0 +1,42 @@
+module main {
+  type state_t = enum { INC, DEC, RESET };
+
+  var x : integer;
+  var state : state_t;
+
+  init {
+    x = nondet(); // Arbitrary initial value
+    assume (x >= 0 && x <= 200); // Initial assumption about the range of x
+    state = INC; // Start with the INC state
+  }
+
+  // Process Inc
+  next {
+    case
+      state == INC && x < 200 : {
+        x' = x + 1;
+        state' = DEC;
+      }
+      state == DEC && x > 0 : {
+        x' = x - 1;
+        state' = RESET;
+      }
+      state == RESET && x == 200 : {
+        x' = 0;
+        state' = INC;
+      }
+      default : {
+        state' = state;
+        x' = x;
+      }
+    esac
+  }
+
+  invariant value_range : (x >= 0 && x <= 200);
+
+  control {
+    v = unroll(10);
+    check;
+    print_results;
+  }
+}

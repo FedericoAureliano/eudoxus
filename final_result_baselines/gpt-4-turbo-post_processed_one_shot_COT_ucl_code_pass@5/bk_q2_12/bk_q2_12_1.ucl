@@ -1,0 +1,50 @@
+module process
+{
+    type id_t = int;
+    type message_t = int;
+
+    var id : id_t;
+    var m : message_t;
+    var stopped : boolean;
+
+    input in_m : message_t;
+    output out_m : message_t;
+
+    init {
+        id = *; // nondeterministically assigned
+        m = id;
+        stopped = false;
+        out_m = id;
+    }
+
+    next {
+        if (!stopped) {
+            m = in_m;
+            if (m == id) {
+                stopped = true;
+            }
+            else if (m > id) {
+                out_m = m;
+            }
+        }
+    }
+}
+
+module main
+{
+    instance p1, p2, p3, ..., pn : process;
+    // Setup ring topology
+    // p1.out_m -> p2.in_m
+    // p2.out_m -> p3.in_m
+    // ...
+    // pn.out_m -> p1.in_m
+
+    init {
+        // Initialize ids
+        p1.id = 1;
+        p2.id = 2;
+        p3.id = 3;
+        // ...
+        pn.id = n;
+    }
+}

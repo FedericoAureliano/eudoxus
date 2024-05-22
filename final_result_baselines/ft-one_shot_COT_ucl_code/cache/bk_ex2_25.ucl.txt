@@ -1,0 +1,286 @@
+system :: You're an expert in writing uclid5 models.You will be given a docstring and asked to write a model. Remember uclid5 is a state machine language and has it's own specific syntax.
+====================
+user :: Write a uclid5 model for the following description:
+    This UCLID5 model simulates a process interaction environment to evaluate confidentiality properties through non-interference simulations, inspired by an example in Chapter 17 on Security from "Introduction to Embedded Systems" by Lee & Seshia. The model consists of two types of process modules (`process1` and `process2`) and a main module that orchestrates the interaction between instances of these processes.
+
+    Process Modules:
+    1. `process1`: This module captures a simplified process that reflects non-deterministic behavior based on public input. It uses an enumerated type `pc_t` with a single state `A`. It has:
+        - Inputs:
+        * `s`: A boolean representing a secret input.
+        * `x`: A boolean representing a public input.
+        - Output:
+        * `z`: A boolean public output that toggles based on the inverse of input `x`.
+        - Behavior:
+        * The process starts in state `A` and outputs `z` as `false` initially.
+        * In subsequent cycles, the output `z` becomes the negation of `x`.
+
+    2. `process2`: This module is a more complex process with an internal state machine described using state enum `pc_t` with states `B` and `C`. It demonstrates state-dependent output behavior.
+        - Inputs are the same as in `process1`.
+        - Output and state transitions:
+        * The process starts in state `B` with the output `z` as `false`.
+        * Based on the input combination (state, `s`, and `x`), the process transitions between states `B` and `C`, toggling the output `z`.
+        * The transitions are specifically:
+            - From `B` to `C` (output `z` is set to `true`) when `s` is true and `x` is false.
+            - From `C` back to `B` (output `z` is reset to `false`) under the same input conditions.
+
+    Main Module:
+    - Sets up instances of `process2` (`p21` and `p22`) to interact under controlled input conditions.
+    - Inputs `x1`, `x2` (public), and `s1`, `s2` (secret) are used for driving the process instances.
+    - Controls non-determinism by initially assuming both `x1` and `x2` are equal, and it maintains this assumption in all subsequent states.
+    - Evaluates confidentiality by asserting the invariant `same_output_z`, ensuring that outputs `z1` and `z2` of both process instances are always equal, thereby checking for consistent behavior across different runs with potentially varying secret inputs.
+
+    Control:
+    - The control block is used to perform bounded model checking and to produce counterexamples. It specifies that up to 5 unrolling should be checked.
+    - The `print_cex` function is used for displaying counterexamples for the states of inputs and outputs along with the internal state of `process2` instances (`p21` and `p22`).
+
+    This model is particularly useful for demonstrating the effects of secret data manipulations on the outputs, which can be analyzed to study security vulnerability or proof of non-interference in systems.
+
+====================
+assistant :: module process1
+    {
+    type pc_t = enum { A };
+
+    var pc : pc_t;
+    input s : boolean; // secret input
+    input x : boolean; // public input
+    output z: boolean; // public output
+
+    init {
+        pc = A;
+        z = false;
+    }
+
+    next {
+        z' = !x;
+    }
+
+    }
+
+    module process2
+    {
+    type pc_t = enum { B, C };
+
+    var pc : pc_t;
+    input s : boolean; // secret input
+    input x : boolean; // public input
+    output z: boolean; // public output
+
+    procedure next_state()
+        modifies z;
+        modifies pc;
+    {
+        case
+        (pc == B) && s && !x : { pc = C; z = true; }
+        (pc == C) && s && !x : { pc = B; z = false; }
+        esac
+    }
+
+    init {
+        pc = B;
+        z = false;
+    }
+
+    next {
+        call next_state();
+    }
+    }
+
+
+    module main
+    {
+    type t1pc_t = process1.pc_t;
+    type t2pc_t = process2.pc_t;
+
+    var x1,x2 : boolean;
+    var s1,s2 : boolean;
+    var z1,z2 : boolean;
+
+    /*
+    instance p11 : process1(z: (z1), s : (s1), x : (x1));
+    instance p12 : process1(z: (z2), s : (s2), x : (x2));
+    */
+
+    /*
+    */
+    instance p21 : process2(z: (z1), s : (s1), x : (x1));
+    instance p22 : process2(z: (z2), s : (s2), x : (x2));
+
+    init {
+        havoc x1; havoc x2;
+        havoc s1; havoc s2;
+        assume(x1 == x2);
+    }
+
+    next {
+        havoc x1; havoc x2;
+        havoc s1; havoc s2;
+        assume(x1' == x2');
+        // next(p11); next(p12);
+        next(p21); next(p22);
+    }
+
+    invariant same_output_z : (z1 == z2);
+
+
+    control {
+        // *** BASIC ASSERTIONS/INVARIANT
+    /*
+    */
+        v = unroll(5);
+        check;
+        print_results;
+        //v.print_cex(x1,x2,s1,s2,z1,z2,p11.pc,p12.pc);
+        v.print_cex(x1,x2,s1,s2,z1,z2,p21.pc,p22.pc);
+
+    /*
+        // *** INDUCTION
+        v = induction(1);
+        check;
+        print_results;
+        v.print_cex(x1,x2,s1,s2,z1,z2,p11.pc,p12.pc);
+    */
+    }
+    }
+====================
+user :: Write a uclid5 model for the following description:
+To build a UCLID5 model for the described system, we need to outline the model components, including the state variables, initialization, process definitions, and the transition system that models the interleaving of processes P1 and P2. Here is a structured outline for the UCLID5 model:
+
+--OUTLINE--
+
+### 1. Model Declaration:
+Declare the model with necessary types and state variables.
+```uclid
+module main {
+    type state_t = enum { IDLE, WAIT, CRITICAL }; // State types for P1 and P2
+    var b1 : boolean; // Boolean indicating P1's state (wait or critical)
+    var b2 : boolean; // Boolean indicating P2's state (wait or critical)
+    var x : [1..2]; // Variable to decide which process enters the critical section
+}
+```
+
+### 2. Initialization:
+Define the initial conditions for the state variables.
+```uclid
+init {
+    b1 = false;
+    b2 = false;
+    x = 1; // Initially, let P1 have the opportunity to enter the critical section
+}
+```
+
+### 3. Definitions of Processes:
+Define the behavior of processes P1 and P2 as transitions within the model.
+
+#### Process P1:
+```uclid
+procedure P1() {
+    if (b1 == false) {
+        b1 := true; // P1 starts waiting
+        x := 2; // Give turn to P2
+    }
+    else if (x == 1 || !b2) {
+        // P1 enters the critical section
+        b1 := false; // Exit critical section
+    }
+}
+```
+
+#### Process P2:
+```uclid
+procedure P2() {
+    if (b2 == false) {
+        b2 := true; // P2 starts waiting
+        x := 1; // Give turn to P1
+    }
+    else if (x == 2 || !b1) {
+        // P2 enters the critical section
+        b2 := false; // Exit critical section
+    }
+}
+```
+
+### 4. Transition System:
+Define the transition system that allows interleaving of P1 and P2 actions.
+
+```uclid
+control {
+    while (true) {
+        choose {
+            call P1();
+            call P2();
+        }
+    }
+}
+```
+
+### 5. Safety Properties:
+Define safety properties, such as mutual exclusion, to verify through the model.
+
+```uclid
+invariant "mutual_exclusion" (b1 && b2) == false;
+```
+
+### 6. Bounded Model Checking:
+Setup the model checking environment to verify the properties up to a certain depth.
+
+```uclid
+control {
+    // Set up the bounded model checking, specify the depth as needed
+    check;
+    print_cex;
+}
+```
+
+This outline sets up a UCLID5 model that simulates the interleaving of two processes P1 and P2 with shared variables and mutual exclusion based on a scheduling strategy. This model can be further refined or expanded based on additional requirements or details such as handling more complex interactions or adding more processes.
+====================
+assistant :: module main {
+    type state_t = enum { IDLE, WAIT, CRITICAL };
+    var b1 : boolean;
+    var b2 : boolean;
+    var x : [1..2];
+}
+
+init {
+    b1 = false;
+    b2 = false;
+    x = 1;
+}
+
+procedure P1() {
+    if (b1 == false) {
+        b1 := true;
+        x := 2;
+    }
+    else if (x == 1 || !b2) {
+        b1 := false;
+    }
+}
+
+procedure P2() {
+    if (b2 == false) {
+        b2 := true;
+        x := 1;
+    }
+    else if (x == 2 || !b1) {
+        b2 := false;
+    }
+}
+
+next {
+    choose {
+        call P1();
+        call P2();
+    }
+}
+
+// Safety property
+invariant "mutual_exclusion" (b1 && b2) == false;
+
+// Bounded model checking
+control {
+    check;
+    print_cex;
+}
+}
+
+====================

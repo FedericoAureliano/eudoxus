@@ -1,0 +1,90 @@
+uclid
+module Train {
+    type state_t = enum { far, near, in };
+
+    var train_state : state_t;
+
+    init {
+        train_state = far;
+    }
+
+    transition {
+        case
+            train_state == far : { train_state' = near; }
+            train_state == near : { train_state' = in; }
+            train_state == in : { train_state' = far; }
+        esac
+    }
+}
+
+module Gate {
+    type state_t = enum { up, down };
+
+    var gate_state : state_t;
+
+    init {
+        gate_state = up;
+    }
+
+    transition {
+        case
+            gate_state == up : { gate_state' = down; }
+            gate_state == down : { gate_state' = up; }
+        esac
+    }
+}
+
+module Controller {
+    type state_t = enum { s0, s1, s2, s3 };
+
+    var controller_state : state_t;
+
+    init {
+        controller_state = s0;
+    }
+
+    transition {
+        case
+            controller_state == s0 : { controller_state' = s1; }
+            controller_state == s1 : { controller_state' = s2; }
+            controller_state == s2 : { controller_state' = s3; }
+            controller_state == s3 : { controller_state' = s0; }
+        esac
+    }
+
+    procedure approach() {
+        assume(controller_state == s0);
+        controller_state' = s1;
+    }
+
+    procedure lower() {
+        assume(controller_state == s1);
+        controller_state' = s2;
+    }
+
+    procedure exit() {
+        assume(controller_state == s2);
+        controller_state' = s3;
+    }
+
+    procedure raise() {
+        assume(controller_state == s3);
+        controller_state' = s0;
+    }
+}
+
+module main {
+    instance train : Train;
+    instance gate : Gate;
+    instance controller : Controller;
+
+    control {
+        controller.approach();
+        gate.lower();
+        controller.exit();
+        gate.raise();
+    }
+}
+
+
+This code models the system with the Train, Gate, and Controller components as described, with their respective states and transitions. The main module orchestrates the interactions between the components to simulate the behavior of the control system for the railroad crossing.

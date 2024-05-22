@@ -1,0 +1,40 @@
+module traffic_light {
+    // Define the possible states of the traffic light
+    type state_t = enum { RED, GREEN };
+
+    // Variable to hold the current state of the traffic light
+    var current_state : state_t;
+
+    // Initialize the traffic light to start with the RED state
+    init {
+        current_state = RED;
+    }
+
+    // Define the transition relation for the traffic light
+    next {
+        // Transition from RED to GREEN and from GREEN to RED
+        if (current_state == RED) {
+            current_state' = GREEN;
+        } else {
+            current_state' = RED;
+        }
+    }
+
+    // Define properties to check
+    // For instance, check that the traffic light does not remain in the same state
+    invariant no_skip_states : (current_state == RED && current_state' == GREEN) || (current_state == GREEN && current_state' == RED);
+}
+
+// Main module to run and control the model
+module main {
+    // Instance of the traffic light module
+    instance tl : traffic_light;
+
+    // Control block for model checking
+    control {
+        // Run bounded model checking for a few steps to see the transitions
+        v = unroll(5);
+        check;
+        print_results;
+    }
+}

@@ -1,0 +1,56 @@
+module thermostat
+{
+    type state_t = enum { Heating, Cooling };
+    var state : state_t;
+    input temp : real;
+    output heatOn : boolean;
+    output heatOff : boolean;
+
+    init {
+        state = (temp <= 20) ? Cooling : Heating; // Initial state based on initial temperature
+        heatOn = false;
+        heatOff = false;
+    }
+
+    next {
+        heatOn' = false;
+        heatOff' = false;
+        case
+            // Transition from Heating to Cooling
+            (state == Heating) && (temp >= 22) : {
+                state' = Cooling;
+                heatOff' = true;
+            }
+            // Transition from Cooling to Heating
+            (state == Cooling) && (temp <= 18) : {
+                state' = Heating;
+                heatOn' = true;
+            }
+            // Remain in the same state
+            default : {
+                state' = state;
+            }
+        esac
+    }
+}
+
+module main
+{
+    instance t : thermostat;
+
+    init {
+        // Initialize temperature input
+        havoc t.temp;
+    }
+
+    next {
+        // Simulate changes in temperature
+        havoc t.temp;
+    }
+
+    control {
+        v = unroll(10);
+        check;
+        print_results;
+    }
+}

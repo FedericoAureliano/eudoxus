@@ -1,0 +1,61 @@
+c
+module process
+{
+  var s : 0..1; // shared variable
+  var y0, y1 : boolean; // local variables for each process
+
+  procedure P0()
+  {
+    while (true) {
+      // Noncritical section
+      y0 := true;
+      s := 0;
+      wait (!(y1 && s == 1));
+      // Critical section
+      y0 := false;
+    }
+  }
+
+  procedure P1()
+  {
+    while (true) {
+      // Noncritical section
+      y1 := true;
+      s := 1;
+      wait (!(y0 && s == 0));
+      // Critical section
+      y1 := false;
+    }
+  }
+}
+
+module main
+{
+  var p0, p1 : process;
+
+  init {
+    p0.s := 1;
+    p0.y0 := false;
+    p0.y1 := false;
+
+    p1.s := 1;
+    p1.y0 := false;
+    p1.y1 := false;
+  }
+
+  next {
+    call p0.P0();
+    call p1.P1();
+  }
+
+  property mutual_exclusion {
+    assert (!(p0.y0 && p1.y1) || !(p0.y1 && p1.y0));
+  }
+
+  property starvation_freedom {
+    assert (p0.y0 || p1.y1);
+  }
+}
+
+
+In this model, we have defined two processes `P0` and `P1` that implement the mutual exclusion protocol described by Pnueli. The `main` module initializes the processes and runs them in parallel. The properties `mutual_exclusion` and `starvation_freedom` check whether the algorithm ensures mutual exclusion and starvation freedom, respectively.

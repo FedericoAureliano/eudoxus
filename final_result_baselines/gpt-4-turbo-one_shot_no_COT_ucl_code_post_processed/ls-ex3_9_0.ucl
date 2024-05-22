@@ -1,0 +1,89 @@
+module main {
+    // Define the states of the traffic light
+    type state_t = enum { RED, GREEN, PENDING, YELLOW };
+
+    // State variable to keep track of the current state
+    var current_state : state_t;
+
+    // Input from pedestrian button
+    input pedestrian : boolean;
+
+    // Counter to track time spent in the current state
+    var count : integer;
+
+    // Outputs for the traffic light signals
+    var sigG : boolean;
+    var sigY : boolean;
+    var sigR : boolean;
+
+    // Initialization of the system
+    init {
+        current_state = RED;
+        count = 0;
+        sigR = true;
+        sigG = false;
+        sigY = false;
+    }
+
+    // Transition function defining the state changes
+    next {
+        case
+            // State RED
+            (current_state == RED) : {
+                if (count == 60) {
+                    current_state' = GREEN;
+                    count' = 0;
+                } else {
+                    count' = count + 1;
+                }
+                sigR' = true;
+                sigG' = false;
+                sigY' = false;
+            }
+            // State GREEN
+            (current_state == GREEN) : {
+                if (pedestrian && count >= 60) {
+                    current_state' = YELLOW;
+                    count' = 0;
+                } else if (pedestrian) {
+                    current_state' = PENDING;
+                    count' = count;
+                } else {
+                    count' = count + 1;
+                }
+                sigR' = false;
+                sigG' = true;
+                sigY' = false;
+            }
+            // State PENDING
+            (current_state == PENDING) : {
+                if (count == 60) {
+                    current_state' = YELLOW;
+                    count' = 0;
+                } else {
+                    count' = count + 1;
+                }
+                sigR' = false;
+                sigG' = true;
+                sigY' = false;
+            }
+            // State YELLOW
+            (current_state == YELLOW) : {
+                if (count == 5) {
+                    current_state' = RED;
+                    count' = 0;
+                } else {
+                    count' = count + 1;
+                }
+                sigR' = false;
+                sigG' = false;
+                sigY' = true;
+            }
+        esac
+    }
+
+    // Invariants to ensure correct signal output
+    invariant green_light_correct : (current_state == GREEN) == sigG;
+    invariant yellow_light_correct : (current_state == YELLOW) == sigY;
+    invariant red_light_correct : (current_state == RED) == sigR;
+}

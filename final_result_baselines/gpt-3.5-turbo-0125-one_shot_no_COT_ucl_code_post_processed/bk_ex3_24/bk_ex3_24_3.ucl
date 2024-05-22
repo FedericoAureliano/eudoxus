@@ -1,0 +1,55 @@
+
+module vending_machine
+{
+  var coin : int; // number of coins inserted
+  var dispensed_drinks : int; // number of drinks dispensed
+
+  init {
+    coin = 0;
+    dispensed_drinks = 0;
+  }
+
+  transition {
+    // Insert coin
+    coin' = coin + 1;
+
+    // Dispense drink if enough coins are inserted
+    if coin >= 1 {
+      coin' = coin - 1;
+      dispensed_drinks' = dispensed_drinks + 1;
+    }
+  }
+}
+
+module safety_property
+{
+  var coin : int; // number of coins inserted
+  var dispensed_drinks : int; // number of drinks dispensed
+
+  invariant coins_geq_drinks : coin >= dispensed_drinks;
+}
+
+module main
+{
+  var vm : vending_machine;
+  var sp : safety_property;
+
+  init {
+    vm.coin = 0;
+    vm.dispensed_drinks = 0;
+    sp.coin = vm.coin;
+    sp.dispensed_drinks = vm.dispensed_drinks;
+  }
+
+  transition {
+    next(vm);
+    next(sp);
+  }
+
+  control {
+    check(sp.coins_geq_drinks);
+  }
+}
+
+
+In this model, the `vending_machine` module simulates the behavior of a beverage vending machine by allowing coins to be inserted and drinks to be dispensed based on the number of coins inserted. The `safety_property` module defines the safety property that ensures the number of inserted coins is always at least the number of dispensed drinks. The `main` module initializes the vending machine and the safety property, transitions the vending machine and safety property states, and checks the safety property at each step.

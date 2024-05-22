@@ -1,0 +1,56 @@
+uclid
+module traffic_light {
+    type state_t = enum { RED, GREEN, YELLOW, PENDING };
+
+    var state : state_t;
+    var count : int;
+    input pedestrian : bool;
+    output sigG : bool;
+    output sigY : bool;
+    output sigR : bool;
+
+    init {
+        state = RED;
+        count = 0;
+        sigG = false;
+        sigY = false;
+        sigR = true;
+    }
+
+    next {
+        count' = count + 1;
+
+        if (state == RED) {
+            if (count == 60) {
+                state' = GREEN;
+                count' = 0;
+            }
+        } else if (state == GREEN) {
+            if (pedestrian) {
+                if (count >= 60) {
+                    state' = YELLOW;
+                    count' = 0;
+                } else {
+                    state' = PENDING;
+                }
+            }
+        } else if (state == PENDING) {
+            if (count == 60) {
+                state' = YELLOW;
+                count' = 0;
+            }
+        } else if (state == YELLOW) {
+            if (count == 5) {
+                state' = RED;
+                count' = 0;
+            }
+        }
+
+        sigG' = (state == GREEN);
+        sigY' = (state == YELLOW);
+        sigR' = (state == RED);
+    }
+}
+
+
+This Uclid5 model represents the traffic light at a pedestrian crosswalk with the specified behavior. It transitions between red, green, yellow, and pending states based on the time elapsed and the presence of a pedestrian input. The outputs sigG, sigY, and sigR are updated based on the current state of the traffic light.

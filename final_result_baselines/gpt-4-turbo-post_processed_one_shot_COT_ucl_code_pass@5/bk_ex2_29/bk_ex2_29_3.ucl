@@ -1,0 +1,76 @@
+module BCR {
+  type state_t = enum { S0, S1 };
+  var BCR_state : state_t;
+
+  init {
+    BCR_state = S0;
+  }
+
+  next {
+    BCR_state' = case
+      BCR_state == S0 : S1;  // Barcode scanned
+      BCR_state == S1 : S0;  // Data sent to BP
+      default : BCR_state;
+    esac;
+  }
+}
+
+module BP {
+  type state_t = enum { S0, S1 };
+  var BP_state : state_t;
+
+  init {
+    BP_state = S0;
+  }
+
+  next {
+    BP_state' = case
+      BP_state == S0 : S1;  // Data received from BCR
+      BP_state == S1 : S0;  // Data sent to Printer
+      default : BP_state;
+    esac;
+  }
+}
+
+module Printer {
+  type state_t = enum { S0, S1 };
+  var Printer_state : state_t;
+
+  init {
+    Printer_state = S0;
+  }
+
+  next {
+    Printer_state' = case
+      Printer_state == S0 : S1;  // Print command received
+      Printer_state == S1 : S0;  // Article printed
+      default : Printer_state;
+    esac;
+  }
+}
+
+module main {
+  instance bcr : BCR;
+  instance bp : BP;
+  instance printer : Printer;
+
+  init {
+    assume(bcr.BCR_state == S0 && bp.BP_state == S0 && printer.Printer_state == S0);
+  }
+
+  next {
+    // Synchronizing transitions based on system requirements
+    if (bcr.BCR_state == S1 && bp.BP_state == S0) {
+      bp.BP_state' = S1;
+    }
+    if (bp.BP_state == S1 && printer.Printer_state == S0) {
+      printer.Printer_state' = S1;
+    }
+  }
+
+  control {
+    v = unroll(10);
+    check;
+    print_results;
+  }
+}

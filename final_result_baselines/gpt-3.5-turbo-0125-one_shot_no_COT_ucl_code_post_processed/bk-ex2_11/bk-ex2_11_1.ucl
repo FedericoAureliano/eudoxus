@@ -1,0 +1,57 @@
+c
+module sequential_circuit
+{
+    var x : boolean;
+    var y : boolean;
+    var r : boolean;
+
+    init {
+        r = false;
+    }
+
+    next {
+        if (r == false) {
+            r' = x || r;
+        }
+
+        y = !(x ^ r);
+    }
+}
+
+module main
+{
+    var s1_x, s2_x : boolean;
+    var s1_r, s2_r : boolean;
+    var s1_y, s2_y : boolean;
+
+    instance sc1 : sequential_circuit(x: s1_x, y: s1_y, r: s1_r);
+    instance sc2 : sequential_circuit(x: s2_x, y: s2_y, r: s2_r);
+
+    init {
+        s1_x = false; s1_r = false;
+        s2_x = true; s2_r = false;
+    }
+
+    next {
+        s1_x' = s1_x; s1_r' = s1_r; s1_y' = s1_y;
+        s2_x' = s2_x; s2_r' = s2_r; s2_y' = s2_y;
+
+        next(sc1);
+        next(sc2);
+    }
+
+    ltl property y_set_infinitely_often {
+        []<>(sc1.y == true || sc2.y == true);
+    }
+
+    control {
+        v = unroll(10);
+        check;
+        print_results;
+        v.print_trace(s1_x, s1_y, s1_r);
+        v.print_trace(s2_x, s2_y, s2_r);
+    }
+}
+
+
+This code models the sequential circuit behavior with the given initial states and includes the LTL property `y_set_infinitely_often` to check if the output bit y is set infinitely often.

@@ -1,0 +1,41 @@
+module main {
+    type state_t = enum { pay, select, soda, beer };
+
+    var current_state : state_t;
+
+    input insert_coin : boolean;
+    input choose_soda : boolean;
+    input choose_beer : boolean;
+
+    // Auxiliary variable to track if a coin has been inserted
+    var coin_inserted : boolean;
+
+    init {
+        current_state = pay;
+        coin_inserted = false;
+    }
+
+    next {
+        if (current_state == pay && insert_coin) {
+            current_state' = select;
+            coin_inserted' = true;
+        } else if (current_state == select && choose_soda && coin_inserted) {
+            current_state' = soda;
+        } else if (current_state == select && choose_beer && coin_inserted) {
+            current_state' = beer;
+        } else {
+            current_state' = current_state; // remain in the current state
+            coin_inserted' = coin_inserted; // retain the coin insertion status
+        }
+    }
+
+    // LTL Property: The vending machine only delivers a drink after a coin has been inserted.
+    // It states that if we are in state 'soda' or 'beer', then 'coin_inserted' must have been true in the past.
+    // This is a past-time LTL property.
+    property drink_after_coin = [](current_state == soda || current_state == beer -> once(coin_inserted));
+
+    control {
+        v = check_ltl(drink_after_coin);
+        print_results;
+    }
+}

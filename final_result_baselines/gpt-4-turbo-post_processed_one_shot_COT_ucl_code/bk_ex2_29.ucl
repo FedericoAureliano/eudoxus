@@ -1,0 +1,71 @@
+module BCR {
+  var BCR_state : boolean;
+
+  init {
+    BCR_state = false; // State 0
+  }
+
+  next {
+    if (BCR_state == false) { // State 0
+      BCR_state' = true; // Transition to State 1 on scanning
+    } else {
+      BCR_state' = false; // Transition to State 0 after sending data
+    }
+  }
+}
+
+module BP {
+  var BP_state : boolean;
+
+  init {
+    BP_state = false; // State 0
+  }
+
+  next {
+    if (BP_state == false && BCR_state) { // Transition to State 1 on receiving data
+      BP_state' = true;
+    } else if (BP_state == true) { // Transition to State 0 after sending print command
+      BP_state' = false;
+    }
+  }
+}
+
+module Printer {
+  var Printer_state : boolean;
+
+  init {
+    Printer_state = false; // State 0
+  }
+
+  next {
+    if (Printer_state == false && BP_state) { // Transition to State 1 on receiving print command
+      Printer_state' = true;
+    } else if (Printer_state == true) { // Transition to State 0 after printing
+      Printer_state' = false;
+    }
+  }
+}
+
+module main {
+  instance bcr : BCR;
+  instance bp : BP;
+  instance printer : Printer;
+
+  init {
+    bcr.BCR_state = false;
+    bp.BP_state = false;
+    printer.Printer_state = false;
+  }
+
+  next {
+    bcr.next;
+    bp.next;
+    printer.next;
+  }
+
+  control {
+    v = unroll(10);
+    check;
+    print_results;
+  }
+}

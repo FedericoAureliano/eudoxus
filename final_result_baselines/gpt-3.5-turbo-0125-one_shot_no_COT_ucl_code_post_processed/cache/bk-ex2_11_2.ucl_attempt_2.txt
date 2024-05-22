@@ -1,0 +1,194 @@
+system :: You are an expert in program verification (hoare logic style). You are an expert user of UCLID5 which is a state transition modeling language. You will be given a description of a task and asked to write code.
+====================
+user :: Please write code in Uclid5 to model the following description:
+
+  This UCLID5 model, inspired by Lee & Seshia's "Introduction to Embedded Systems," simulates interactions between processes to evaluate confidentiality through non-interference simulations. It features two modules, `process1` and `process2`, each handling inputs and outputs differently based on internal states and external inputs. `process1` uses a simple state and toggles its output based on the negation of a public input, while `process2` incorporates a more complex state transition system that toggles outputs based on both secret and public inputs. The main module orchestrates interactions between instances of these processes under controlled conditions, ensuring that the output remains consistent across different runs despite variations in secret inputs. This setup is used for bounded model checking to analyze potential security vulnerabilities or to demonstrate non-interference, with functionalities to unroll process behaviors up to five times and print counterexamples for detailed analysis.
+
+
+====================
+assistant :: Certainly!
+  ```
+
+  /*
+  * Based on an example from Lee & Seshia, "Introduction to Embedded Systems", Chapter 17 on Security
+  */
+  module process1
+  {
+    type pc_t = enum { A };
+
+    var pc : pc_t;
+    input s : boolean; // secret input
+    input x : boolean; // public input
+    output z: boolean; // public output
+
+    init {
+      pc = A;
+      z = false;
+    }
+
+    next {
+      z' = !x;
+    }
+
+  }
+
+  module process2
+  {
+    type pc_t = enum { B, C };
+
+    var pc : pc_t;
+    input s : boolean; // secret input
+    input x : boolean; // public input
+    output z: boolean; // public output
+
+    procedure next_state()
+      modifies z;
+      modifies pc;
+    {
+      case
+        (pc == B) && s && !x : { pc = C; z = true; }
+        (pc == C) && s && !x : { pc = B; z = false; }
+      esac
+    }
+
+    init {
+      pc = B;
+      z = false;
+    }
+
+    next {
+      call next_state();
+    }
+  }
+
+
+  module main
+  {
+    type t1pc_t = process1.pc_t;
+    type t2pc_t = process2.pc_t;
+
+    var x1,x2 : boolean;
+    var s1,s2 : boolean;
+    var z1,z2 : boolean;
+
+  /*
+    instance p11 : process1(z: (z1), s : (s1), x : (x1));
+    instance p12 : process1(z: (z2), s : (s2), x : (x2));
+  */
+
+  /*
+  */
+    instance p21 : process2(z: (z1), s : (s1), x : (x1));
+    instance p22 : process2(z: (z2), s : (s2), x : (x2));
+
+    init {
+      havoc x1; havoc x2;
+      havoc s1; havoc s2;
+      assume(x1 == x2);
+    }
+
+    next {
+      havoc x1; havoc x2;
+      havoc s1; havoc s2;
+      assume(x1' == x2');
+      // next(p11); next(p12);
+      next(p21); next(p22);
+    }
+
+    invariant same_output_z : (z1 == z2);
+
+
+    control {
+      // *** BASIC ASSERTIONS/INVARIANT
+  /*
+  */
+      v = unroll(5);
+      check;
+      print_results;
+      //v.print_cex(x1,x2,s1,s2,z1,z2,p11.pc,p12.pc);
+      v.print_cex(x1,x2,s1,s2,z1,z2,p21.pc,p22.pc);
+
+  /*
+      // *** INDUCTION
+      v = induction(1);
+      check;
+      print_results;
+      v.print_cex(x1,x2,s1,s2,z1,z2,p11.pc,p12.pc);
+  */
+    }
+  }
+
+  ```
+
+====================
+user :: Please write code in Uclid5 to model the following description:
+  Consider the circuit diagram of the sequential circuit with input variable x, output variable y, and register r.
+
+The output variable y is given by the negation of x xor r.
+
+The register evaluation r changes according to the circuit function next_r = x OR r.
+
+Note that once the register evaluation is [r = 1], r keeps that value.
+
+Model the circuit behaviour with a transition system where each state corresponds to an evaluation of x and r, and the initial valuation of r is 0.
+
+There are two initial states:
+S1: x=0, r=0
+S2: x=1, r=0
+
+
+Write an LTL property that checks that the output bit y is set infinitely often. You may use auxiliary variables.
+
+Use the variable names x, y and r.
+
+====================
+assistant :: Sure! Here is the Uclid5 code that models the sequential circuit behavior and checks the LTL property:
+
+```uclid
+module sequential_circuit {
+    var x : boolean;
+    var y : boolean;
+    var r : boolean;
+
+    init {
+        r = false;
+    }
+
+    next {
+        r' = x | r;
+        y = !(x ^ r);
+    }
+}
+
+module main {
+    var s1_x : boolean;
+    var s1_r : boolean;
+
+    var s2_x : boolean;
+    var s2_r : boolean;
+
+    var aux : boolean; // auxiliary variable to track if y is set infinitely often
+
+    instance seq_circuit : sequential_circuit(x, y, r);
+
+    init {
+        s1_x = false;
+        s1_r = false;
+        s2_x = true;
+        s2_r = false;
+    }
+
+    next {
+        next(seq_circuit);
+        aux = y;
+    }
+
+    invariant y_infinitely_often : []<>(aux);
+}
+
+```
+
+In this code, the `sequential_circuit` module models the behavior of the sequential circuit with input `x`, output `y`, and register `r` following the given circuit diagram.
+
+The `main` module initializes two initial states `S1` and `S2` with different values of `x` and `r`. It then instantiates the `sequential_circuit` module and checks the LTL property `y_infinitely_often` that ensures the output bit `y` is set infinitely often.
+====================

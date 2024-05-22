@@ -1,0 +1,80 @@
+module train {
+  type state_t = enum { far, near, in };
+  var state : state_t;
+
+  init {
+    state = far;
+  }
+
+  next {
+    if (state == far) {
+      state' = near;
+    } else if (state == near) {
+      state' = in;
+    } else if (state == in) {
+      state' = far;
+    }
+  }
+}
+
+module gate {
+  type state_t = enum { up, down };
+  var state : state_t;
+
+  init {
+    state = up;
+  }
+
+  next {
+    if (controller_state == 1) {
+      state' = down;
+    } else if (controller_state == 3) {
+      state' = up;
+    }
+  }
+}
+
+module controller {
+  type state_t = enum { s0, s1, s2, s3 };
+  var state : state_t;
+
+  init {
+    state = s0;
+  }
+
+  next {
+    if (state == s0 && train_state == near) {
+      state' = s1;
+    } else if (state == s1) {
+      state' = s2;
+    } else if (state == s2 && train_state == in) {
+      state' = s3;
+    } else if (state == s3) {
+      state' = s0;
+    }
+  }
+}
+
+module main {
+  var train_state : train.state_t;
+  var gate_state : gate.state_t;
+  var controller_state : controller.state_t;
+
+  instance trainInst : train;
+  instance gateInst : gate;
+  instance controllerInst : controller;
+
+  init {
+    train_state = trainInst.state;
+    gate_state = gateInst.state;
+    controller_state = controllerInst.state;
+  }
+
+  next {
+    train_state' = trainInst.state';
+    gate_state' = gateInst.state';
+    controller_state' = controllerInst.state';
+  }
+
+  invariant safety_property : (train_state == in) -> (gate_state == down);
+}

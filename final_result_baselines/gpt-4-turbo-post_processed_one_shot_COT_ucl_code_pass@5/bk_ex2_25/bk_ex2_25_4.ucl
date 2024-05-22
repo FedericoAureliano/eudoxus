@@ -1,0 +1,78 @@
+module main {
+  type location_t = {noncritical, waiting, critical};
+  var b1 : boolean;
+  var b2 : boolean;
+  var x : [1..2];
+
+  // Process 1 state and transitions
+  var p1_state : location_t;
+
+  init {
+    p1_state = noncritical;
+    b1 = false;
+    b2 = false;
+    x = 1; // arbitrarily chosen initial value
+  }
+
+  next(p1_state) {
+    case
+      p1_state == noncritical : {
+        if (*) { // non-deterministic choice to enter waiting
+          b1' = true;
+          x' = 2;
+          return waiting;
+        } else {
+          return noncritical;
+        }
+      }
+      p1_state == waiting : {
+        if (x == 1 || !b2) {
+          return critical;
+        } else {
+          return waiting;
+        }
+      }
+      p1_state == critical : {
+        b1' = false;
+        return noncritical;
+      }
+    esac
+  }
+
+  // Process 2 state and transitions
+  var p2_state : location_t;
+
+  next(p2_state) {
+    case
+      p2_state == noncritical : {
+        if (*) { // non-deterministic choice to enter waiting
+          b2' = true;
+          x' = 1;
+          return waiting;
+        } else {
+          return noncritical;
+        }
+      }
+      p2_state == waiting : {
+        if (x == 2 || !b1) {
+          return critical;
+        } else {
+          return waiting;
+        }
+      }
+      p2_state == critical : {
+        b2' = false;
+        return noncritical;
+      }
+    esac
+  }
+
+  // Safety property
+  invariant mutual_exclusion : !(p1_state == critical && p2_state == critical);
+
+  // Control for simulation
+  control {
+    v = simulate(10);
+    print_trace;
+  }
+}

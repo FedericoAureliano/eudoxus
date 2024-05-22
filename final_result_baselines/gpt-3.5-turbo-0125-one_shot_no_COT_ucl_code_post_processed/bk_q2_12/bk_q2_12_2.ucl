@@ -1,0 +1,58 @@
+c
+module LeaderElection(n : int)
+{
+    type process_id_t = 1..n;
+    type message_t = int;
+
+    var id : process_id_t; // Unique identifier for each process
+    var m : message_t; // Message sent or received by the process
+
+    var channel : array process_id_t of message_t; // Channel to neighbors
+
+    procedure send_msg(dest : process_id_t, msg : message_t)
+    {
+        channel[dest] := msg;
+    }
+
+    procedure recv_msg(sender : process_id_t) : message_t
+    {
+        return channel[sender];
+    }
+
+    procedure process()
+    {
+        send_msg((id % n) + 1, id); // Send own id to the next process
+        while (true)
+        {
+            m := recv_msg((id - 1 + n) % n + 1); // Receive message from the previous process
+
+            if (m == id)
+            {
+                break; // Stop if received own id
+            }
+            else if (m > id)
+            {
+                send_msg((id % n) + 1, m); // Forward the message to the next process
+            }
+        }
+    }
+
+    init
+    {
+        id := 1; // Initialize process id
+        m := 0; // Initialize message
+
+        foreach i in process_id_t do
+        {
+            channel[i] := 0; // Initialize channels
+        }
+    }
+
+    next
+    {
+        process(); // Execute the leader election algorithm
+    }
+}
+
+
+This code models the leader election protocol for `n` processes in a ring topology using channels to communicate between neighboring processes. Each process sends its id to the next process and then forwards messages until the process with the highest id is elected as the leader.

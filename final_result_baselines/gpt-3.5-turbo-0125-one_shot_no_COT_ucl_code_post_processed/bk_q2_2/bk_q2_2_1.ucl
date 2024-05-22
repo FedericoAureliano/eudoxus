@@ -1,0 +1,81 @@
+
+module process
+{
+  type action_t = enum { LOAD, INC, STORE };
+
+  var x : int;
+
+  procedure LOAD(x : int)
+    modifies x;
+  {
+    x := x;
+  }
+
+  procedure INC(x : int)
+    modifies x;
+  {
+    x := x + 1;
+  }
+
+  procedure STORE(x : int)
+    modifies x;
+  {
+    x := x;
+  }
+
+  procedure process1()
+    modifies x;
+  {
+    var i : int;
+    for (i := 1 to 10) {
+      LOAD(x);
+      INC(x);
+      STORE(x);
+    }
+  }
+
+  procedure process2()
+    modifies x;
+  {
+    var i : int;
+    for (i := 1 to 10) {
+      LOAD(x);
+      INC(x);
+      STORE(x);
+    }
+  }
+
+  procedure process3()
+    modifies x;
+  {
+    var i : int;
+    for (i := 1 to 10) {
+      LOAD(x);
+      INC(x);
+      STORE(x);
+    }
+  }
+}
+
+module main
+{
+  var x : int;
+
+  procedure parallel_program()
+    modifies x;
+  {
+    x := 0;
+    call process.process1();
+    call process.process2();
+    call process.process3();
+  }
+
+  init {
+    parallel_program();
+  }
+
+  property check_terminal_value()
+  {
+    assert x == 2;
+  }
+}

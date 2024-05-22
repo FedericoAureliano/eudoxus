@@ -1,0 +1,65 @@
+module process1 {
+  var b1 : boolean;
+  var b2 : boolean;
+  var x : int;
+
+  init {
+    b1 = false;
+    b2 = false;
+    x = 1; // Initially giving the turn to P1 arbitrarily
+  }
+
+  next {
+    if (b1 == false) {
+      b1' = true;
+      x' = 2;
+    } else if ((x == 1 || !b2) && b1) {
+      // Enter critical section
+      b1' = false; // Exiting critical section
+    }
+  }
+}
+
+module process2 {
+  var b1 : boolean;
+  var b2 : boolean;
+  var x : int;
+
+  next {
+    if (b2 == false) {
+      b2' = true;
+      x' = 1;
+    } else if ((x == 2 || !b1) && b2) {
+      // Enter critical section
+      b2' = false; // Exiting critical section
+    }
+  }
+}
+
+module main {
+  var b1 : boolean;
+  var b2 : boolean;
+  var x : int;
+
+  instance p1 : process1(b1, b2, x);
+  instance p2 : process2(b1, b2, x);
+
+  init {
+    b1 = false;
+    b2 = false;
+    x = 1; // Initial turn to P1
+  }
+
+  next {
+    next(p1);
+    next(p2);
+  }
+
+  invariant mutual_exclusion : !(b1 && b2);
+}
+
+control {
+  v = unroll(10);
+  check;
+  print_results;
+}

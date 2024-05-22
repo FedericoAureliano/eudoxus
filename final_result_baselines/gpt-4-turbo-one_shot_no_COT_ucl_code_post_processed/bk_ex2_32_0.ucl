@@ -1,0 +1,101 @@
+module sender
+{
+  type msg_t;
+  var m : msg_t;
+  var b : boolean;
+  var waiting_for_ack : boolean;
+
+  input c_send_success : boolean;
+  input d_ack : boolean;
+
+  procedure send_message(new_m : msg_t)
+    modifies m, b, waiting_for_ack;
+  {
+    m = new_m;
+    b = !b;
+    waiting_for_ack = true;
+  }
+
+  procedure handle_ack()
+    modifies waiting_for_ack;
+  {
+    if (d_ack == b) {
+      waiting_for_ack = false;
+    }
+  }
+
+  init {
+    b = false;
+    waiting_for_ack = false;
+  }
+
+  next {
+    if (waiting_for_ack) {
+      if (d_ack == b) {
+        waiting_for_ack = false;
+        // Prepare next message with toggled control bit
+        b = !b;
+      } else if (!c_send_success) {
+        // Timeout or failed send, retransmit
+        waiting_for_ack = true;
+      }
+    }
+  }
+}
+
+module receiver
+{
+  type msg_t;
+  var m : msg_t;
+  var b : boolean;
+  input c_msg : msg_t;
+  input c_b : boolean;
+  output d : boolean;
+
+  procedure receive_message()
+    modifies m, b, d;
+  {
+    m = c_msg;
+    b = c_b;
+    d = b; // Acknowledge with the received control bit
+  }
+
+  init {
+    b = false;
+  }
+
+  next {
+    if (c_msg != m || c_b != b) {
+      call receive_message();
+    }
+  }
+}
+
+module main
+{
+  type msg_t = int;
+  var c_msg : msg_t;
+  var c_b : boolean;
+  var c_send_success : boolean;
+  var d_ack : boolean;
+
+  instance S : sender(m: c_msg, b: c_b, c_send_success: c_send_success, d_ack: d_ack);
+  instance R : receiver(c_msg: c_msg, c_b: c_b, d: d_ack);
+
+  init {
+    c_send_success = true; // Initially assume success
+  }
+
+  next {
+    // Simulate channel behavior
+    havoc c_send_success; // Channel c can randomly fail to send
+    next(S);
+    next(R);
+  }
+}
+
+control {
+  v = unroll(10);
+  check;
+  print_results;
+}

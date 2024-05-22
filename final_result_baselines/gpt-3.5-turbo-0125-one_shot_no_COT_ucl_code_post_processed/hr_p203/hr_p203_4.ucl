@@ -1,0 +1,70 @@
+uclid
+module abp {
+    type control_t = enum { C0, C1 };
+    type state_t = enum { WAIT0, WAIT1, SEND0, SEND1 };
+
+    var st : state_t;
+    var message1, message2 : bool;
+    var ack : control_t;
+
+    init {
+        st = WAIT0;
+        message1 = false;
+        message2 = false;
+        ack = C0;
+    }
+
+    transition {
+        case
+            st == WAIT0 && message1 : { st = SEND0; message1 = false; }
+            st == WAIT1 && message2 : { st = SEND1; message2 = false; }
+            st == SEND0 && ack == C0 : { st = WAIT1; ack = C1; }
+            st == SEND1 && ack == C1 : { st = WAIT0; ack = C0; }
+        esac
+    }
+
+    procedure sender() {
+        assume(st == SEND0 || st == SEND1);
+        assert(message1 == true || message2 == true);
+        assert(ack == C0 || ack == C1);
+    }
+
+    procedure receiver() {
+        assume(st == WAIT0 || st == WAIT1);
+        assert(message1 == false && message2 == false);
+        assert(ack == C0 || ack == C1);
+    }
+
+    procedure channel() {
+        assume((st == SEND0 && message1 == true) || (st == SEND1 && message2 == true));
+        assert((st == SEND0 && message2 == false) || (st == SEND1 && message1 == false));
+    }
+
+    procedure acknowledgement() {
+        assume((st == SEND0 && ack == C0) || (st == SEND1 && ack == C1));
+        assert((st == WAIT0 && ack == C1) || (st == WAIT1 && ack == C0));
+    }
+
+}
+
+module main {
+    instance abp_sys : abp;
+
+    init {
+        abp_sys.message1 = true;
+    }
+
+    next {
+        abp_sys.transition;
+    }
+
+    control {
+        abp_sys.sender();
+        abp_sys.receiver();
+        abp_sys.channel();
+        abp_sys.acknowledgement();
+    }
+}
+
+
+In this code, the `abp` module models the Alternating Bit Protocol with the necessary variables and transitions. The `main` module initializes the protocol with a message and checks the properties related to sender, receiver, channel, and acknowledgment behaviors.

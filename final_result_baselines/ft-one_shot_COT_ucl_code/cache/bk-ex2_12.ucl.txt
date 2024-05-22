@@ -1,0 +1,300 @@
+system :: You're an expert in writing uclid5 models.You will be given a docstring and asked to write a model. Remember uclid5 is a state machine language and has it's own specific syntax.
+====================
+user :: Write a uclid5 model for the following description:
+    This UCLID5 model simulates a process interaction environment to evaluate confidentiality properties through non-interference simulations, inspired by an example in Chapter 17 on Security from "Introduction to Embedded Systems" by Lee & Seshia. The model consists of two types of process modules (`process1` and `process2`) and a main module that orchestrates the interaction between instances of these processes.
+
+    Process Modules:
+    1. `process1`: This module captures a simplified process that reflects non-deterministic behavior based on public input. It uses an enumerated type `pc_t` with a single state `A`. It has:
+        - Inputs:
+        * `s`: A boolean representing a secret input.
+        * `x`: A boolean representing a public input.
+        - Output:
+        * `z`: A boolean public output that toggles based on the inverse of input `x`.
+        - Behavior:
+        * The process starts in state `A` and outputs `z` as `false` initially.
+        * In subsequent cycles, the output `z` becomes the negation of `x`.
+
+    2. `process2`: This module is a more complex process with an internal state machine described using state enum `pc_t` with states `B` and `C`. It demonstrates state-dependent output behavior.
+        - Inputs are the same as in `process1`.
+        - Output and state transitions:
+        * The process starts in state `B` with the output `z` as `false`.
+        * Based on the input combination (state, `s`, and `x`), the process transitions between states `B` and `C`, toggling the output `z`.
+        * The transitions are specifically:
+            - From `B` to `C` (output `z` is set to `true`) when `s` is true and `x` is false.
+            - From `C` back to `B` (output `z` is reset to `false`) under the same input conditions.
+
+    Main Module:
+    - Sets up instances of `process2` (`p21` and `p22`) to interact under controlled input conditions.
+    - Inputs `x1`, `x2` (public), and `s1`, `s2` (secret) are used for driving the process instances.
+    - Controls non-determinism by initially assuming both `x1` and `x2` are equal, and it maintains this assumption in all subsequent states.
+    - Evaluates confidentiality by asserting the invariant `same_output_z`, ensuring that outputs `z1` and `z2` of both process instances are always equal, thereby checking for consistent behavior across different runs with potentially varying secret inputs.
+
+    Control:
+    - The control block is used to perform bounded model checking and to produce counterexamples. It specifies that up to 5 unrolling should be checked.
+    - The `print_cex` function is used for displaying counterexamples for the states of inputs and outputs along with the internal state of `process2` instances (`p21` and `p22`).
+
+    This model is particularly useful for demonstrating the effects of secret data manipulations on the outputs, which can be analyzed to study security vulnerability or proof of non-interference in systems.
+
+====================
+assistant :: module process1
+    {
+    type pc_t = enum { A };
+
+    var pc : pc_t;
+    input s : boolean; // secret input
+    input x : boolean; // public input
+    output z: boolean; // public output
+
+    init {
+        pc = A;
+        z = false;
+    }
+
+    next {
+        z' = !x;
+    }
+
+    }
+
+    module process2
+    {
+    type pc_t = enum { B, C };
+
+    var pc : pc_t;
+    input s : boolean; // secret input
+    input x : boolean; // public input
+    output z: boolean; // public output
+
+    procedure next_state()
+        modifies z;
+        modifies pc;
+    {
+        case
+        (pc == B) && s && !x : { pc = C; z = true; }
+        (pc == C) && s && !x : { pc = B; z = false; }
+        esac
+    }
+
+    init {
+        pc = B;
+        z = false;
+    }
+
+    next {
+        call next_state();
+    }
+    }
+
+
+    module main
+    {
+    type t1pc_t = process1.pc_t;
+    type t2pc_t = process2.pc_t;
+
+    var x1,x2 : boolean;
+    var s1,s2 : boolean;
+    var z1,z2 : boolean;
+
+    /*
+    instance p11 : process1(z: (z1), s : (s1), x : (x1));
+    instance p12 : process1(z: (z2), s : (s2), x : (x2));
+    */
+
+    /*
+    */
+    instance p21 : process2(z: (z1), s : (s1), x : (x1));
+    instance p22 : process2(z: (z2), s : (s2), x : (x2));
+
+    init {
+        havoc x1; havoc x2;
+        havoc s1; havoc s2;
+        assume(x1 == x2);
+    }
+
+    next {
+        havoc x1; havoc x2;
+        havoc s1; havoc s2;
+        assume(x1' == x2');
+        // next(p11); next(p12);
+        next(p21); next(p22);
+    }
+
+    invariant same_output_z : (z1 == z2);
+
+
+    control {
+        // *** BASIC ASSERTIONS/INVARIANT
+    /*
+    */
+        v = unroll(5);
+        check;
+        print_results;
+        //v.print_cex(x1,x2,s1,s2,z1,z2,p11.pc,p12.pc);
+        v.print_cex(x1,x2,s1,s2,z1,z2,p21.pc,p22.pc);
+
+    /*
+        // *** INDUCTION
+        v = induction(1);
+        check;
+        print_results;
+        v.print_cex(x1,x2,s1,s2,z1,z2,p11.pc,p12.pc);
+    */
+    }
+    }
+====================
+user :: Write a uclid5 model for the following description:
+To model the described beverage vending machine in UCLID5, we will outline the modules, variables, transitions, and control logic necessary to simulate its behavior. Here's a structured approach to building this model:
+
+--OUTLINE--
+
+1. **Module Definition**:
+   - Define a module named `VendingMachine` representing the vending machine.
+
+2. **State Variables**:
+   - `nsoda`: Integer variable to store the number of soda bottles.
+   - `nbeer`: Integer variable to store the number of beer bottles.
+   - `location`: Enum type variable with values `start` and `select` to represent the current state of the machine.
+
+3. **Constants**:
+   - `max`: Integer constant representing the maximum capacity of soda and beer bottles in the machine.
+
+4. **Initial State**:
+   - Initialize `nsoda` and `nbeer` to `0`.
+   - Set `location` to `start`.
+
+5. **Transitions**:
+   - **Coin Insertion**:
+     - From `start` to `select` when a coin is inserted (`coin` action).
+     - This transition doesn't change `nsoda` or `nbeer`.
+   - **Refill**:
+     - Self-transition on `start` when the `refill` action is triggered.
+     - Sets `nsoda` and `nbeer` to `max`.
+   - **Selecting Soda**:
+     - From `select` to `start` when `nsoda > 0` and the `sget` action is taken.
+     - Decreases `nsoda` by 1.
+   - **Selecting Beer**:
+     - From `select` to `start` when `nbeer > 0` and the `bget` action is taken.
+     - Decreases `nbeer` by 1.
+   - **Return Coin**:
+     - From `select` to `start` when both `nsoda` and `nbeer` are `0` (`ret_coin` action).
+     - This transition does not change `nsoda` or `nbeer`.
+
+6. **Control Logic**:
+   - Use guarded commands to model the transitions.
+   - Example:
+     ```
+     if (location == start && coin) {
+       location := select;
+     } else if (location == start && refill) {
+       nsoda := max;
+       nbeer := max;
+     } else if (location == select && nsoda > 0 && sget) {
+       nsoda := nsoda - 1;
+       location := start;
+     } else if (location == select && nbeer > 0 && bget) {
+       nbeer := nbeer - 1;
+       location := start;
+     } else if (location == select && nsoda == 0 && nbeer == 0 && ret_coin) {
+       location := start;
+     }
+     ```
+
+7. **Assertions and Properties**:
+   - Verify properties such as:
+     - The machine should never have negative numbers of soda or beer.
+     - Actions like `sget` and `bget` should only be allowed if `nsoda > 0` and `nbeer > 0` respectively.
+
+8. **Verification**:
+   - Use UCLID5's verification capabilities to check the correctness of the model against the specified properties.
+
+9. **Simulation**:
+   - Optionally, define a simulation block to demonstrate how the machine behaves under various sequences of actions.
+
+This outline provides a structured framework for implementing the vending machine in UCLID5, ensuring that all functionalities are accurately represented and that the model can be used for verification or simulation purposes.
+====================
+assistant :: module VendingMachine
+{
+    var nsoda, nbeer : integer;
+    var location     : { start, select } ;
+    const max        : integer = 2;
+
+    init {
+        nsoda = 0;
+        nbeer = 0;
+        location = start;
+    }
+
+    next {
+        if (location == start && coin) {
+            location := select;
+        } else if (location == start && refill) {
+            nsoda := max;
+            nbeer := max;
+        } else if (location == select && nsoda > 0 && sget) {
+            nsoda := nsoda - 1;
+            location := start;
+        } else if (location == select && nbeer > 0 && bget) {
+            nbeer := nbeer - 1;
+            location := start;
+        } else if (location == select && nsoda == 0 && nbeer == 0 && ret_coin) {
+            location := start;
+        }
+    }
+
+    // Properties
+    property no_negative_soda : nsoda >= 0;
+    property no_negative_beer : nbeer >= 0;
+    property soda_only_if_positive : (nsoda > 0) ==> sget;
+    property beer_only_if_positive : (nbeer > 0) ==> bget;
+
+    // Invariants
+    // invariant no_negative_soda : nsoda >= 0;
+    // invariant no_negative_beer : nbeer >= 0;
+    // invariant soda_only_if_positive : (nsoda > 0) ==> sget;
+    // invariant beer_only_if_positive : (nbeer > 0) ==> bget;
+
+    // Control
+    control
+    {
+        // print_module;
+        v = verify[invgen](scope: module, max_inv_depth: 3);
+        check;
+        // v = verify[invgen];
+        // v = verify;
+        // v = verify[invgen];
+        // v = verify[invgen, trace];
+        // v = verify[invgen, trace, smt2];
+        // v = verify[invgen, trace, smt2, node];
+        // v = verify[invgen, trace, smt2, node, json];
+        // v = verify[invgen, trace, smt2, node, json, print];
+        // v = verify[invgen, trace, smt2, node, json, print, smt2_script];
+        // v = verify[invgen, trace, smt2, node, json, print, smt2_script, json_script];
+        // v = verify[invgen, trace, smt2, node, json, print, smt2_script, json_script, cex];
+        // v = verify[invgen, trace, smt2, node, json, print, smt2_script, json_script, cex, print_cex];
+        // v = verify[invgen, trace, smt2, node, json, print, smt2_script, json_script, cex, print_cex, json_cex];
+        print_results;
+        // v.print_cex(nsoda, nbeer, sget, bget, ret_coin, location);
+    }
+}
+
+// module main
+// {
+//     instance vm : VendingMachine();
+
+//     init {
+//         assume (true);
+//     }
+
+//     next {
+//         next (vm);
+//     }
+
+//     control {
+//         v = verify;
+//         check;
+//         print_results;
+//         v.print_cex(vm.nsoda, vm.nbeer, vm.sget, vm.bget, vm.ret_coin, vm.location);
+//     }
+// }
+
+====================

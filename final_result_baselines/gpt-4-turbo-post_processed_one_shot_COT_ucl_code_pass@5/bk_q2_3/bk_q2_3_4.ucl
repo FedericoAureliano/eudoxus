@@ -1,0 +1,59 @@
+module TrafficLight {
+  type State = enum { green, yellow, red, amber };
+  var state : State;
+
+  init {
+    state = red;
+  }
+
+  procedure next_state()
+  modifies state;
+  {
+    match(state) {
+      green: state = yellow;
+      yellow: state = red;
+      red: state = amber;
+      amber: state = green;
+    }
+  }
+}
+
+module Controller {
+  var L1, L2, L3, L4 : TrafficLight.State;
+
+  init {
+    L1 = red; L2 = red; L3 = red; L4 = red;
+  }
+
+  procedure update_lights()
+  modifies L1, L2, L3, L4;
+  {
+    if (L1 == amber && L3 == amber) {
+      L1 = green; L3 = green;
+      L2 = red; L4 = red;
+    } else if (L1 == yellow && L3 == yellow) {
+      L1 = red; L3 = red;
+      L2 = green; L4 = red;
+    } else if (L2 == yellow) {
+      L2 = red;
+      L4 = green;
+    } else if (L4 == yellow) {
+      L4 = red;
+      L1 = amber; L3 = amber;
+    }
+  }
+}
+
+module main {
+  var ctrl : Controller;
+
+  init {
+    ctrl.L1 = red; ctrl.L2 = red; ctrl.L3 = red; ctrl.L4 = red;
+  }
+
+  next {
+    call ctrl.update_lights();
+  }
+
+  invariant no_conflict : (ctrl.L1 != green || ctrl.L2 != green) && (ctrl.L3 != green || ctrl.L4 != green);
+}

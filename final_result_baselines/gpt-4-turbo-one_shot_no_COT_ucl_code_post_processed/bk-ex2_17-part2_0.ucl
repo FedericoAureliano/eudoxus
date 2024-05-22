@@ -1,0 +1,64 @@
+module traffic_light
+{
+  type state_t = enum { RED, GREEN };
+
+  var light : state_t;
+
+  init {
+    light = RED;
+  }
+
+  next {
+    // Toggle between RED and GREEN states
+    if (light == RED) {
+      light' = GREEN;
+    } else {
+      light' = RED;
+    }
+  }
+}
+
+module main
+{
+  type light1_t = traffic_light.state_t;
+  type light2_t = traffic_light.state_t;
+
+  var red1, green1, red2, green2 : boolean;
+
+  instance tl1 : traffic_light();
+  instance tl2 : traffic_light();
+
+  init {
+    red1 = (tl1.light == RED);
+    green1 = (tl1.light == GREEN);
+    red2 = (tl2.light == RED);
+    green2 = (tl2.light == GREEN);
+  }
+
+  next {
+    // Update the red and green indicators based on the light states
+    red1' = (tl1.light' == RED);
+    green1' = (tl1.light' == GREEN);
+    red2' = (tl2.light' == RED);
+    green2' = (tl2.light' == GREEN);
+
+    // Non-deterministically update the states of the traffic lights
+    if (red1 && red2) {
+      // Non-deterministic choice when both are red
+      if (*) {
+        next(tl1);
+      } else {
+        next(tl2);
+      }
+    } else {
+      next(tl1);
+      next(tl2);
+    }
+  }
+
+  control {
+    v = unroll(5);
+    check;
+    print_results;
+  }
+}

@@ -1,0 +1,132 @@
+uclid
+module alternating_bit_protocol
+{
+    type control_t = enum { ZERO, ONE };
+
+    var st : control_t; // control bit
+    var message1 : boolean; // message bit 1
+    var message2 : boolean; // message bit 2
+    var ack : control_t; // acknowledgement bit
+
+    const MAX_RETRIES : int = 3; // maximum number of retries before giving up
+
+    init {
+        st = ZERO;
+        message1 = false;
+        message2 = false;
+        ack = ZERO;
+    }
+
+    // Sender module
+    module sender {
+        var retries : int;
+
+        init {
+            retries = 0;
+        }
+
+        next {
+            if (st == ZERO && ack == ZERO) {
+                message1' = true;
+            } else if (st == ONE && ack == ONE) {
+                message2' = true;
+            }
+
+            if (ack == st) {
+                st' = (st == ZERO) ? ONE : ZERO;
+            } else {
+                retries' = retries + 1;
+            }
+
+            if (retries < MAX_RETRIES) {
+                ack' = st;
+            }
+        }
+    }
+
+    // Receiver module
+    module receiver {
+        var prev_ack : control_t;
+
+        init {
+            prev_ack = ZERO;
+        }
+
+        next {
+            if (message1 && st == ZERO) {
+                ack' = ZERO;
+            } else if (message2 && st == ONE) {
+                ack' = ONE;
+            }
+
+            if (ack != st) {
+                ack' = prev_ack;
+            }
+
+            prev_ack' = ack;
+        }
+    }
+
+    // Message channel module
+    module message_channel {
+        var lost : boolean;
+        var duplicate : boolean;
+
+        init {
+            lost = false;
+            duplicate = false;
+        }
+
+        next {
+            lost' = (rand() < 0.1); // 10% chance of message being lost
+            duplicate' = (rand() < 0.05); // 5% chance of message being duplicated
+        }
+    }
+
+    // Acknowledgement channel module
+    module ack_channel {
+        var lost : boolean;
+        var duplicate : boolean;
+
+        init {
+            lost = false;
+            duplicate = false;
+        }
+
+        next {
+            lost' = (rand() < 0.1); // 10% chance of acknowledgement being lost
+            duplicate' = (rand() < 0.05); // 5% chance of acknowledgement being duplicated
+        }
+    }
+
+    // Properties
+    property p1 {
+        always {
+            (sender.st == ZERO && receiver.st == ZERO && sender.ack == receiver.ack) ||
+            (sender.st == ONE && receiver.st == ONE && sender.ack == receiver.ack);
+        }
+    }
+
+    property p2 {
+        always {
+            (sender.st == ZERO && sender.message1) -> (receiver.ack == ZERO);
+            (sender.st == ONE && sender.message2) -> (receiver.ack == ONE);
+        }
+    }
+
+    property p3 {
+        always {
+            (receiver.ack == ZERO && receiver.prev_ack == ZERO) ||
+            (receiver.ack == ONE && receiver.prev_ack == ONE);
+        }
+    }
+
+    property p4 {
+        always {
+            sender.retries <= MAX_RETRIES;
+        }
+    }
+}
+
+
+This Uclid5 model captures the behavior of the alternating bit protocol with the sender, receiver, message channel, and acknowledgement channel modules. The properties `p1`, `p2`, `p3`, and `p4` check various aspects of the protocol to ensure that it behaves as described in the problem statement.

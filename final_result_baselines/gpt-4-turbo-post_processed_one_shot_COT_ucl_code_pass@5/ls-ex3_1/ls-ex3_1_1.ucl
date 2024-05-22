@@ -1,0 +1,41 @@
+module main {
+    // Declare input signals for arrival and departure of cars
+    input arrival : boolean;
+    input departure : boolean;
+
+    // Declare the counter to keep track of the number of cars in the garage
+    var counter : integer;
+
+    // Initialize the counter with an initial value i
+    init {
+        counter = 0; // Assuming the initial count i is 0 for simplicity, can be set to any integer
+    }
+
+    // Define the next state based on the input events
+    next {
+        if (arrival) {
+            counter' = counter + 1;
+        } else if (departure) {
+            // Ensure that the counter does not go below zero
+            counter' = (counter > 0) ? counter - 1 : 0;
+        } else {
+            counter' = counter;
+        }
+    }
+
+    // Output function to update the display
+    define update_display() : integer {
+        return counter;
+    }
+
+    // Safety property to ensure the counter never goes negative
+    invariant non_negative_counter : counter >= 0;
+
+    // Control for model checking
+    control {
+        // Setup model checking with unrolling up to 10 steps
+        v = unroll(10);
+        check;
+        print_results;
+    }
+}

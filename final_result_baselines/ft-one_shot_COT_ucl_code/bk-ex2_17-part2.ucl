@@ -1,0 +1,86 @@
+/* Two independent traffic lights.
+   Each light can be in one of two states: Red or Green.
+   Both lights cannot be green at the same time.
+ */
+
+module TrafficLight {
+    type light_state = enum { Red, Green };
+    var state : light_state;
+
+    init {
+        state = Red;
+    }
+
+    next {
+        case
+            state == Red   : { state' = Green; }
+            state == Green : { state' = Red; }
+        esac
+    }
+}
+
+module main {
+    instance tl1 : TrafficLight();
+    instance tl2 : TrafficLight();
+
+    var red1   : boolean;
+    var green1 : boolean;
+    var red2   : boolean;
+    var green2 : boolean;
+
+    init {
+        red1   = true;
+        green1 = false;
+        red2   = true;
+        green2 = false;
+    }
+
+    next {
+        next (tl1);
+        next (tl2);
+
+        red1'   = (tl1.state == Red);
+        green1' = (tl1.state == Green);
+        red2'   = (tl2.state == Red);
+        green2' = (tl2.state == Green);
+
+        case
+            // tl1 changes state
+            (tl1.state' != tl1.state) && (tl2.state' == tl2.state) : { assume false; }
+            // tl2 changes state
+            (tl1.state' == tl1.state) && (tl2.state' != tl2.state) : { assume false; }
+            // both change
+            (tl1.state' != tl1.state) && (tl2.state' != tl2.state) : { assume false; }
+        esac
+    }
+
+    // both cannot be green at the same time
+    safety {
+        (green1 && green2) ==> (red1 && red2);
+        (red1 && red2) ==> (!green1 || !green2);
+    }
+
+    // both must be either red or green
+    safety {
+        !(red1 && green1);
+        !(red2 && green2);
+        (red1 || green1);
+        (red2 || green2);
+    }
+
+    control {
+        // print_module;
+        // print_next;
+        // print_init;
+        // print_spec;
+        // print_system;
+        // print_invs;
+        // print_safety;
+        // print_properties;
+        // print_proof;
+        v = bmc(1);
+        check;
+        print_results;
+        // v.print_cex;
+    }
+}

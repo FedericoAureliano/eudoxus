@@ -1,0 +1,78 @@
+module process
+{
+  var id : int;
+  var m : int;
+  input send : bool;
+  output receive : bool;
+
+  init {
+    id = 0;
+    m = 0;
+    send = false;
+    receive = false;
+  }
+
+  next {
+    if (send) {
+      m' = id;
+    } else {
+      m' = m;
+    }
+  }
+}
+
+module main
+{
+  type m_t = int;
+  type id_t = int;
+
+  var n : int;
+  var i : int;
+  var id : array[id_t](m_t);
+  var m : array[m_t](m_t);
+  var send : array[bool](m_t);
+  var receive : array[bool](m_t);
+
+  var leader : id_t;
+  var elected : bool;
+
+  init {
+    n = 4;
+    i = 0;
+    leader = 0;
+    elected = false;
+    havoc id;
+    havoc m;
+    havoc send;
+    havoc receive;
+  }
+
+  next {
+    if (i < n) {
+      i' = i + 1;
+      send[i] = true;
+    } else {
+      i' = 0;
+      send[n] = false;
+    }
+    // receive[i] = true;
+    // receive[i'] = false;
+    if (receive[i]) {
+      if (m[i] = id[i]) {
+        elected = true;
+        leader = id[i];
+      } else {
+        if (m[i] > id[i]) {
+          send[i] = true;
+        } else {
+          send[i] = false;
+        }
+      }
+    }
+  }
+
+  control {
+    check;
+    print_results;
+  }
+}

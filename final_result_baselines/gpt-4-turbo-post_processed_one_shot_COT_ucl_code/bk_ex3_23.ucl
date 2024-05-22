@@ -1,0 +1,45 @@
+module traffic_light {
+    // Define the states of the traffic light
+    type color_t = enum { RED, GREEN, YELLOW };
+
+    // State variable to store the current color of the traffic light
+    var current_color : color_t;
+
+    // Auxiliary variable to keep track of the previous color
+    var previous_color : color_t;
+
+    // Initialize the traffic light to start at GREEN
+    init {
+        current_color = GREEN;
+        previous_color = GREEN; // Initial previous state can be arbitrary since no transition occurred yet
+    }
+
+    // Define the state transitions
+    next {
+        match (current_color)
+        {
+            GREEN: {
+                current_color' = YELLOW;
+                previous_color' = current_color;
+            }
+            YELLOW: {
+                current_color' = RED;
+                previous_color' = current_color;
+            }
+            RED: {
+                current_color' = GREEN;
+                previous_color' = current_color;
+            }
+        }
+    }
+
+    // Safety property: Every RED phase must be immediately preceded by a YELLOW phase
+    invariant safety_property : (current_color != RED) || (previous_color == YELLOW);
+
+    // Control block for model checking
+    control {
+        v = unroll(10); // Check for 10 transitions
+        check;
+        print_results;
+    }
+}

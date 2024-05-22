@@ -1,0 +1,59 @@
+module main {
+    // State variables
+    var ignition : boolean; // true if ignition is on
+    var buckled : boolean; // true if seat belt is buckled
+    var time : integer; // time in seconds since warning started
+    var warn : boolean; // true if warning (beeper and light) should be active
+    var nowarn : boolean; // true if no warning should be active
+
+    // Initial conditions
+    init {
+        ignition = false;
+        buckled = true;
+        time = 0;
+        warn = false;
+        nowarn = true;
+    }
+
+    // Event triggers
+    input warn_event : boolean;
+    input nowarn_event : boolean;
+
+    // Transition rules
+    next {
+        if (warn_event) {
+            warn = true;
+            nowarn = false;
+            time = 0;
+        }
+        if (nowarn_event) {
+            warn = false;
+            nowarn = true;
+        }
+        if (time >= 30) {
+            warn = false;
+        }
+        if (buckled) {
+            warn = false;
+        }
+        if (!ignition) {
+            warn = false;
+            nowarn = true;
+        }
+        time = time + 1;
+    }
+
+    // Invariant checks
+    invariant no_warn_when_buckled : (buckled -> !warn);
+    invariant warn_when_unbuckled : (!buckled & ignition -> warn);
+
+    // Control for simulation and bounded model checking
+    control {
+        v = unroll(60); // simulate for 60 seconds
+        check;
+        print_results;
+        if (!v.valid) {
+            v.print_cex();
+        }
+    }
+}

@@ -1,0 +1,50 @@
+
+module program
+{
+  type status_t = enum { ready, busy };
+
+  var request : boolean;
+  var status : status_t;
+
+  init {
+    status = ready;
+  }
+
+  next {
+    if (request) {
+      status' = busy;
+    }
+  }
+}
+
+module main
+{
+  var request : boolean;
+  var status : program.status_t;
+  var aux_status : program.status_t;
+
+  process main()
+  {
+    program.request := request;
+    program.status := status;
+    program.next;
+    aux_status := program.status;
+  }
+
+  property eventually_busy_when_request_true()
+  {
+    forall i: 0..10 {
+      if (request) {
+        if (i == 0) {
+          assert aux_status == busy;
+        }
+        else {
+          assert aux_status == busy || request == false;
+        }
+      }
+    }
+  }
+}
+
+
+In this code, the `program` module models the program with variables `request` and `status`. The `main` module sets the values of `request` and `status` for the program, runs the program for one step, and then stores the resulting status in `aux_status`. The property `eventually_busy_when_request_true` checks that if `request` is true, eventually `status` becomes `busy`.

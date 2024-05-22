@@ -1,0 +1,48 @@
+module thermostat
+{
+  // Define the thermostat state
+  type state_t = enum { HEATING, COOLING };
+
+  // Constants
+  const SETPOINT : real = 20.0;
+  const UPPER_LIMIT : real = 22.0;
+  const LOWER_LIMIT : real = 18.0;
+
+  // State variable
+  var state : state_t;
+
+  // Input temperature
+  input temp : real;
+
+  // Outputs
+  output heatOn : boolean;
+  output heatOff : boolean;
+
+  // Initialize the state based on the initial temperature
+  init {
+    if (temp <= SETPOINT) {
+      state = HEATING;
+    } else {
+      state = COOLING;
+    }
+    heatOn = false;
+    heatOff = false;
+  }
+
+  // Define the state transition and output logic
+  next {
+    // Transition logic
+    if (state == HEATING && temp >= UPPER_LIMIT) {
+      state' = COOLING;
+    } else if (state == COOLING && temp <= LOWER_LIMIT) {
+      state' = HEATING;
+    }
+
+    // Output logic
+    heatOn' = (state == COOLING && temp <= LOWER_LIMIT);
+    heatOff' = (state == HEATING && temp >= UPPER_LIMIT);
+  }
+
+  // Safety properties or invariants can be defined here if needed
+  // For example, ensuring the heater is not on when it should be off, and vice versa
+}

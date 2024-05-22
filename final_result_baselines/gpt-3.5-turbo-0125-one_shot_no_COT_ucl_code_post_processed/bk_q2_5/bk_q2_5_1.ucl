@@ -1,0 +1,48 @@
+
+module mutual_exclusion_protocol
+{
+    var s : int;
+    var y0, y1 : boolean;
+
+    process P0
+    {
+        loop {
+            noncritical_section;
+            (y0, s) := (true, 0);
+            wait_until((!y1 || s != 0));
+            critical_section;
+            y0 := false;
+        }
+    }
+
+    process P1
+    {
+        loop {
+            noncritical_section;
+            (y1, s) := (true, 1);
+            wait_until((!y0 || s != 1));
+            critical_section;
+            y1 := false;
+        }
+    }
+
+    init {
+        s = 1;
+        y0 = false;
+        y1 = false;
+    }
+
+    procedure noncritical_section() {}
+    procedure critical_section() {}
+
+    property mutual_exclusion_property {
+        always ((P0.critical_section && P1.critical_section) -> ((P0.y0 && P1.y1) || (!P0.y0 && !P1.y1)));
+    }
+
+    property starvation_freedom_property {
+        always ((P0.critical_section && P1.critical_section) -> (P0.y0 || P1.y1));
+    }
+}
+
+
+In this code, we have modeled the mutual exclusion protocol for processes P0 and P1, along with their non-critical and critical sections. We have also defined properties to check for mutual exclusion and starvation freedom within the protocol.

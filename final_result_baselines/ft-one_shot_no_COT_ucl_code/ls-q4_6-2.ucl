@@ -1,0 +1,72 @@
+module AutomobileFeature {
+    var warn : boolean;
+    var noWarn : boolean;
+    var time : integer;
+    var ignition : boolean;
+    var buckled : boolean;
+
+    init {
+        warn = false;
+        noWarn = false;
+        time = 0;
+        ignition = false;
+        buckled = true;
+    }
+
+    next {
+        if (ignition && !buckled && time < 30) {
+            warn' = true;
+            time' = time + 1;
+        } else {
+            warn' = false;
+            time' = 0;
+        }
+
+        if (warn && (buckled || time >= 30)) {
+            warn' = false;
+            time' = 0;
+        }
+
+        if (ignition && !buckled) {
+            noWarn' = true;
+        } else {
+            noWarn' = false;
+        }
+
+        if (!ignition || buckled) {
+            noWarn' = false;
+        }
+    }
+
+    procedure sensor(event : boolean)
+        modifies ignition;
+        modifies buckled;
+    {
+        if (!ignition && event) {
+            ignition' = true;
+        }
+
+        if (ignition && event) {
+            buckled' = false;
+        }
+
+        if (buckled && !event) {
+            buckled' = true;
+        }
+    }
+
+    control {
+        // Sensor events
+        sensor(true);
+        sensor(false);
+        sensor(true);
+        sensor(false);
+        sensor(true);
+        sensor(false);
+
+        // Check the properties
+        check warn;
+        check noWarn;
+        check time;
+    }
+}

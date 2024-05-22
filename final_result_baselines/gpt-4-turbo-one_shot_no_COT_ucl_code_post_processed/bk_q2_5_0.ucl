@@ -1,0 +1,68 @@
+module main {
+  // Shared and local variables
+  var s : int;
+  var y0 : boolean;
+  var y1 : boolean;
+
+  // Constants for the processes
+  const p0 : int = 0;
+  const p1 : int = 1;
+
+  // Initial conditions
+  init {
+    s = 1;
+    y0 = false;
+    y1 = false;
+  }
+
+  // Transition rules for process P0
+  next {
+    case
+      // Noncritical section
+      !y0: {
+        y0' = true;
+        s' = p0;
+      }
+      // Critical section
+      y0 && ((y1 == false) || (s != p0)): {
+        y0' = false;
+      }
+      // Default case
+      default: {
+        y0' = y0;
+        s' = s;
+      }
+    esac
+  }
+
+  // Transition rules for process P1
+  next {
+    case
+      // Noncritical section
+      !y1: {
+        y1' = true;
+        s' = p1;
+      }
+      // Critical section
+      y1 && ((y0 == false) || (s != p1)): {
+        y1' = false;
+      }
+      // Default case
+      default: {
+        y1' = y1;
+        s' = s;
+      }
+    esac
+  }
+
+  // Property: Mutual Exclusion
+  invariant mutual_exclusion : !(y0 && y1);
+
+  // Property: Starvation Freedom
+  invariant starvation_freedom : (y0 -> (y1 == false || s != p0)) && (y1 -> (y0 == false || s != p1));
+
+  control {
+    check;
+    print_results;
+  }
+}

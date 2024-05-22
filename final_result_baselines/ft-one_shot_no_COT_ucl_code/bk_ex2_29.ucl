@@ -1,0 +1,79 @@
+module BCR
+{
+  type pc_t = enum { S0, S1 };
+  var pc : pc_t;
+  input scan : boolean;
+  output data : boolean;
+
+  init {
+    pc = S0;
+    data = false;
+  }
+
+  next {
+    case
+      (pc == S0) && scan : { pc = S1; }
+      (pc == S1) : { pc = S0; data = true; }
+    esac
+  }
+
+}
+
+module BP
+{
+  type pc_t = enum { S0, S1 };
+  var pc : pc_t;
+  input data : boolean;
+  output print : boolean;
+
+  init {
+    pc = S0;
+    print = false;
+  }
+
+  next {
+    case
+      (pc == S0) && data : { pc = S1; print = true; }
+      (pc == S1) : { pc = S0; }
+    esac
+  }
+
+}
+
+module Printer
+{
+  type pc_t = enum { S0, S1 };
+  var pc : pc_t;
+  input print : boolean;
+  output printed : boolean;
+
+  init {
+    pc = S0;
+    printed = false;
+  }
+
+  next {
+    case
+      (pc == S0) && print : { pc = S1; }
+      (pc == S1) : { pc = S0; printed = true; }
+    esac
+  }
+
+}
+
+module main
+{
+  var BCR_state : BCR.pc_t;
+  var BP_state : BP.pc_t;
+  var Printer_state : Printer.pc_t;
+
+  instance bcr : BCR(pc: (BCR_state), scan : (true), data: (true));
+  instance bp : BP(pc: (BP_state), data : (true), print: (true));
+  instance printer : Printer(pc: (Printer_state), print : (true), printed: (true));
+
+  next {
+    next(bcr);
+    next(bp);
+    next(printer);
+  }
+}

@@ -1,0 +1,50 @@
+
+// Define a module for the shared variable and processes
+module parallel_program {
+    var x : int;
+
+    // Initialize x to 0
+    init {
+        x = 0;
+    }
+
+    // Define the actions for LOAD, INC, and STORE
+    procedure LOAD() returns (local_x : int) {
+        local_x = x;
+    }
+
+    procedure INC(local_x : int) returns (new_local_x : int) {
+        new_local_x = local_x + 1;
+    }
+
+    procedure STORE(new_local_x : int) {
+        x = new_local_x;
+    }
+
+    // Simulate the parallel execution of P1, P2, and P3
+    // This is a simplified representation and would need to be expanded to fully model parallelism
+    procedure simulate_parallel() {
+        var local_x : int;
+        var new_local_x : int;
+        var i : int;
+        for (i = 1; i <= 30; i = i + 1) {
+            local_x = LOAD();
+            new_local_x = INC(local_x);
+            STORE(new_local_x);
+        }
+    }
+
+    // Check if there exists an execution that halts with x=2
+    invariant check_x_equals_2 : x != 2;
+
+    control {
+        // Perform bounded model checking
+        v = unroll(30); // Assuming each process increments x 10 times
+        check;
+        print_results;
+        if (!v) {
+            // Print counterexample if the property is violated
+            print "Counterexample found where x != 2.";
+        }
+    }
+}

@@ -1,0 +1,237 @@
+system :: You are an expert in program verification (hoare logic style). You are an expert user of UCLID5 which is a state transition modeling language. You will be given a description of a task and asked to write code.
+====================
+user :: Please write code in Uclid5 to model the following description:
+
+  This UCLID5 model, inspired by Lee & Seshia's "Introduction to Embedded Systems," simulates interactions between processes to evaluate confidentiality through non-interference simulations. It features two modules, `process1` and `process2`, each handling inputs and outputs differently based on internal states and external inputs. `process1` uses a simple state and toggles its output based on the negation of a public input, while `process2` incorporates a more complex state transition system that toggles outputs based on both secret and public inputs. The main module orchestrates interactions between instances of these processes under controlled conditions, ensuring that the output remains consistent across different runs despite variations in secret inputs. This setup is used for bounded model checking to analyze potential security vulnerabilities or to demonstrate non-interference, with functionalities to unroll process behaviors up to five times and print counterexamples for detailed analysis.
+
+
+====================
+assistant :: Certainly!
+  ```
+
+  /*
+  * Based on an example from Lee & Seshia, "Introduction to Embedded Systems", Chapter 17 on Security
+  */
+  module process1
+  {
+    type pc_t = enum { A };
+
+    var pc : pc_t;
+    input s : boolean; // secret input
+    input x : boolean; // public input
+    output z: boolean; // public output
+
+    init {
+      pc = A;
+      z = false;
+    }
+
+    next {
+      z' = !x;
+    }
+
+  }
+
+  module process2
+  {
+    type pc_t = enum { B, C };
+
+    var pc : pc_t;
+    input s : boolean; // secret input
+    input x : boolean; // public input
+    output z: boolean; // public output
+
+    procedure next_state()
+      modifies z;
+      modifies pc;
+    {
+      case
+        (pc == B) && s && !x : { pc = C; z = true; }
+        (pc == C) && s && !x : { pc = B; z = false; }
+      esac
+    }
+
+    init {
+      pc = B;
+      z = false;
+    }
+
+    next {
+      call next_state();
+    }
+  }
+
+
+  module main
+  {
+    type t1pc_t = process1.pc_t;
+    type t2pc_t = process2.pc_t;
+
+    var x1,x2 : boolean;
+    var s1,s2 : boolean;
+    var z1,z2 : boolean;
+
+  /*
+    instance p11 : process1(z: (z1), s : (s1), x : (x1));
+    instance p12 : process1(z: (z2), s : (s2), x : (x2));
+  */
+
+  /*
+  */
+    instance p21 : process2(z: (z1), s : (s1), x : (x1));
+    instance p22 : process2(z: (z2), s : (s2), x : (x2));
+
+    init {
+      havoc x1; havoc x2;
+      havoc s1; havoc s2;
+      assume(x1 == x2);
+    }
+
+    next {
+      havoc x1; havoc x2;
+      havoc s1; havoc s2;
+      assume(x1' == x2');
+      // next(p11); next(p12);
+      next(p21); next(p22);
+    }
+
+    invariant same_output_z : (z1 == z2);
+
+
+    control {
+      // *** BASIC ASSERTIONS/INVARIANT
+  /*
+  */
+      v = unroll(5);
+      check;
+      print_results;
+      //v.print_cex(x1,x2,s1,s2,z1,z2,p11.pc,p12.pc);
+      v.print_cex(x1,x2,s1,s2,z1,z2,p21.pc,p22.pc);
+
+  /*
+      // *** INDUCTION
+      v = induction(1);
+      check;
+      print_results;
+      v.print_cex(x1,x2,s1,s2,z1,z2,p11.pc,p12.pc);
+  */
+    }
+  }
+
+  ```
+
+====================
+user :: Please write code in Uclid5 to model the following description:
+  For a railroad crossing a control system needs to be developed that on receipt of a signal indicating that a train is approaching closes the gates, and only opens these gates after the train has sent a signal indicating that it crossed the road. The requirement that should be met by the control system is that the gates are always closed when the train is crossing the road. The complete system consists of the three components Train, Gate, and Controller:
+
+Train || Gate || Controller.
+
+
+Model this system. You can assume that all trains pass the relevant track section in the same direction.
+
+
+Detail:
+The states of the transition system for the Train have the following intuitive meaning: in state "far" the train is not close to the crossing, in state "near" it is approaching the crossing and has just sent a signal to notify this, and in state "in" it is at the crossing. The states "up" and "down" of the Gate have the obvious interpretation. The controller has 4 states 0, 1, 2 and 3. It changes from state 0 to 1 when the train is approaching, from state 1 to 2 when the gate is lowering, from state 2 to 3 when the train is exiting the crossing, and from state 3 to 0 when the gate is raising.
+The state changes of the Controller stand for handshaking with the trains (via the actions approach and exit) and the Gate (via the actions lower and raise via which the Controller causes the gate to close or to open, respectively).
+
+Use the variable names train_state, controller_state and gate_state.
+
+====================
+assistant :: Sure! Here is the Uclid5 code to model the system with the Train, Gate, and Controller components:
+
+```
+module Train
+{
+  type train_state_t = enum { far, near, in };
+  var train_state : train_state_t;
+  input train_approaching : boolean;
+  input train_crossing : boolean;
+
+  init {
+    train_state = far;
+  }
+
+  next {
+    if (train_state == far && train_approaching) {
+      train_state' = near;
+    } else if (train_state == near && train_crossing) {
+      train_state' = in;
+    } else if (train_state == in) {
+      train_state' = far;
+    } else {
+      train_state' = train_state;
+    }
+  }
+}
+
+module Gate
+{
+  type gate_state_t = enum { up, down };
+  var gate_state : gate_state_t;
+  input gate_lowering : boolean;
+  input gate_raising : boolean;
+
+  init {
+    gate_state = up;
+  }
+
+  next {
+    if (gate_state == up && gate_lowering) {
+      gate_state' = down;
+    } else if (gate_state == down && gate_raising) {
+      gate_state' = up;
+    } else {
+      gate_state' = gate_state;
+    }
+  }
+}
+
+module Controller
+{
+  type controller_state_t = enum { 0, 1, 2, 3 };
+  var controller_state : controller_state_t;
+  input train_approaching : boolean;
+  input train_crossing : boolean;
+  input gate_lowering : boolean;
+  input gate_raising : boolean;
+
+  init {
+    controller_state = 0;
+  }
+
+  next {
+    if (controller_state == 0 && train_approaching) {
+      controller_state' = 1;
+    } else if (controller_state == 1 && gate_lowering) {
+      controller_state' = 2;
+    } else if (controller_state == 2 && train_crossing) {
+      controller_state' = 3;
+    } else if (controller_state == 3 && gate_raising) {
+      controller_state' = 0;
+    } else {
+      controller_state' = controller_state;
+    }
+  }
+}
+
+module RailroadCrossingSystem
+{
+  instance train : Train(train_approaching, train_crossing);
+  instance gate : Gate(gate_lowering, gate_raising);
+  instance controller : Controller(train_approaching, train_crossing, gate_lowering, gate_raising);
+
+  control {
+    havoc train_approaching; havoc train_crossing;
+    havoc gate_lowering; havoc gate_raising;
+
+    next {
+      next(train);
+      next(gate);
+      next(controller);
+    }
+
+    invariant gates_closed_while_train_crossing : !(controller.train_crossing && gate.gate_state == down);
+  }
+}
+```
+====================

@@ -1,0 +1,49 @@
+module main {
+    type carry_t = enum { none, goat, cabbage, wolf };
+
+    var ferryman : boolean;
+    var goat : boolean;
+    var cabbage : boolean;
+    var wolf : boolean;
+    var carry : carry_t;
+
+    init {
+        ferryman = true;
+        goat = true;
+        cabbage = true;
+        wolf = true;
+        carry = none;
+    }
+
+    // Transition rules for the ferryman and what he carries
+    next {
+        if (ferryman == carry) {
+            ferryman' = !ferryman;
+            case
+                carry == goat : goat' = !goat;
+                carry == cabbage : cabbage' = !cabbage;
+                carry == wolf : wolf' = !wolf;
+                true : skip;
+            esac;
+            carry' = none; // After crossing, ferryman is not carrying anything
+        } else {
+            carry' = choose c : carry_t :: c == carry || c == none;
+        }
+    }
+
+    // Safety conditions to prevent conflicts
+    constraint (!(((goat == cabbage) && (ferryman != goat)) || ((goat == wolf) && (ferryman != goat))));
+
+    // Goal state definition
+    define goal_state : boolean = (ferryman == false && goat == false && cabbage == false && wolf == false);
+
+    // Property to check if the goal state is reachable without conflicts
+    control {
+        v = check(goal_state);
+        if (v) {
+            print "Goal state is reachable without conflicts.";
+        } else {
+            print "Goal state is not reachable without conflicts.";
+        }
+    }
+}

@@ -1,0 +1,31 @@
+module thermostat
+{
+  var temp : integer;
+  var heatOn : boolean;
+  var heatOff : boolean;
+  var time : integer;
+
+  init {
+    heatOn = false;
+    heatOff = true;
+    time = 0;
+  }
+
+  next {
+    case
+      (temp <= 20) && (heatOff) && (time >= 30) : { heatOn = true; heatOff = false; time = 0; }
+      (temp > 20) && (heatOn) && (time >= 120) : { heatOn = false; heatOff = true; time = 0; }
+      (temp <= 20) && (heatOff) && (time >= 30) : { heatOn = true; heatOff = false; time = 0; }
+    esac
+    time' = time + 1;
+  }
+}
+
+module main
+{
+  instance t : thermostat(temp, heatOn, heatOff, time);
+
+  next {
+    next(t);
+  }
+}

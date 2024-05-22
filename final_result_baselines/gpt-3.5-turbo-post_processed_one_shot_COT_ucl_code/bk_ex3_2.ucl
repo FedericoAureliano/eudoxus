@@ -1,0 +1,51 @@
+
+module philosopher(i : int)
+{
+  type state_t = enum { thinking, hungry, eating };
+  var state : state_t;
+
+  init {
+    state = thinking;
+  }
+
+  next {
+    if (state == thinking) {
+      state' = hungry;
+    } else if (state == hungry) {
+      if (!chopstick[i] && !chopstick[(i+1)%5]) {
+        state' = eating;
+      }
+    } else {
+      state' = thinking;
+    }
+  }
+}
+
+module dining_philosophers
+{
+  var chopstick1, chopstick2, chopstick3, chopstick4, chopstick5 : boolean;
+
+  instance phil1 : philosopher(0);
+  instance phil2 : philosopher(1);
+  instance phil3 : philosopher(2);
+  instance phil4 : philosopher(3);
+  instance phil5 : philosopher(4);
+
+  init {
+    chopstick1 = true; chopstick2 = true; chopstick3 = true; chopstick4 = true; chopstick5 = true;
+  }
+
+  next {
+    next(phil1);
+    next(phil2);
+    next(phil3);
+    next(phil4);
+    next(phil5);
+  }
+
+  invariant no_deadlock : !(phil1.state == hungry && phil2.state == hungry && phil3.state == hungry && phil4.state == hungry && phil5.state == hungry);
+
+  control {
+    print_results;
+  }
+}

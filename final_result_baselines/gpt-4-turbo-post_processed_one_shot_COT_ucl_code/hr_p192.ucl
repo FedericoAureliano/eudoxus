@@ -1,0 +1,45 @@
+module main {
+    // Enumerate the possible states of status
+    type status_t = enum { ready, busy };
+
+    // Declare variables
+    var request : boolean;   // External request (true or false)
+    var status : status_t;   // Status of the system (ready or busy)
+
+    // Initialize the system with status as ready
+    init {
+        status = ready;
+    }
+
+    // Transition rules for the system based on the value of request
+    next {
+        if (request) {
+            status' = busy;
+        } else {
+            havoc status'; // Under-specified next value of status when request is false
+        }
+    }
+
+    // Auxiliary variable to track if request has been true at least once
+    var ever_requested : boolean;
+
+    // Initialize the auxiliary variable
+    init {
+        ever_requested = false;
+    }
+
+    // Update the auxiliary variable
+    next {
+        ever_requested' = ever_requested || request;
+    }
+
+    // Property: If ever requested, eventually status becomes busy
+    invariant property_eventually_busy : (ever_requested -> (status == busy));
+
+    // Control block for model checking
+    control {
+        v = unroll(5);
+        check;
+        print_results;
+    }
+}

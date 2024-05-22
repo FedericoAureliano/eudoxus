@@ -1,0 +1,68 @@
+uclid
+module dining_philosophers
+{
+  type state_t = enum { THINKING, HUNGRY, EATING };
+  var phil1, phil2, phil3, phil4, phil5 : state_t;
+  var chopstick1, chopstick2, chopstick3, chopstick4, chopstick5 : boolean;
+
+  init {
+    phil1 = THINKING; phil2 = THINKING; phil3 = THINKING; phil4 = THINKING; phil5 = THINKING;
+    chopstick1 = true; chopstick2 = true; chopstick3 = true; chopstick4 = true; chopstick5 = true;
+  }
+
+  procedure take_chopsticks(p: state_t, c1: boolean, c2: boolean)
+    modifies p, c1, c2;
+  {
+    assume(p == HUNGRY && c1 && c2);
+    p = EATING;
+    c1 = false;
+    c2 = false;
+  }
+
+  procedure put_chopsticks(p: state_t, c1: boolean, c2: boolean)
+    modifies p, c1, c2;
+  {
+    assume(p == EATING);
+    p = THINKING;
+    c1 = true;
+    c2 = true;
+  }
+
+  procedure philosopher(phil: state_t, left: boolean, right: boolean)
+    modifies phil, left, right;
+  {
+    if (phil == HUNGRY && left && right) {
+      take_chopsticks(phil, left, right);
+    }
+    else if (phil == EATING) {
+      put_chopsticks(phil, left, right);
+    }
+  }
+
+  control {
+    havoc phil1; havoc phil2; havoc phil3; havoc phil4; havoc phil5;
+    havoc chopstick1; havoc chopstick2; havoc chopstick3; havoc chopstick4; havoc chopstick5;
+
+    // Philosopher 1
+    philosopher(phil1, chopstick5, chopstick1);
+    // Philosopher 2
+    philosopher(phil2, chopstick1, chopstick2);
+    // Philosopher 3
+    philosopher(phil3, chopstick2, chopstick3);
+    // Philosopher 4
+    philosopher(phil4, chopstick3, chopstick4);
+    // Philosopher 5
+    philosopher(phil5, chopstick4, chopstick5);
+  }
+
+  property deadlock_possible {
+    !((phil1 == EATING && phil2 == EATING) ||
+      (phil2 == EATING && phil3 == EATING) ||
+      (phil3 == EATING && phil4 == EATING) ||
+      (phil4 == EATING && phil5 == EATING) ||
+      (phil5 == EATING && phil1 == EATING));
+  }
+}
+
+
+This Uclid5 model simulates the dining philosophers problem with five philosophers and chopsticks. The `deadlock_possible` property checks if a deadlock is possible by ensuring that no two neighboring philosophers are in the `EATING` state simultaneously.

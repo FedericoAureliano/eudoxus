@@ -1,0 +1,72 @@
+module main {
+  // Define the maximum capacity of the stack.
+  const n : int = 10;
+
+  // Define the stack and the top index.
+  var s : [int] int;
+  var top_index : int;
+
+  // Initialization of the stack.
+  init {
+    top_index = -1;
+  }
+
+  // Function to check if the stack is empty.
+  function is_empty() : bool {
+    return top_index == -1;
+  }
+
+  // Function to check if the stack is full.
+  function is_full() : bool {
+    return top_index == n - 1;
+  }
+
+  // Operation: push
+  procedure push(x : int)
+    modifies s, top_index;
+  {
+    if (!is_full()) {
+      top_index = top_index + 1;
+      s[top_index] = x;
+    }
+  }
+
+  // Operation: pop
+  procedure pop()
+    modifies top_index;
+  {
+    if (!is_empty()) {
+      top_index = top_index - 1;
+    }
+  }
+
+  // Operation: top
+  function top() : int {
+    if (!is_empty()) {
+      return s[top_index];
+    } else {
+      return -1; // Return -1 or some error value when empty.
+    }
+  }
+
+  // Next state transitions
+  next {
+    // Non-deterministically choose to push, pop, or do nothing.
+    if (*[bool]) {
+      push(*[int]);
+    } else if (*[bool]) {
+      pop();
+    }
+  }
+
+  // Invariants to check
+  invariant "stack_does_not_exceed_capacity" : top_index <= n - 1;
+  invariant "no_pop_on_empty_stack" : (old(top_index) == -1) -> (top_index == -1);
+
+  control {
+    // Check the invariants with bounded model checking.
+    v = unroll(5);
+    check;
+    print_results;
+  }
+}

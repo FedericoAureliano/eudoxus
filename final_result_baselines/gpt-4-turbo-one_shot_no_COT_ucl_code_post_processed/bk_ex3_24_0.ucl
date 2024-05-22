@@ -1,0 +1,49 @@
+module vending_machine {
+    // State variables
+    var coin : integer;           // Number of coins inserted
+    var dispensed_drinks : integer; // Number of drinks dispensed
+
+    // Initialization of the state
+    init {
+        coin = 0;
+        dispensed_drinks = 0;
+    }
+
+    // Transition relation describing the behavior of the vending machine
+    next {
+        // Model coin insertion
+        if (*) {
+            coin' = coin + 1;
+            dispensed_drinks' = dispensed_drinks;
+        }
+        // Model drink dispensing
+        else if (coin > dispensed_drinks) {
+            coin' = coin;
+            dispensed_drinks' = dispensed_drinks + 1;
+        }
+        // No operation
+        else {
+            coin' = coin;
+            dispensed_drinks' = dispensed_drinks;
+        }
+    }
+
+    // Safety property: Number of coins should always be at least the number of dispensed drinks
+    invariant coins_geq_drinks {
+        coin >= dispensed_drinks
+    }
+}
+
+module main {
+    // Instance of the vending machine
+    instance vm : vending_machine;
+
+    // Control block to perform model checking
+    control {
+        // Unroll the transition system for a few steps and check properties
+        var v : verification;
+        v = unroll(10);
+        check;
+        print_results;
+    }
+}

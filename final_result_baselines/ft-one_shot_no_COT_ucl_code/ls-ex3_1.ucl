@@ -1,0 +1,47 @@
+module ArrivalDetector {
+    input arrival: boolean;
+    output event: boolean;
+    init {
+        event = arrival;
+    }
+    next {
+        event' = arrival;
+    }
+}
+
+module DepartureDetector {
+    input departure: boolean;
+    output event: boolean;
+    init {
+        event = departure;
+    }
+    next {
+        event' = departure;
+    }
+}
+
+module Counter {
+    input arrival: boolean;
+    input departure: boolean;
+    output event: boolean;
+    var counter: int;
+    init {
+        counter = 0;
+        event = false;
+    }
+    next {
+        counter' = counter + arrival - departure;
+        event' = counter' != counter;
+    }
+}
+
+module main {
+    instance arrival: ArrivalDetector();
+    instance departure: DepartureDetector();
+    instance counter: Counter(arrival.event, departure.event);
+    control {
+        v = unroll(10);
+        check;
+        print_results;
+    }
+}

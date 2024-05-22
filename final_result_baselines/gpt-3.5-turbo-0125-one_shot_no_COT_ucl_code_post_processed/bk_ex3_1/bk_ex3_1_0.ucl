@@ -1,0 +1,101 @@
+
+module traffic_light1
+{
+  type state_t = enum { RED, GREEN };
+
+  var state : state_t;
+  output green1 : boolean;
+  output red1 : boolean;
+
+  init {
+    state = RED;
+    green1 = false;
+    red1 = true;
+  }
+
+  next {
+    if (state == RED) {
+      green1' = true;
+      red1' = false;
+    } else {
+      green1' = false;
+      red1' = true;
+    }
+  }
+
+  procedure switch_light()
+    modifies state;
+  {
+    if (state == RED) {
+      state := GREEN;
+    } else {
+      state := RED;
+    }
+  }
+}
+
+module traffic_light2
+{
+  type state_t = enum { RED, GREEN };
+
+  var state : state_t;
+  output green2 : boolean;
+  output red2 : boolean;
+
+  init {
+    state = GREEN;
+    green2 = true;
+    red2 = false;
+  }
+
+  next {
+    if (state == RED) {
+      green2' = true;
+      red2' = false;
+    } else {
+      green2' = false;
+      red2' = true;
+    }
+  }
+
+  procedure switch_light()
+    modifies state;
+  {
+    if (state == RED) {
+      state := GREEN;
+    } else {
+      state := RED;
+    }
+  }
+}
+
+module main
+{
+  var A : boolean;
+  var B : boolean;
+
+  instance t1 : traffic_light1(green1, red1);
+  instance t2 : traffic_light2(green2, red2);
+
+  init {
+    A = false;
+    B = false;
+  }
+
+  next {
+    if (A) {
+      call t1.switch_light();
+    }
+    if (B) {
+      call t2.switch_light();
+    }
+  }
+
+  control {
+    havoc A; havoc B;
+    check deadlock;
+  }
+}
+
+
+This code models the behavior of two traffic lights at an intersection and checks for the possibility of deadlock by allowing the traffic lights to switch states based on the actions A and B.

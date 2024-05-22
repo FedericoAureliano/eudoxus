@@ -1,0 +1,28 @@
+module main {
+    type state_t = enum { GREEN, YELLOW, RED };
+    var current_state : state_t;
+    var previous_state : state_t;
+
+    init {
+        current_state = GREEN;
+        previous_state = GREEN;  // Initialize to any value, will be updated in first transition.
+    }
+
+    next {
+        // Define state transitions
+        match (current_state) {
+            GREEN  -> { previous_state' = current_state; current_state' = YELLOW; }
+            YELLOW -> { previous_state' = current_state; current_state' = RED; }
+            RED    -> { previous_state' = current_state; current_state' = GREEN; }
+        }
+    }
+
+    // Safety property: Red must be preceded by Yellow
+    invariant safety_property : (current_state == RED) => (previous_state == YELLOW);
+
+    control {
+        v = unroll(10);  // Unroll several cycles to check the property over multiple transitions.
+        check;
+        print_results;
+    }
+}

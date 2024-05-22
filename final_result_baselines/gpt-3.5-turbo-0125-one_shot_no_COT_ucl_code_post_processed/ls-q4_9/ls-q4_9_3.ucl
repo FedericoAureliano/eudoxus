@@ -1,0 +1,73 @@
+
+module trafficLights
+{
+    type light_t = enum { R, G, Y };
+
+    var mG, mY, mR : light_t; // Main light: Green, Yellow, Red
+    var sG, sY, sR : light_t; // Secondary light: Green, Yellow, Red
+
+    // Sensor input
+    input vehicleDetected : boolean;
+
+    // Timing constants
+    const MAIN_GREEN_TIME : int = 180; // 3 minutes in seconds
+    const MAIN_YELLOW_TIME : int = 5; // 5 seconds
+    const MAIN_RED_TIME : int = 55; // 55 seconds
+    const SECONDARY_RED_TIME : int = 185; // 3 minutes and 5 seconds
+    const SECONDARY_GREEN_TIME : int = 50; // 50 seconds
+    const SECONDARY_YELLOW_TIME : int = 5; // 5 seconds
+
+    // Main light cycle
+    procedure mainLightCycle()
+        modifies mG;
+        modifies mY;
+        modifies mR;
+    {
+        mG = G;
+        wait(MAIN_GREEN_TIME);
+        mG = Y;
+        wait(MAIN_YELLOW_TIME);
+        mG = R;
+        wait(MAIN_RED_TIME);
+    }
+
+    // Secondary light cycle
+    procedure secondaryLightCycle()
+        modifies sG;
+        modifies sY;
+        modifies sR;
+    {
+        sR = R;
+        wait(SECONDARY_RED_TIME);
+        sG = G;
+        wait(SECONDARY_GREEN_TIME);
+        sG = Y;
+        wait(SECONDARY_YELLOW_TIME);
+    }
+
+    // System behavior
+    init {
+        mR = R;
+        sR = R;
+    }
+
+    next {
+        if (vehicleDetected) {
+            mY = Y; // Main light switches to yellow immediately
+        } else {
+            call mainLightCycle();
+        }
+
+        if (vehicleDetected) {
+            sR = G; // Secondary light switches to green when vehicle detected
+        } else {
+            call secondaryLightCycle();
+        }
+
+        // Safety requirement check
+        assert !((mG == G || mY == Y) && (sG == G || sY == Y));
+    }
+}
+
+
+This code models a system that controls the traffic lights at an intersection, following the described behavior and safety requirements. The system includes the main light cycle, secondary light cycle, and logic to handle vehicle detection and light switching accordingly.
