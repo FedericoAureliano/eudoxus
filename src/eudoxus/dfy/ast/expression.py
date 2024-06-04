@@ -30,6 +30,11 @@ class Power(e.Operator):
 
 
 @dataclass(frozen=True)
+class IntDivide(e.Operator):
+    pass
+
+
+@dataclass(frozen=True)
 class Ite(e.Expression):
     condition: e.Expression
     then_expr: e.Expression

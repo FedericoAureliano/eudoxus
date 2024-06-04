@@ -891,6 +891,10 @@ class DfyParser(Parser):
             case "**":
                 self.ext_functions.add("power")
                 return e.Application(p, dfy_e.Power(p), [left, right])
+            case "%":
+                return e.Application(p, e.Modulo(p), [left, right])
+            case "//":
+                return e.Application(p, dfy_e.IntDivide(p), [left, right])
             case _:
                 raise ValueError(
                     f"Unsupported object: {node.sexp()}, "
