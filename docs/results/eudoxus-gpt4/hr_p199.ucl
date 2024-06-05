@@ -1,0 +1,62 @@
+module RiverCrossingModule {
+  type Location = enum { oneSide, otherSide };
+  type Carry = enum { cabbage, goat, none, wolf };
+
+  var invalid_states: boolean;
+  var ferryman: Location;
+  var goat: Location;
+  var cabbage: Location;
+  var wolf: Location;
+  var carry: Carry;
+
+  init {
+    ferryman = oneSide;
+    goat = oneSide;
+    cabbage = oneSide;
+    wolf = oneSide;
+    carry = none;
+
+  }
+  procedure step()
+    modifies goat;
+    modifies invalid_states;
+    modifies ferryman;
+    modifies wolf;
+    modifies cabbage;
+    modifies carry;
+  {
+    if (carry == none) {
+      ferryman = (if (ferryman == oneSide) then otherSide else oneSide);
+    } else {
+      if ?? {
+        if (ferryman == cabbage) {
+          cabbage = (if (cabbage == oneSide) then otherSide else oneSide);
+        }
+      } else {
+        if ?? {
+          if (ferryman == goat) {
+            goat = (if (goat == oneSide) then otherSide else oneSide);
+          }
+        } else {
+          if ?? {
+            if (ferryman == wolf) {
+              wolf = (if (wolf == oneSide) then otherSide else oneSide);
+            }
+          }
+        }
+      }
+      ferryman = (if (ferryman == oneSide) then otherSide else oneSide);
+    }
+    invalid_states = (((goat == cabbage) && (goat != ferryman)) || ((goat == wolf) && (goat != ferryman)));
+    if (invalid_states) {
+      ferryman = oneSide;
+      carry = none;
+    }
+  }
+
+  next {
+    call step();
+  }
+  invariant spec: (((((ferryman == otherSide) && (goat == otherSide)) && (cabbage == otherSide)) && (wolf == otherSide)) && !invalid_states);
+
+}

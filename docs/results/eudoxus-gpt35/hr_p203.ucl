@@ -1,0 +1,19 @@
+module ABPProtocol {
+  var ack: integer;
+  var receive_ack: boolean;
+  var send_ack: boolean;
+  var send_message: boolean;
+  var st: integer;
+  var control_bit: integer;
+
+  next {
+    send_message' = ((control_bit == 0) || (control_bit == 1));
+    send_ack' = (((st == 0) || (st == 1)) && (ack == st));
+    receive_ack' = (((st == 0) || (st == 1)) && (control_bit == st));
+    st' = (if (send_ack) then (st + 1) else st);
+    control_bit' = (if (receive_ack) then (1 - control_bit) else control_bit);
+
+  }
+  invariant spec: (receive_ack ==> (st == control_bit));
+
+}

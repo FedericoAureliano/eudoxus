@@ -1,0 +1,40 @@
+module VendingMachine {
+  var current_state: boolean;
+  var state_type: record { beer: boolean, pay: boolean, soda: boolean, select: boolean };
+  var coin_inserted: boolean;
+
+  input insert_coin: boolean;
+  input choose_soda: boolean;
+  input choose_beer: boolean;
+
+  init {
+    current_state = state_type.pay;
+    coin_inserted = false;
+
+  }
+  next {
+    if (current_state == state_type.pay) {
+      if (insert_coin) {
+        current_state' = state_type.select;
+        coin_inserted' = true;
+      }
+    } else {
+      if (current_state == state_type.select) {
+        if (choose_soda && coin_inserted) {
+          current_state' = state_type.soda;
+        } else {
+          if (choose_beer && coin_inserted) {
+            current_state' = state_type.beer;
+          } else {
+            current_state' = state_type.pay;
+            coin_inserted' = false;
+          }
+        }
+      } else {
+        current_state' = state_type.pay;
+        coin_inserted' = false;
+      }
+    }
+
+  }
+}

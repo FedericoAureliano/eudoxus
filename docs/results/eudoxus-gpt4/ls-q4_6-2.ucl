@@ -1,0 +1,53 @@
+module SeatbeltMonitorModule {
+  var warning_light: boolean;
+  var beeper_timer: integer;
+  var beeper_active: boolean;
+
+  input ignition: boolean;
+  input warn: boolean;
+  input no_warn: boolean;
+
+  output red_warning_light: boolean;
+  output beeper: boolean;
+
+  init {
+    warning_light = false;
+    beeper_timer = 0;
+    beeper_active = false;
+
+  }
+  procedure step()
+    modifies warning_light;
+    modifies beeper;
+    modifies beeper_timer;
+    modifies beeper_active;
+    modifies red_warning_light;
+  {
+    if (ignition) {
+      if (warn) {
+        warning_light = true;
+        beeper_timer = 30;
+        beeper_active = true;
+      }
+      if (no_warn) {
+        warning_light = false;
+      }
+      if (beeper_timer > 0) {
+        beeper_timer = (beeper_timer - 1);
+        if (beeper_timer == 0) {
+          beeper_active = false;
+        }
+      }
+    } else {
+      warning_light = false;
+      beeper_active = false;
+      beeper_timer = 0;
+    }
+    red_warning_light = warning_light;
+    beeper = (beeper_active && (beeper_timer > 0));
+  }
+
+  next {
+    call step();
+  }
+}

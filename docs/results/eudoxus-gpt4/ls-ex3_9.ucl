@@ -1,0 +1,95 @@
+module TrafficLightStateMachine {
+  type State = enum { GREEN, PENDING, RED, YELLOW };
+
+  var next_state: State;
+  var state: State;
+  var count: integer;
+
+  input pedestrian: boolean;
+
+  output sigR: boolean;
+  output sigG: boolean;
+  output sigY: boolean;
+
+  init {
+    sigR = true;
+    sigG = false;
+    sigY = false;
+    state = RED;
+    count = 0;
+
+  }
+  procedure step()
+    modifies state;
+    modifies count;
+    modifies sigG;
+    modifies sigR;
+    modifies sigY;
+    modifies next_state;
+  {
+    if (state == RED) {
+      count = (count + 1);
+      if (count >= 60) {
+        next_state = GREEN;
+      }
+    } else {
+      if (state == GREEN) {
+        count = (count + 1);
+        if (pedestrian && (count >= 60)) {
+          next_state = YELLOW;
+        } else {
+          if (pedestrian) {
+            next_state = PENDING;
+          } else {
+            next_state = GREEN;
+          }
+        }
+      } else {
+        if (state == PENDING) {
+          count = (count + 1);
+          if (count >= 60) {
+            next_state = YELLOW;
+          }
+        } else {
+          if (state == YELLOW) {
+            count = (count + 1);
+            if (count >= 5) {
+              next_state = RED;
+            }
+          }
+        }
+      }
+    }
+    if (next_state == RED) {
+      sigR = true;
+      sigG = false;
+      sigY = false;
+    } else {
+      if (next_state == GREEN) {
+        sigR = false;
+        sigG = true;
+        sigY = false;
+      } else {
+        if (next_state == YELLOW) {
+          sigR = false;
+          sigG = false;
+          sigY = true;
+        } else {
+          if (next_state == PENDING) {
+            sigR = false;
+            sigG = true;
+            sigY = false;
+          }
+        }
+      }
+    }
+    state = next_state;
+    count = 0;
+  }
+
+  next {
+    call step();
+  }
+  invariant spec: (!(sigR && sigG) && (((state != YELLOW) || (count >= 60)) || (state == PENDING)));
+
+}

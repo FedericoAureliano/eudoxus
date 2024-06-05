@@ -1,0 +1,93 @@
+module Train {
+  var train_state: record {  };
+
+  next {
+    if (train_state == train_state.far) {
+      train_state' = train_state.near;
+    } else {
+      if (train_state == train_state.near) {
+        train_state' = train_state.in;
+      } else {
+        if (train_state == train_state.in) {
+          train_state' = train_state.far;
+        }
+      }
+    }
+
+  }
+}
+module Gate {
+  var action: record {  };
+  var gate_state: record {  };
+
+  next {
+    if ((action == action.lower) && (gate_state == gate_state.up)) {
+      gate_state' = gate_state.down;
+    } else {
+      if ((action == action.raise) && (gate_state == gate_state.down)) {
+        gate_state' = gate_state.up;
+      }
+    }
+
+  }
+}
+module Controller {
+  var controller_state: integer;
+  var action: record {  };
+  var gate_state: record {  };
+  var train_signal: record {  };
+
+  next {
+    if ((controller_state == 0) && (train_signal == train_signal.approach)) {
+      controller_state' = 1;
+      action' = action.lower;
+    } else {
+      if ((controller_state == 1) && (gate_state == gate_state.down)) {
+        controller_state' = 2;
+        action' = action.idle;
+      } else {
+        if ((controller_state == 2) && (train_signal == train_signal.exit)) {
+          controller_state' = 3;
+          action' = action.raise;
+        } else {
+          if ((controller_state == 3) && (gate_state == gate_state.up)) {
+            controller_state' = 0;
+            action' = action.idle;
+          } else {
+            action' = action.idle;
+          }
+        }
+      }
+    }
+
+  }
+}
+module RailroadCrossingSystem {
+  var train_signal: record {  };
+
+  instance controller: Controller();
+  instance gate: Gate();
+  instance train: Train();
+
+  procedure step()
+    modifies train_signal;
+  {
+    train_signal = train_signal.idle;
+    if (train.train_state == train.train_state.near) {
+      train_signal = train_signal.approach;
+    } else {
+      if (train.train_state == train.train_state.in) {
+        train_signal = train_signal.exit;
+      }
+    }
+    next(controller);
+    next(gate);
+    next(train);
+  }
+
+  next {
+    call step();
+  }
+  invariant spec: ((train.train_state != train.train_state.in) || (gate.gate_state == gate.gate_state.down));
+
+}

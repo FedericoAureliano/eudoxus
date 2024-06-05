@@ -1,0 +1,35 @@
+module ABPModule {
+  var ack_received: bv1;
+  var message_received: bv1;
+  var transmitted_msg: bv1;
+  var sender_state: boolean;
+  var receiver_state: bv1;
+  var sender_msg: bv1;
+  var receiver_msg: bv1;
+  var acknowledgement: bv1;
+
+  init {
+    sender_msg = 0bv1;
+    receiver_state = 0bv1;
+
+  }
+  next {
+    transmitted_msg' = sender_msg;
+    message_received' = transmitted_msg;
+    if (message_received == receiver_state) {
+      receiver_msg' = message_received;
+      acknowledgement' = receiver_msg;
+      receiver_state' = (1bv1 - receiver_state);
+    }
+    ack_received' = acknowledgement;
+    if (ack_received == sender_msg) {
+      sender_state' = true;
+      sender_msg' = (1bv1 - sender_msg);
+    } else {
+      sender_state' = false;
+    }
+
+  }
+  invariant spec: (sender_state && (receiver_msg == ack_received));
+
+}

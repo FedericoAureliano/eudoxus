@@ -1,0 +1,40 @@
+module MutualExclusion {
+  var s: bv1;
+  var s_next: bv1;
+  var y0_next: bv1;
+  var y1_next: bv1;
+  var y0: bv1;
+  var y1: bv1;
+
+  procedure step()
+    modifies y1_next;
+    modifies y0;
+    modifies y0_next;
+    modifies s_next;
+    modifies y1;
+    modifies s;
+  {
+    y0_next = y0;
+    y1_next = y1;
+    if (y0_next == y1) {
+      y0_next = (1bv1 - y0);
+      s_next = (1bv1 - s);
+    } else {
+      if (s == y1_next) {
+        s_next = s;
+      } else {
+        if (y1_next == s) {
+          y1_next = (1bv1 - y1);
+          s_next = (1bv1 - s);
+        }
+      }
+    }
+    y0 = y0_next;
+    y1 = y1_next;
+    s = s_next;
+  }
+
+  next {
+    call step();
+  }
+}
