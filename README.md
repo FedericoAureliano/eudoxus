@@ -3,8 +3,16 @@
 "Eudoxus was probably the source for most of book V of Euclid's Elements." -
 [Wikipedia](https://en.wikipedia.org/wiki/Eudoxus_of_Cnidus)
 
-## Install
+---
+
+Eudoxus is based on [Synthetic Programming Elicitation and Repair for Text-to-Code in Very Low-Resource Programming Languages](https://arxiv.org/abs/2406.03636). For a complete example run of the tool, see [`docs/results/eudoxus-gpt35/ls-ex3_13.txt`](docs/results/eudoxus-gpt35/ls-ex3_13.txt).
+
+## Recommended Install
 ```sh
+git clone https://github.com/FedericoAureliano/eudoxus.git
+cd eudoxus
+python3.11 -m venv .venv
+source .venv/bin/activate
 pip3 install .
 ```
 
@@ -26,7 +34,7 @@ pip3 install .
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
 
-Set `iterations` to any value less than 1 to just do repair. Use `experiment.sh` to run eudoxus in a loop over all textbook benchmarks.
+To do anything other than repair, [you must have an OpenAI API Key in your ‘OPENAI_API_KEY’ environment variable](https://help.openai.com/en/articles/5112595-best-practices-for-api-key-safety). Set `iterations` to any value less than one to just do repair. The examples folder contains reapir input/output pairs. For example, running `eudoxus examples/arithmetic.input.py --iterations 0` should print out code equivalent to that in `examples/arithmetic.output.ucl`.
 
 ## Development
 
