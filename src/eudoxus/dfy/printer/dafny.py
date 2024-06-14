@@ -327,6 +327,11 @@ def expr2dfy(output, expr: e.Expression):
                     expr2dfy(output, args[0])
                     output.write(" ==> ")
                     expr2dfy(output, args[1])
+                case dfy_e.IntDivide(_):
+                    expr2dfy(output, args[0])
+                    output.write(" / ")
+                    expr2dfy(output, args[1])
+
                 case _:
                     raise ValueError(f"Unsupported operator {op}")
         case e.Boolean(_, value) | e.Integer(_, value):

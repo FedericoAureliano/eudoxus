@@ -552,6 +552,16 @@ class DfyTypeChecker(Checker):
                         name = "eudoxus.implies"
                         all_some_type(args, boolean)
                         full_expr_type = self.type2z3(boolean)
+                    case dfy_e.IntDivide(_):
+                        name = "eudoxus.intdiv"
+                        a0 = all_some_type(args, integer)
+                        full_expr_type = self.type2z3(integer)
+
+                    case e.Modulo(_):
+                        name = "eudoxus.mod"
+                        a0 = all_some_type(args, integer)
+                        full_expr_type = self.type2z3(integer)
+
                     case _:
                         raise ValueError(f"Unsupported operator {op}")
 
