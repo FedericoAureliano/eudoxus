@@ -642,7 +642,9 @@ class DfyTypeChecker(Checker):
                 #  - type(z3ret) == elt_type(z3lst)
                 # need is_list(z3lst) to reject indexing into non_list
                 z3lst = self.expr2z3(lst)
-                self.add_soft_constraint(self.is_list(self.type(z3lst)), lst.position)
+                self.add_soft_constraint(
+                    self.is_list(self.type(z3lst)), lst.position, "default"
+                )
                 if isinstance(index, dfy_e.Slice):
                     if index.start is not None:
                         z3start = self.expr2z3(index.start)
