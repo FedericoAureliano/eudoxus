@@ -15,7 +15,7 @@ from eudoxus.printer.python import op2py
 
 ANNOTATIONS = True
 COMMENTS = False
-IMPORTS = None
+IMPORTS = set()
 
 
 def type2py(output, type: t.Type):
@@ -41,7 +41,7 @@ def type2py(output, type: t.Type):
         case Hole(_):
             output.write("??")
         case _:
-            raise ValueError(f"Unsupported type {type}")
+            output.write("??")
 
 
 def requires2py(output, requires: List[dfy_s.Requires], indent):
@@ -72,7 +72,6 @@ def decreases2py(output, decreases: dfy_s.Decreases, indent):
 
 def import_builder(module: Module):
     global IMPORTS
-    IMPORTS = set()
 
     def import_stmt(stmt: s.Statement):
         match stmt:
@@ -128,9 +127,8 @@ def module2py(output, module: Module, indent, annotations=True, comments=True):
     name = module.name.name
     method_or_function = module.method_or_function
 
-    import_builder(module)
-    import2py(output)
-    output.write("import dafnypy\n@dafnypy.verify\n")
+
+    output.write("@dafnypy.verify\n")
     if method_or_function == "method":
         output.write(f"def {name} ")
         params2dfy(output, module.params)
@@ -143,10 +141,12 @@ def module2py(output, module: Module, indent, annotations=True, comments=True):
         indent += 1
         if ANNOTATIONS:
             requires2py(output, module.requires, indent)
-            ensures2py(output, module.ensures, indent)
-            decreases2py(output, module.decreases, indent)
         for statement in module.body.statements:
             stmt2py(output, statement, indent)
+        if ANNOTATIONS:    
+            ensures2py(output, module.ensures, indent)
+        final_return(output, indent)
+        
     elif method_or_function == "function":
         output.write(f"def {name} ")
         params2dfy(output, module.params)
@@ -168,6 +168,15 @@ def module2py(output, module: Module, indent, annotations=True, comments=True):
             f"Unsupported {method_or_function} is not a method or function"
         )
 
+def modules2py(output, modules: List[Module], indent, annotations=True, comments=True):
+    modules = [module for module in modules if module.position.unique >=0]
+    
+    output.write("import dafnypy\n")
+    for module in modules: 
+        import_builder(module)
+    import2py(output)
+    for module in modules:
+        module2py(output, module, indent, annotations, comments)
 
 def params2dfy(output, params: Params) -> str:
     output.write("(")
@@ -182,7 +191,9 @@ def params2dfy(output, params: Params) -> str:
 def param2dfy(output, param: Param) -> str:
     output.write(f"{param.name.name} :")
     type2py(output, param.type)
-
+def final_return (output, indent):
+    space = "  " * indent
+    output.write(space + "return result\n")
 
 def stmt2py(output, stmt: s.Statement, indent):
     space = "  " * indent
@@ -193,12 +204,28 @@ def stmt2py(output, stmt: s.Statement, indent):
             output.write(" = ")
             expr2py(output, value)
             output.write("\n")
+        case s.Assignment(_, target, value) if isinstance(target, Hole):
+            target = target.name
+            output.write(space )
+            output.write("?? = ")
+            expr2py(output, value)
+            output.write("\n")
         case dfy_s.DeclAssignment(_, target, value, ty) if isinstance(
             target, e.Identifier
         ):
             target = target.name
 
-            output.write(space + f" {target} : ")
+            output.write(space + f"{target} : ")
+            type2py(output, ty)
+            output.write(" = ")
+            expr2py(output, value)
+            output.write("\n")
+        case dfy_s.DeclAssignment(_, target, value, ty) if isinstance(
+            target, Hole
+        ):
+            target = target.name
+
+            output.write(space + f"?? : ")
             type2py(output, ty)
             output.write(" = ")
             expr2py(output, value)
@@ -207,10 +234,10 @@ def stmt2py(output, stmt: s.Statement, indent):
             output.write(space)
             output.write("if (")
             expr2py(output, cond)
-            output.write(") \n")
+            output.write("): \n")
             stmt2py(output, body, indent + 1)
             if orelse.statements != []:
-                output.write(space + " else \n")
+                output.write(space + "else: \n")
                 stmt2py(output, orelse, indent + 1)
             output.write(space + "\n")
         case s.Skip(_):
@@ -233,9 +260,10 @@ def stmt2py(output, stmt: s.Statement, indent):
             expr2py(output, cond)
             output.write("\n")
         case Hole(_):
+            
             output.write(space + "??\n")
         case dfy_s.Return(_, value):
-            output.write(space + "return ")
+            output.write(space + "result = ")
             expr2py(output, value)
             output.write("\n")
         case dfy_s.Requires(_, cond):
@@ -271,10 +299,20 @@ def stmt2py(output, stmt: s.Statement, indent):
         case dfy_s.Append(_, lst, item):
             output.write(space)
             output.write(lst.name + ".append(")
-            expr2py(output, item)
-            output.write(")\n")
+        case dfy_s.Invariant(_, condition):
+            if ANNOTATIONS:
+                output.write(space + "dafnypy.invariant( ")
+                expr2py(output, condition)
+                output.write(")\n")
+        case dfy_s.Decreases(_, condition):
+            if ANNOTATIONS:
+                output.write(space + "dafnypy.decreases( ")
+                expr2py(output, condition)
+                output.write(")\n")
+        
         case _:
-            raise ValueError(f"Unsupported statement {stmt}")
+            import ipdb; ipdb.set_trace()
+            output.write(space + "??\n")
 
 
 def expr2py(output, expr: e.Expression):
@@ -354,16 +392,18 @@ def expr2py(output, expr: e.Expression):
                     expr2py(output, args[1])
                     output.write(")")
                 case e.Implies(_):
+                    output.write("implies (")
                     expr2py(output, args[0])
-                    output.write(" implies ")
+                    output.write(", ")
                     expr2py(output, args[1])
+                    output.write(")")
                 case dfy_e.IntDivide(_):
                     expr2py(output, args[0])
                     output.write(" // ")
                     expr2py(output, args[1])
 
                 case _:
-                    raise ValueError(f"Unsupported operator {op}")
+                    output.write("??")
         case e.Boolean(_, value) | e.Integer(_, value):
             output.write(str(value).lower())
         case e.BitVector(_, value, width):
@@ -414,7 +454,7 @@ def expr2py(output, expr: e.Expression):
                 output.write("set()")
 
         case _:
-            raise ValueError(f"Unsupported expression {expr}")
+            output.write("??")
 
 
 def cmd2ucl(output, cmd: p.Command, indent):

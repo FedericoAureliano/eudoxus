@@ -13,7 +13,9 @@ TODO
 
 - [x] `set`
     - supported in cases where it's just an identifier under
-
+- [ ] support Option Type
+- [ ] support Union Type
+- [ ] support _,_ = *,*
 - [ ] support list comprehension
     - e.g. `all(item in array2 for item in shared_elements)`
     - e.g. `dafnypy.ensures(count == sum(1 for x in boolean_array if x == True))`

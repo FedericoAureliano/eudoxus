@@ -52,7 +52,7 @@ class DfyParser(Parser):
         elif self.text(node) == "str":
             return StringType(pos(node))
         else:
-            raise NotImplementedError
+            return Hole(pos(node))
 
     def parse_type(self, node: TSNode) -> Type:
         # case where it's a simple type
@@ -110,7 +110,11 @@ class DfyParser(Parser):
             arguments: (argument_list))
         """
 
+
         def parse_args() -> List[e.Expression]:
+            # If there's a "for_in_clause" we need to reject: 
+            if self._search("(for_in_clause)", node, strict=False):
+                return [Hole(pos(node))]
             arguments = self.search(
                 self.parse_expr, node.child_by_field_name("arguments")
             )
@@ -209,7 +213,8 @@ class DfyParser(Parser):
                 return self.parse_while_statement(node)
 
             case _:
-                raise ValueError(f"Unsupported object: {node.sexp()}")
+                print(f"Unsupported stmt: {node.sexp()}")
+                return Hole(pos(node))
 
     def parse_isinstance(self, node: TSNode) -> dfy_e.IsInstance:
         function = node.child_by_field_name("function")
@@ -313,7 +318,9 @@ class DfyParser(Parser):
             )
 
         else:
-            raise ValueError(f"Unsupported object: {node.sexp()}")
+            
+            print (f"Unsupported assignment: {node.sexp()}")
+            return Hole(pos(node))
 
     def parse_empty_list(self, node: TSNode) -> e.Application:
         """
@@ -399,10 +406,11 @@ class DfyParser(Parser):
             case "parenthesized_expression":
                 return self.parse_expr(node.child(1))
             case _:
+                print(
+                    f"Unsupported expr: {node.sexp()} of type {node.type}"
+                )
                 return Hole(pos(node))
-                # raise ValueError(
-                #     f"Unsupported object: {node.sexp()} of type {node.type}"
-                # )
+                
 
     def parse_unary_expression(self, node: TSNode) -> e.Application:
         """
@@ -449,9 +457,10 @@ class DfyParser(Parser):
                     elif position_in_slice == 2:
                         step = self.parse_expr(slice_entry)
                     else:
-                        raise ValueError(
+                        print(
                             f"Too many slice entries: {self.text(subscript)}"
                         )
+                        
 
             parsed_subscript = dfy_e.Slice(pos(subscript), left, right, step)
         else:
@@ -581,12 +590,21 @@ class DfyParser(Parser):
         filtered_expr = self.search(self.parse_expr, expr)
         parsed_expr = [self.parse_expr(arg) for arg in filtered_expr]
 
-        if function.name == ast_node.__name__.lower() and len(parsed_expr) == 1:
-            return ast_node(pos(node), parsed_expr[0])
+        if function.name == ast_node.__name__.lower():
+            if len(parsed_expr) == 1:
+                return ast_node(pos(node), parsed_expr[0])
+            else: 
+                print(
+                    f"Unsupported args: {node.sexp()} \n\n {self.text(node)}"
+                )
+                return ast_node(pos(node), Hole(pos(node)))
+                
+                
         else:
-            raise ValueError(
-                f"Unsupported object: {node.sexp()} \n\n {self.text(node)}"
+            print(
+                f"Unsupported reserved_function: {node.sexp()} \n\n {self.text(node)}"
             )
+            return Hole(pos(node))
 
     def parse_comparison_expression(self, node: TSNode) -> e.Application:
         """
@@ -613,7 +631,8 @@ class DfyParser(Parser):
             case "not" if self.text(node.child(2)) == "in":
                 return e.Application(p, e.Not(p), [e.Application(p, dfy_e.In(p), args)])
             case _:
-                raise ValueError(f"Unsupported object: {node.sexp()}")
+                print(f"Unsupported object: {node.sexp()}")
+                return Hole(p)
 
     def parse_forall_expression(self, node: TSNode) -> e.Application:
         """
@@ -633,7 +652,9 @@ class DfyParser(Parser):
             node.child_by_field_name("arguments"),
             strict=False,
         )
-        assert len(for_in_clause) == 1, "Expected one for_in_clause"
+        if not len(for_in_clause) == 1: 
+            print ("Expected one for_in_clause")
+            return Hole(pos(node))
         for_in_clause = for_in_clause[0]
 
         variable = self.parse_identifier(for_in_clause.child_by_field_name("left"))
@@ -651,7 +672,8 @@ class DfyParser(Parser):
             condition = self.parse_expr(if_clause.child(1))
             # predicate = e.Application (pos(node), e.Implies, [condition, predicate])
         elif len(if_clause) > 1:
-            raise ValueError(f"Expected one or none if_clause, got {len(if_clause)}")
+            print(f"Expected one or none if_clause, got {len(if_clause)}")
+            return Hole(pos(node))
 
         return dfy_e.ForAll(pos(node), variable, domain, predicate, condition)
 
@@ -793,18 +815,18 @@ class DfyParser(Parser):
 
         ensures = [s for s in stmts if isinstance(s, dfy_s.Ensures)]
         requires = [s for s in stmts if isinstance(s, dfy_s.Requires)]
-        decreases = [s for s in stmts if isinstance(s, dfy_s.Decreases)]
+        # decreases = [s for s in stmts if isinstance(s, dfy_s.Decreases)]
 
         stmts = [
             s
             for s in stmts
             if not isinstance(s, dfy_s.Ensures)
             and not isinstance(s, dfy_s.Requires)
-            and not isinstance(s, dfy_s.Decreases)
+            # and not isinstance(s, dfy_s.Decreases)
         ]
 
         # support case where result isn't the output name
-        return_stmts = [s for s in stmts if isinstance(s, dfy_s.Return)]
+        # return_stmts = [s for s in stmts if isinstance(s, dfy_s.Return)]
 
         def convert_to_assign(assign, ret_name):
             if assign.target.name != ret_name.name:
@@ -827,13 +849,13 @@ class DfyParser(Parser):
                     single_stmt.expr,
                     requires,
                     ensures,
-                    decreases,
+                    [], # decreases,
                 )
         # only need to parse the return name if it's a method
-        if len(return_stmts) == 1:
-            ret_name = return_stmts[0].expr.callee
-        else:
-            ret_name = Identifier(None, "result")
+        # if len(return_stmts) == 1:
+        #     ret_name = return_stmts[0].expr.callee
+        # else:
+        ret_name = Identifier(None, "result")
         self.variables.append(ret_name.name)
 
         stmts = [
@@ -854,7 +876,8 @@ class DfyParser(Parser):
             parsed_body,
             requires,
             ensures,
-            decreases,
+        
+            [],# decreases,
         )
 
     def parse(self, builtins=True):
@@ -896,7 +919,8 @@ class DfyParser(Parser):
             case "//":
                 return e.Application(p, dfy_e.IntDivide(p), [left, right])
             case _:
-                raise ValueError(
-                    f"Unsupported object: {node.sexp()}, "
+                print(
+                    f"Unsupported binary expr: {node.sexp()}, "
                     + f"{self.text(node.child_by_field_name('operator'))}"
                 )
+                return Hole(p)

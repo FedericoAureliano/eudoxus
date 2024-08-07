@@ -546,9 +546,24 @@ class Parser:
         alternative = node.child_by_field_name("alternative")
         if alternative is None:
             return s.If(pos(node), condition, consequence, s.Block(pos(node), []))
-        else:
+        elif alternative.type == "elif_clause":
+            condition = self.parse_expr(alternative.child_by_field_name("condition"))
+            consequence = self.search(
+                self.parse_statement, alternative.child_by_field_name("consequence")
+            )
+            consequence = s.Block(
+                pos(node), [self.parse_statement(stmt) for stmt in consequence]
+            )
+            alternative = alternative.child_by_field_name("alternative")
+            if alternative is None:
+                return s.If(pos(node), condition, consequence, s.Block(pos(node), []))
+            else:
+                alternative = self.parse_if_statement(alternative)
+                return s.If(pos(node), condition, consequence, alternative)
+        else: 
             # get the else clause (first two children are "else" and ":")
             alternative = alternative.child_by_field_name("body")
+            
             alternative = self.search(self.parse_statement, alternative)
             alternative = s.Block(
                 pos(node), [self.parse_statement(stmt) for stmt in alternative]

@@ -233,6 +233,16 @@ def stmt2dfy(output, stmt: s.Statement, indent):
             output.write(lst.name + f":= {lst.name} + [")
             expr2dfy(output, item)
             output.write("];\n")
+        case dfy_s.Invariant(_, condition):
+            if ANNOTATIONS:
+                output.write(space + "invariant( ")
+                expr2dfy(output, condition)
+                output.write(");\n")
+        case dfy_s.Decreases(_, condition):
+            if ANNOTATIONS:
+                output.write(space + "decreases( ")
+                expr2dfy(output, condition)
+                output.write(");\n")
         case _:
             raise ValueError(f"Unsupported statement {stmt}")
 

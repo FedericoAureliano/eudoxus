@@ -40,6 +40,7 @@ class DfyTypeChecker(Checker):
         self.is_list = self.declare_function(
             "eudoxus.is_list", self.type_sort, BoolSort()
         )
+        
         self.types = {}
         self.variants = {}
         self.variables = {}
@@ -158,6 +159,7 @@ class DfyTypeChecker(Checker):
                 # Constraints:
                 #  - type(fresh_x) == fresh_y (hard)
                 #  - fresh_y == correct_y     (soft)
+
                 fresh_x = self.fresh_constant(self.term_sort, "term." + x + ".")
 
                 self.variables[x] = fresh_x
@@ -176,6 +178,8 @@ class DfyTypeChecker(Checker):
                     self.input_holes.append(y.position)
 
                 self.to_repair[y.position] = (fresh_y, y)
+            case s.Variable(_, Hole(_), y):
+                return
 
             case _:
                 raise ValueError(f"Unsupported declaration {decl}")
@@ -186,17 +190,23 @@ class DfyTypeChecker(Checker):
                 # Input: <x> = <y>
                 # Constraints:
                 #  - type(z3x) == type(z3y)  (hard)
+                
                 z3x = self.variables[x]
+                
                 z3y = self.expr2z3(y)
                 depth = self.get_depth(z3x)
                 self.add_soft_constraint(
                     self.type(z3x) == self.type(z3y), y.position, f"bad_expr_{depth}"
                 )
+            case s.Assignment(_, Hole(_), y):
+                return
             case dfy_s.DeclAssignment(_, x, y, ty_hole):
                 # Input: <x> = <y>
                 # Constraints:
                 #  - type(z3x) == type(z3y)  (hard)
-
+                if isinstance(x, Hole):
+                    return
+                
                 self.decl2z3(s.Variable(None, x, ty_hole))
                 z3x = self.variables[x.name]
                 z3y = self.expr2z3(y)
@@ -283,6 +293,12 @@ class DfyTypeChecker(Checker):
                 self.add_soft_constraint(
                     self.elt_type(self.type(z3lst)) == self.type(z3item), item.position
                 )
+            case dfy_s.Return(_, x):
+                self.expr2z3(x)
+                # only check that the stuff in the return is well-typed
+                # this statement can only occur if it's not the last return
+            case Hole(_):
+                return
             case _:
                 raise ValueError(f"Unsupported statement {stmt}")
 
@@ -323,60 +339,65 @@ class DfyTypeChecker(Checker):
             case t.Enumeration(_, values):
                 values = [v.name for v in values]
                 name = "eudoxus.enum" + ".".join(values)
+            case Hole(_):
+                name = "eudoxus.hole"
+                
+                
             case _:
                 raise ValueError(f"Unsupported type {type}")
-
+        strictness = "hard" if not name.startswith("eudoxus.hole") else "hole"
+            
         if name not in self.types:
             # First time instantiating
             self.types[name] = self.declare_constant(name, self.type_sort)
             if elt_ty is not None:
                 self.add_soft_constraint(
-                    self.elt_type(self.types[name]) == elt_ty, type.position, "hard"
+                    self.elt_type(self.types[name]) == elt_ty, type.position, strictness
                 )
             if name.startswith("eudoxus.list"):
                 self.add_soft_constraint(
                     self.is_list(self.types[name]) == True,  # noqa: E712
                     type.position,
-                    "hard",
+                    strictness,
                 )
 
                 self.add_soft_constraint(
                     self.has_len(self.types[name]) == True,  # noqa: E712
                     type.position,
-                    "hard",
+                    strictness,
                 )
 
             elif name.startswith("eudoxus.set"):
                 self.add_soft_constraint(
                     self.has_len(self.types[name]) == True,  # noqa: E712
                     type.position,
-                    "hard",
+                    strictness,
                 )
                 self.add_soft_constraint(
                     self.is_list(self.types[name]) == False,  # noqa: E712
                     type.position,
-                    "hard",
+                    strictness,
                 )
             elif name.startswith("eudoxus.string"):
                 self.add_soft_constraint(
                     self.has_len(self.types[name]) == True,  # noqa: E712
                     type.position,
-                    "hard",
+                    strictness,
                 )
                 self.add_soft_constraint(
                     self.is_list(self.types[name]) == True,  # noqa: E712
                     type.position,
-                    "hard",
+                    strictness,
                 )
 
             else:
                 self.add_soft_constraint(
                     self.is_list(self.types[name]) == False,  # noqa: E712
                     type.position,
-                    "hard",
+                    strictness,
                 )
 
-        if "eudoxus" in name:
+        if "eudoxus" in name and not name.startswith("eudoxus.hole"):
             self.add_all_diff_hard(
                 [v for k, v in self.types.items() if "eudoxus" in k],
                 position=type.position,
@@ -581,7 +602,9 @@ class DfyTypeChecker(Checker):
                     )
                 return f(*args)
             case e.Application(_, e.Identifier(_, name), []):
+
                 return self.variables[name]
+                
             case e.Application(_, e.Identifier(_, name), args):
                 # this case we're actually calling a function
                 if name == "len":
@@ -843,8 +866,7 @@ class DfyTypeChecker(Checker):
             self.params2z3(module.params)
             for stmt in module.requires:
                 self.stmt2z3(stmt)
-            for stmt in module.ensures:
-                self.stmt2z3(stmt)
+
 
             # add self to symbol table
             self.function_symbol_table[module.name.name] = {
@@ -868,6 +890,9 @@ class DfyTypeChecker(Checker):
                 self.expr2z3(module.body)
             else:
                 raise ValueError(f"Unsupported module type {module.method_or_function}")
+            
+            for stmt in module.ensures:
+                self.stmt2z3(stmt)
 
         positions, model = self.solve()
 

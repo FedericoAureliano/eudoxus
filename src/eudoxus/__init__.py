@@ -8,7 +8,7 @@ from eudoxus.checker.type import TypeChecker
 from eudoxus.dfy.checker.z3opt_dafny_checker import DfyTypeChecker
 from eudoxus.dfy.parser.python import DfyParser
 from eudoxus.dfy.printer.dafny import module2dfy
-from eudoxus.dfy.printer.python import module2py as module2py_dfy
+from eudoxus.dfy.printer.python import modules2py as modules2py_dfy
 from eudoxus.dfy.rewriter.dfy_rewriter import DfyRewriter
 from eudoxus.parser.python import Parser
 from eudoxus.printer.python import module2py
@@ -87,10 +87,11 @@ def main(
     modules = [rewriter.rewrite(m) for m in modules]
 
     if language == Language.python:
-        for m in modules:
-            module2py(output, m, 0) if src_dsl != Language.dafny else module2py_dfy(
-                output, m, 0, annotations=annotations, comments=comments
-            )
+        if src_dsl == Language.dafny:
+            modules2py_dfy(output,modules,0,annotations=annotations,comments=comments)
+        else:
+            for m in modules:
+                module2py(output, m, 0)  
 
     if language == Language.uclid:
         for m in modules:
