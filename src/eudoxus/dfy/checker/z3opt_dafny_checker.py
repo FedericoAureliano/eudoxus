@@ -40,7 +40,7 @@ class DfyTypeChecker(Checker):
         self.is_list = self.declare_function(
             "eudoxus.is_list", self.type_sort, BoolSort()
         )
-        
+
         self.types = {}
         self.variants = {}
         self.variables = {}
@@ -190,9 +190,9 @@ class DfyTypeChecker(Checker):
                 # Input: <x> = <y>
                 # Constraints:
                 #  - type(z3x) == type(z3y)  (hard)
-                
+
                 z3x = self.variables[x]
-                
+
                 z3y = self.expr2z3(y)
                 depth = self.get_depth(z3x)
                 self.add_soft_constraint(
@@ -206,7 +206,7 @@ class DfyTypeChecker(Checker):
                 #  - type(z3x) == type(z3y)  (hard)
                 if isinstance(x, Hole):
                     return
-                
+
                 self.decl2z3(s.Variable(None, x, ty_hole))
                 z3x = self.variables[x.name]
                 z3y = self.expr2z3(y)
@@ -341,12 +341,11 @@ class DfyTypeChecker(Checker):
                 name = "eudoxus.enum" + ".".join(values)
             case Hole(_):
                 name = "eudoxus.hole"
-                
-                
+
             case _:
                 raise ValueError(f"Unsupported type {type}")
         strictness = "hard" if not name.startswith("eudoxus.hole") else "hole"
-            
+
         if name not in self.types:
             # First time instantiating
             self.types[name] = self.declare_constant(name, self.type_sort)
@@ -602,9 +601,8 @@ class DfyTypeChecker(Checker):
                     )
                 return f(*args)
             case e.Application(_, e.Identifier(_, name), []):
-
                 return self.variables[name]
-                
+
             case e.Application(_, e.Identifier(_, name), args):
                 # this case we're actually calling a function
                 if name == "len":
@@ -867,7 +865,6 @@ class DfyTypeChecker(Checker):
             for stmt in module.requires:
                 self.stmt2z3(stmt)
 
-
             # add self to symbol table
             self.function_symbol_table[module.name.name] = {
                 "params": module.params,
@@ -890,7 +887,7 @@ class DfyTypeChecker(Checker):
                 self.expr2z3(module.body)
             else:
                 raise ValueError(f"Unsupported module type {module.method_or_function}")
-            
+
             for stmt in module.ensures:
                 self.stmt2z3(stmt)
 

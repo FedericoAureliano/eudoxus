@@ -127,7 +127,6 @@ def module2py(output, module: Module, indent, annotations=True, comments=True):
     name = module.name.name
     method_or_function = module.method_or_function
 
-
     output.write("@dafnypy.verify\n")
     if method_or_function == "method":
         output.write(f"def {name} ")
@@ -143,10 +142,10 @@ def module2py(output, module: Module, indent, annotations=True, comments=True):
             requires2py(output, module.requires, indent)
         for statement in module.body.statements:
             stmt2py(output, statement, indent)
-        if ANNOTATIONS:    
+        if ANNOTATIONS:
             ensures2py(output, module.ensures, indent)
         final_return(output, indent)
-        
+
     elif method_or_function == "function":
         output.write(f"def {name} ")
         params2dfy(output, module.params)
@@ -168,15 +167,17 @@ def module2py(output, module: Module, indent, annotations=True, comments=True):
             f"Unsupported {method_or_function} is not a method or function"
         )
 
+
 def modules2py(output, modules: List[Module], indent, annotations=True, comments=True):
-    modules = [module for module in modules if module.position.unique >=0]
-    
+    modules = [module for module in modules if module.position.unique >= 0]
+
     output.write("import dafnypy\n")
-    for module in modules: 
+    for module in modules:
         import_builder(module)
     import2py(output)
     for module in modules:
         module2py(output, module, indent, annotations, comments)
+
 
 def params2dfy(output, params: Params) -> str:
     output.write("(")
@@ -191,9 +192,12 @@ def params2dfy(output, params: Params) -> str:
 def param2dfy(output, param: Param) -> str:
     output.write(f"{param.name.name} :")
     type2py(output, param.type)
-def final_return (output, indent):
+
+
+def final_return(output, indent):
     space = "  " * indent
     output.write(space + "return result\n")
+
 
 def stmt2py(output, stmt: s.Statement, indent):
     space = "  " * indent
@@ -206,7 +210,7 @@ def stmt2py(output, stmt: s.Statement, indent):
             output.write("\n")
         case s.Assignment(_, target, value) if isinstance(target, Hole):
             target = target.name
-            output.write(space )
+            output.write(space)
             output.write("?? = ")
             expr2py(output, value)
             output.write("\n")
@@ -220,9 +224,7 @@ def stmt2py(output, stmt: s.Statement, indent):
             output.write(" = ")
             expr2py(output, value)
             output.write("\n")
-        case dfy_s.DeclAssignment(_, target, value, ty) if isinstance(
-            target, Hole
-        ):
+        case dfy_s.DeclAssignment(_, target, value, ty) if isinstance(target, Hole):
             target = target.name
 
             output.write(space + f"?? : ")
@@ -260,7 +262,6 @@ def stmt2py(output, stmt: s.Statement, indent):
             expr2py(output, cond)
             output.write("\n")
         case Hole(_):
-            
             output.write(space + "??\n")
         case dfy_s.Return(_, value):
             output.write(space + "result = ")
@@ -309,9 +310,11 @@ def stmt2py(output, stmt: s.Statement, indent):
                 output.write(space + "dafnypy.decreases( ")
                 expr2py(output, condition)
                 output.write(")\n")
-        
+
         case _:
-            import ipdb; ipdb.set_trace()
+            import ipdb
+
+            ipdb.set_trace()
             output.write(space + "??\n")
 
 

@@ -88,10 +88,12 @@ def main(
 
     if language == Language.python:
         if src_dsl == Language.dafny:
-            modules2py_dfy(output,modules,0,annotations=annotations,comments=comments)
+            modules2py_dfy(
+                output, modules, 0, annotations=annotations, comments=comments
+            )
         else:
             for m in modules:
-                module2py(output, m, 0)  
+                module2py(output, m, 0)
 
     if language == Language.uclid:
         for m in modules:

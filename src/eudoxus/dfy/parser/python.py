@@ -110,9 +110,8 @@ class DfyParser(Parser):
             arguments: (argument_list))
         """
 
-
         def parse_args() -> List[e.Expression]:
-            # If there's a "for_in_clause" we need to reject: 
+            # If there's a "for_in_clause" we need to reject:
             if self._search("(for_in_clause)", node, strict=False):
                 return [Hole(pos(node))]
             arguments = self.search(
@@ -318,8 +317,7 @@ class DfyParser(Parser):
             )
 
         else:
-            
-            print (f"Unsupported assignment: {node.sexp()}")
+            print(f"Unsupported assignment: {node.sexp()}")
             return Hole(pos(node))
 
     def parse_empty_list(self, node: TSNode) -> e.Application:
@@ -406,11 +404,8 @@ class DfyParser(Parser):
             case "parenthesized_expression":
                 return self.parse_expr(node.child(1))
             case _:
-                print(
-                    f"Unsupported expr: {node.sexp()} of type {node.type}"
-                )
+                print(f"Unsupported expr: {node.sexp()} of type {node.type}")
                 return Hole(pos(node))
-                
 
     def parse_unary_expression(self, node: TSNode) -> e.Application:
         """
@@ -457,10 +452,7 @@ class DfyParser(Parser):
                     elif position_in_slice == 2:
                         step = self.parse_expr(slice_entry)
                     else:
-                        print(
-                            f"Too many slice entries: {self.text(subscript)}"
-                        )
-                        
+                        print(f"Too many slice entries: {self.text(subscript)}")
 
             parsed_subscript = dfy_e.Slice(pos(subscript), left, right, step)
         else:
@@ -593,13 +585,10 @@ class DfyParser(Parser):
         if function.name == ast_node.__name__.lower():
             if len(parsed_expr) == 1:
                 return ast_node(pos(node), parsed_expr[0])
-            else: 
-                print(
-                    f"Unsupported args: {node.sexp()} \n\n {self.text(node)}"
-                )
+            else:
+                print(f"Unsupported args: {node.sexp()} \n\n {self.text(node)}")
                 return ast_node(pos(node), Hole(pos(node)))
-                
-                
+
         else:
             print(
                 f"Unsupported reserved_function: {node.sexp()} \n\n {self.text(node)}"
@@ -652,8 +641,8 @@ class DfyParser(Parser):
             node.child_by_field_name("arguments"),
             strict=False,
         )
-        if not len(for_in_clause) == 1: 
-            print ("Expected one for_in_clause")
+        if not len(for_in_clause) == 1:
+            print("Expected one for_in_clause")
             return Hole(pos(node))
         for_in_clause = for_in_clause[0]
 
@@ -820,8 +809,7 @@ class DfyParser(Parser):
         stmts = [
             s
             for s in stmts
-            if not isinstance(s, dfy_s.Ensures)
-            and not isinstance(s, dfy_s.Requires)
+            if not isinstance(s, dfy_s.Ensures) and not isinstance(s, dfy_s.Requires)
             # and not isinstance(s, dfy_s.Decreases)
         ]
 
@@ -849,7 +837,7 @@ class DfyParser(Parser):
                     single_stmt.expr,
                     requires,
                     ensures,
-                    [], # decreases,
+                    [],  # decreases,
                 )
         # only need to parse the return name if it's a method
         # if len(return_stmts) == 1:
@@ -876,8 +864,7 @@ class DfyParser(Parser):
             parsed_body,
             requires,
             ensures,
-        
-            [],# decreases,
+            [],  # decreases,
         )
 
     def parse(self, builtins=True):

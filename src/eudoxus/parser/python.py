@@ -560,10 +560,10 @@ class Parser:
             else:
                 alternative = self.parse_if_statement(alternative)
                 return s.If(pos(node), condition, consequence, alternative)
-        else: 
+        else:
             # get the else clause (first two children are "else" and ":")
             alternative = alternative.child_by_field_name("body")
-            
+
             alternative = self.search(self.parse_statement, alternative)
             alternative = s.Block(
                 pos(node), [self.parse_statement(stmt) for stmt in alternative]
