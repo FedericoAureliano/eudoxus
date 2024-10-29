@@ -1,0 +1,41 @@
+```uclid
+module main {
+    type color_t;
+    const green : color_t;
+    const red : color_t;
+    
+    // Declare state variables for each traffic light
+    var traffic_light1 : color_t;
+    var traffic_light2 : color_t;
+    
+    // Initialize the traffic lights
+    init {
+        traffic_light1 = red;
+        traffic_light2 = green;
+    }
+    
+    // Define actions A and B as transitions
+    transition {
+        // Action A: traffic_light1 goes from red to green, and traffic_light2 from green to red
+        A -> (traffic_light1' = green && traffic_light2' = red)
+          | (traffic_light1' = traffic_light1 && traffic_light2' = traffic_light2);
+
+        // Action B: traffic_light1 goes from green to red, and traffic_light2 from red to green
+        B -> (traffic_light1' = red && traffic_light2' = green)
+          | (traffic_light1' = traffic_light1 && traffic_light2' = traffic_light2);
+    }
+
+    // Define properties to check
+    define {
+        green1 = (traffic_light1 = green);
+        red1 = (traffic_light1 = red);
+        green2 = (traffic_light2 = green);
+        red2 = (traffic_light2 = red);
+    }
+
+    // Check for deadlock possibility
+    // A deadlock happens when neither action is possible, meaning no change occurs anymore
+    query deadlock := (forall (traffic_light1' : color_t, traffic_light2' : color_t) ::
+        (traffic_light1' = traffic_light1 && traffic_light2' = traffic_light2));
+}
+```

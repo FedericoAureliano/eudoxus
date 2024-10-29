@@ -1,0 +1,46 @@
+
+; -----------------------------
+; Leader Election Algorithm
+; -----------------------------
+
+(define-channel c)
+(define-range n 1)
+
+(define-process   ; Process definition
+  (process-id pid)
+  (local-vars
+    (m Int)       ; Incoming message
+    (id Int)      ; Process identifier
+  )
+  (init (= id pid))  ; Initialize id with process id
+
+  (action  ; Action inside the process
+    (send c id)  ; Send process identifier
+    (loop  ; Loop to receive and compare messages
+      (receive c m)
+      (ite (= m id)
+        (stop)
+        (ite (> m id)
+          (send c m)
+        )
+      )
+    )
+  )
+)
+
+(define-system  ; System definition
+  (processes (p1 ... pn))  ; Processes p1 to pn
+  (channels (c1 ... cn))   ; Channels c1 to cn
+
+  (init (forall i in n (p[i].id = i)))  ; Initialize process identifiers
+
+  ; Channel connections
+  (forall i in n (c[i] connects p[i] p[i+1]))  ; Connect processes in a ring
+
+  ; Set process ids
+  (forall i in n (p[i] has-id i))
+
+  ; Set initial locations
+  (forall i in n (p[i].location = "location of P[i]"))
+
+)

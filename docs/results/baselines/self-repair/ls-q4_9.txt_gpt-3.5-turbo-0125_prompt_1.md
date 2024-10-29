@@ -1,0 +1,8 @@
+Write UCLID5 code to complete the following task.
+
+> Consider the intersection of two one-way streets, called Main and Secondary. A light on each street controls its traffic. Each light goes through a cycle consisting of a red (R), green (G), and yellow (Y) phases. It is a safety requirement that when one light is in its green or yellow phase, the other is in its red phase. The yellow phase is always 5 seconds long. The traffic lights operate as follows. A sensor in the secondary road detects a vehicle. While no vehicle is detected, there is a 4 minute-long cycle with the main light having 3 minutes of green, 5 seconds of yellow, and 55 seconds of red. The secondary light is red for 3 minutes and 5 seconds (while the main light is green and yellow), green for 50 seconds, then yellow for 5 seconds. If a vehicle is detected on the secondary road, the traffic light quickly gives a right of way to the secondary road. When this happens, the main light aborts its green phase and immediately switches to its 5 second yellow phase. If the vehicle is detected while the main light is yellow or red, the system continues as if there were no vehicle. Model a system that controls the lights. Let this system have six pure outputs, one for each light, named mG, mY, and mR, to designate the main light being green, yellow, or red, respectively, and sG, sY, and sR, to designate the secondary light being green, yellow, or red, respectively. These signals should be generated to turn on a light. You can implicitly assume that when one light is turned on, whichever has been on is turned off. Use the variable names mG, mY, mR, sG, sY, sR.
+
+Reply with your UCLID5 code inside one unique code block.
+
+I can definitely do that! Here is the UCLID5 code:
+```

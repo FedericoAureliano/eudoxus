@@ -1,0 +1,29 @@
+```
+module main {
+    type Temperature = int;
+    type Count = int;
+
+    const threshold : Temperature;
+
+    var temp : Temperature;
+    var count : Count;
+
+    init {
+        temp = 0;
+        count = 0;
+    }
+
+    next {
+        temp' = choose t : Temperature :: true;
+        if (temp > threshold) {
+            count' = count + 1;
+        } else {
+            count' = count;
+        }
+    }
+
+    property correct_counting {
+        always ((temp > threshold) => (next(count) = count + 1))
+    }
+}
+```

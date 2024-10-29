@@ -1,0 +1,73 @@
+
+/* Alternating Bit Protocol Model in UCLID5 */
+
+module main {
+    type packet;
+    type bit = boolean;
+
+    /* State Definitions */
+    const no_packet : packet;
+
+    /* Channels */
+    var st : record { b : bit; p : packet; };
+    var message1 : record { b : bit; p : packet; };
+    var message2 : record { b : bit; p : packet; };
+    var ack : bit;
+
+    /* Initialization */
+    init {
+        st.b = false; st.p = no_packet;
+        message1.b = false; message1.p = no_packet;
+        message2.b = false; message2.p = no_packet;
+        ack = false;
+    }
+
+    /* Transition System */
+    next(st) {
+        if (st.b == ack) {
+            return record { b = !st.b, p = choose val: packet :: true; }; // send new packet with flipped bit
+        } else {
+            return st; // resend same packet
+        }
+    }
+    next(message1) {
+        return *; // Non-deterministic loss or duplication
+    }
+    next(message2) {
+        if (* && message1.b == st.b) {
+            return message1; // Correct expected packet
+        } else {
+            return record { b = !st.b, p = no_packet; }; // otherwise, ignore or lose packet
+        }
+    }
+    next(ack) {
+        if (message2.b == !st.b) {
+            return st.b; // Accept and acknowledge last correct message
+        } else {
+            return *; // Non-deterministic loss or resend of acknowledgment
+        }
+    }
+
+    /* Safety Properties */
+    property valid_acknowledge {
+        ack == st.b => message2.b == st.b && message2.p != no_packet;
+    }
+
+    property no_duplication {
+        st.b == ack -> st.p != message2.p || message2.p == no_packet;
+    }
+
+    property progress {
+        (eventually (ack == st.b));
+    }
+
+    /* Engine Configuration */
+    control {
+        init;
+        while (*) {
+            next;
+        }
+
+        check;
+    }
+}

@@ -1,0 +1,8 @@
+Write UCLID5 code to complete the following task.
+
+> For a railroad crossing a control system needs to be developed that on receipt of a signal indicating that a train is approaching closes the gates, and only opens these gates after the train has sent a signal indicating that it crossed the road. The requirement that should be met by the control system is that the gates are always closed when the train is crossing the road. The complete system consists of the three components Train, Gate, and Controller: Train || Gate || Controller.  Model this system. You can assume that all trains pass the relevant track section in the same direction.  Detail: The states of the transition system for the Train have the following intuitive meaning: in state "far" the train is not close to the crossing, in state "near" it is approaching the crossing and has just sent a signal to notify this, and in state "in" it is at the crossing. The states "up" and "down" of the Gate have the obvious interpretation. The controller has 4 states 0, 1, 2 and 3. It changes from state 0 to 1 when the train is approaching, from state 1 to 2 when the gate is lowering, from state 2 to 3 when the train is exiting the crossing, and from state 3 to 0 when the gate is raising. The state changes of the Controller stand for handshaking with the trains (via the actions approach and exit) and the Gate (via the actions lower and raise via which the Controller causes the gate to close or to open, respectively). Use the variable names train_state, controller_state and gate_state.
+
+Reply with your UCLID5 code inside one unique code block.
+
+I can definitely do that! Here is the UCLID5 code:
+```

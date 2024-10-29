@@ -5,7 +5,7 @@
 
 ---
 
-Eudoxus is based on [Synthetic Programming Elicitation and Repair for Text-to-Code in Very Low-Resource Programming Languages](https://arxiv.org/abs/2406.03636). For a complete example run of the tool, see [`docs/results/eudoxus-gpt35/ls-ex3_13.txt`](docs/results/eudoxus-gpt35/ls-ex3_13.txt).
+Eudoxus is based on [Synthetic Programming Elicitation](https://arxiv.org/abs/2406.03636). For an example, complete example run of the tool, see [`docs/results/eudoxus-gpt35/ls-ex3_13.txt`](docs/results/eudoxus-gpt35/ls-ex3_13.txt).
 
 ## Recommended Install
 ```sh

@@ -1,0 +1,28 @@
+
+(define-state warn bool)
+(define-state nowarn bool)
+(define-state time int)
+(define-state ignition bool)
+(define-state buckled bool)
+
+(define-inits
+  (=> (and (not ignition) (and (not warn) nowarn)) (make initialize)))
+
+(define-transitions
+  (=> (and (not ignition) (not warn) (not nowarn))
+      (make warn))
+  (=> (and ignition (not warn) nowarn)
+      (when (not (or (> time 30) buckled))
+          (make (+ time 1)))
+      (when (or (> time 30) buckled)
+          (make nowarn)))
+
+(define-outputs
+  (=> warn (make redLight true) (make beeper true))
+  (=> nowarn (make redLight false) (make beeper false))
+
+(define-events
+  (when (and ignition (not buckled)) (make warn))
+  (when (and ignition buckled) (make nowarn))
+  (when (and (not ignition) buckled) (make nowarn))
+  (when (and ignition (not warn) nowarn) (make noWarn))  ; Fixed typo in event name

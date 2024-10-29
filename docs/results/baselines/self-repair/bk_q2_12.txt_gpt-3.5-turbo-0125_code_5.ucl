@@ -1,0 +1,38 @@
+
+(define-channel c 0)
+(define-range n 1)
+
+(define-process
+  (process-id pid)
+  (local-vars
+    (m Int)
+    (id Int)
+  )
+  (init (= id pid))
+
+  (action
+    (send c id)
+    (loop
+      (receive c m)
+      (ite (= m id)
+        (stop)
+        (ite (> m id)
+          (send c m)
+        )
+      )
+    )
+  )
+)
+
+(define-system
+  (processes (p 0))
+  (channels (c 0))
+
+  (init (= p[0].id 0))
+
+  (forall (i Range n)
+    (c[0] connects p[0] p[0])
+    (p[0] has-id 0)
+    (= p[0].location "location of P[0]")
+  )
+)

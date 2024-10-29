@@ -1,0 +1,8 @@
+Write UCLID5 code to complete the following task.
+
+> Consider a system essentially consisting of a sender S and a receiver R that communicate with each other over channels c and d. The receiver sends messages to the sender via channel d, and the sender sends messages to the receiver via channel c. It is assumed that both channels have an unlimited buffer. Channel c is unreliable in the sense that data may get lost when being transmitted from the sender S to channel c. Once messages are stored in the buffer of channel c, they are neither corrupted nor lost. Channel d is assumed to be perfect. The goal is to design a communication protocol that ensures any distinct transmitted datum by S to be delivered to R. To ensure this in the presence of possible message losses, sender S resorts to retransmissions. Messages are transmitted one by one, i.e., S starts sending a new message once the transmission of the previous message has been successful. This is a simple flow control principle, known as "send-and-wait". Each message m from S is sent with a control bit b, and when R receives this, it sends an acknowledgement consisting of the control bit it just received. On receipt of the acknowledgement, S sends a new message with the negation of the control bit. If S has to wait too long for the acknowledgement, it times out and retransmits the original message and control bit. Build a model of this system, using submodules for S and R. Use the variable names c, d, S, R, m and b.
+
+Reply with your UCLID5 code inside one unique code block.
+
+I can definitely do that! Here is the UCLID5 code:
+```

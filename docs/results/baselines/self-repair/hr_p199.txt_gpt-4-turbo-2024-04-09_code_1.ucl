@@ -1,0 +1,65 @@
+
+module main {
+    type Side;
+    const left: Side;
+    const right: Side;
+
+    // Variables representing locations
+    var ferryman : Side;
+    var goat : Side;
+    var cabbage : Side;
+    var wolf : Side;
+    var carry : Side;
+
+    // Initial state
+    init
+    {
+        ferryman = left;
+        goat = left;
+        cabbage = left;
+        wolf = left;
+        carry = left;
+    }
+
+    // Transition relation
+    next
+    {
+        ferryman' = carry;
+        if (carry = wolf) {
+            wolf' = carry;
+        } else {
+            wolf' = wolf;
+        }
+
+        if (carry = goat) {
+            goat' = carry;
+        } else {
+            goat' = goat;
+        }
+
+        if (carry = cabbage) {
+            cabbage' = carry;
+        } else {
+            cabbage' = cabbage;
+        }
+
+        carry' = if (carry = left) then right else left;
+    }
+
+    // Safety condition: goat and cabbage or goat and wolf must not be alone
+    constraint
+    {
+        (goat = cabbage => ferryman = goat) && (goat = wolf => ferryman = goat);
+    }
+
+    // Goal state
+    define goalState : bool {
+        ferryman = right && goat = right && cabbage = right && wolf = right;
+    }
+
+    // Reachability property: Can we achieve the goal state without violating constraints?
+    control {
+        check;
+    }
+    synth invariant;
+}
