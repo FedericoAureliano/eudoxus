@@ -1,6 +1,12 @@
-# [Synthetic Programming Elicitation](https://arxiv.org/abs/2406.03636) Supplementary Material
+---
+title: Synthetic Programming Elicitation (NeurIPS '24)
+---
+
+This is the supplementary material for [Synthetic Programming Elicitation for Text-to-Code in Very Low-Resource Programming and Formal Languages](https://arxiv.org/abs/2406.03636). For the code and installation instructions, please see [the GitHub repository](https://github.com/FedericoAureliano/eudoxus).
 
 > Recent advances in large language models (LLMs) for code applications have demonstrated remarkable zero-shot fluency and instruction following on challenging code related tasks ranging from test case generation to self-repair. Unsurprisingly, however, models struggle to compose syntactically valid programs in programming languages unrepresented in pre-training, referred to as very low-resource Programming Languages (VLPLs). VLPLs appear in crucial settings, including domain-specific languages for internal tools, tool-chains for legacy languages, and formal verification frameworks. Inspired by an HCI technique called natural program elicitation, we propose designing an intermediate language that LLMs "naturally" know how to use and which can be automatically compiled to a target VLPL. When LLMs generate code that lies outside of this intermediate language, we use compiler techniques to repair the code into programs in the intermediate language. Overall, we introduce _synthetic programming elicitation and compilation_ (SPEAC), an approach that enables LLMs to generate syntactically valid code even for VLPLs. We empirically evaluate the performance of SPEAC in a case study for the UCLID5 formal verification language and find that, compared to existing retrieval and fine-tuning baselines, SPEAC produces syntactically correct programs more frequently and without sacrificing semantic correctness.
+
+## Data
 
 Please find the challenge problems in the [`docs/data`](https://github.com/FedericoAureliano/eudoxus/tree/main/docs/data) folder of the GitHub repository. Please find the raw outputs of our experiments in the [`docs/results`](https://github.com/FedericoAureliano/eudoxus/tree/main/docs/results) folder of the Github repository.
 
