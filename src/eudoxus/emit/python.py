@@ -86,7 +86,7 @@ def specs2py(output, spec: e.Expression, indent):
             return
     space = "  " * indent
     output.write(f"{space}def specification(self):\n")
-    output.write(f"{space}  return ")
+    output.write(f"{space*2}return ")
     expr2py(output, spec)
     output.write("\n\n")
 
