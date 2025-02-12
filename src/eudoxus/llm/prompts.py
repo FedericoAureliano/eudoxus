@@ -12,7 +12,7 @@ def get_api_description() -> str:
     return source
 
 
-def get_sketch_prompt(task) -> str:
+def get_sketch_prompt(task, add_specs) -> str:
     """Returns the sketch prompt."""
 
     if task.endswith("."):
@@ -20,6 +20,8 @@ def get_sketch_prompt(task) -> str:
 
     prompt = "Write Python code that extends the `Module` class below"
     prompt += " to complete the following task.\n\n"
+    if add_specs == "simple": 
+        prompt += " If the task does not describe specifications, please think of some and add them.\n\n"
     prompt += "> " + task.replace("\n", " ").replace("\r", " ").replace("  ", " ")
     prompt = prompt.rstrip()
     if prompt.endswith("."):

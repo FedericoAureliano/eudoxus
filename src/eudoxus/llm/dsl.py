@@ -99,7 +99,7 @@ class Module:
         pass
 
     def specification(self):
-        """(Optional) Defines the specification in terms of invariant properties.
+        """(Required) Defines the specification in terms of invariant properties.
 
         Returns:
             bool: True if the specification is satisfied, False otherwise.
@@ -109,7 +109,7 @@ class Module:
         def specification(self):
             return self.x < 10 and self.y > 0
         """
-        pass
+        raise NotImplementedError
 
     def proof(self):
         """(Optional) Defines the control block.
