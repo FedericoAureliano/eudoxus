@@ -58,6 +58,7 @@ def module2ucl(output, module: Module, indent):
     control2ucl(output, module.control, indent)
 
     output.write("}\n")
+    print(output.getvalue())
 
 
 def types2ucl(output, types: s.Block, indent):
@@ -121,13 +122,24 @@ def next2ucl(output, next: s.Block, indent):
         output.write(space + "}\n")
 
 
-def specs2ucl(output, spec: e.Expression, indent):
+def specs2ucl(output, spec: e.SpecBlock, indent):
+    space = "  " * indent
+    for (lhs, rhs) in spec.bindings:
+        output.write(f"{space}")
+        output.write("CONST ")
+        expr2ucl(output, lhs)
+        output.write(" : ")
+        output.write("boolean = ")
+        expr2ucl(output, rhs)
+        output.write("\n")
+    
+    output.write(f"{space}invariant spec: ")
+    expr2ucl(output, spec.specs[0])
+
     match spec:
         case e.BooleanValue(_, True):
             return
-    space = "  " * indent
-    output.write(f"{space}invariant spec: ")
-    expr2ucl(output, spec)
+
     output.write(";\n\n")
 
 
@@ -418,6 +430,8 @@ def expr2ucl(output, expr: e.Expression):
                 output.write(")")
         case e.HoleExpr(_) | n.HoleId(_) | e.Nondet(_):
             output.write("??")
+        case n.Identifier(_, name):
+            output.write(name)
         case _:
             raise ValueError(f"Unsupported expression {expr}")
 

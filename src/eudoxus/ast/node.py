@@ -6,6 +6,10 @@ from dataclasses import dataclass
 class Position:
     unique: int
 
+# @dataclass(frozen=True)
+# class SpecBlock(Node):
+#     bindings: list[(Identifier, e.Expression)]
+#     specs: list[e.Expression]
 
 def pos2str(pos: Position) -> str:
     return str(pos.unique)

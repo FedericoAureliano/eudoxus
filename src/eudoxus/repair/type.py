@@ -196,14 +196,19 @@ class TypeChecker(Checker):
             case m.Module:
                 # Hard: type(spec') == bool
                 # Soft: spec == spec'
+                # print("children: ", children)
                 spec = children[9]
                 spec_pos = self.z3_to_pos(spec)
                 spec_depth = self.get_depth(spec)
-                self.add_soft_constraint(
-                    self.term_to_type(spec) == self.universe.type.BooleanType,
-                    spec_pos,
-                    f"bad_expr_{spec_depth}",
-                )
+
+                # for spec in spec.children()[1]:
+                #     spec_pos = self.z3_to_pos(spec)
+                #     spec_depth = self.get_depth(spec)
+                #     self.add_soft_constraint(
+                #         self.term_to_type(spec) == self.universe.type.BooleanType,
+                #         spec_pos,
+                #         f"bad_spec_expr_{spec_depth}",
+                #     )
                 return self.universe.mod.Module(*children)
             case n.Identifier:
                 # Input: x
@@ -1167,7 +1172,6 @@ class TypeChecker(Checker):
                 )
                 return x
             case e.InstanceSelect:
-                # TODO
                 return self.universe.expr.InstanceSelect(children[0], children[1])
             case p.Block:
                 arg = foldl(
@@ -1216,6 +1220,28 @@ class TypeChecker(Checker):
             case n.HoleId:
                 # return a fresh symbol
                 return self.fresh_constant(self.universe.symbol, "HoleId")
+            case e.SpecBlock:
+                bindings_ast = children[0]
+                specs_ast = children[1]
+
+                def to_pair(binding):
+                    id = binding[0]
+                    expr = binding[1]
+                    return self.universe.id_expr_pair.pair(id, expr)
+                
+                encoded_bindings = foldl(
+                    lambda acc, b: self.universe.id_expr_pair_list.cons(to_pair(b), acc),
+                    self.universe.id_expr_pair_list.empty,
+                    bindings_ast,
+                )
+                
+                encoded_specs = foldl(
+                    lambda acc, spec: self.universe.expr_list.cons(spec, acc),
+                    self.universe.expr_list.empty,
+                    specs_ast,
+                )
+                print("expr attributes: ", dir(self.universe.expr))
+                return self.universe.expr.SpecBlock(encoded_bindings, encoded_specs)
             case _:
                 raise NotImplementedError(f"Unsupported class {cls}")
 

@@ -24,6 +24,7 @@ def module2py(output, module: Module, indent):
     specs2py(output, module.specification, indent)
     control2py(output, module.control, indent)
 
+    print(output.getvalue())
     # if we didn't write anything other than the class definition, write a hole
     after = output.tell()
     if before == after:
@@ -80,14 +81,21 @@ def next2py(output, next: s.Block, indent):
     output.write("\n")
 
 
-def specs2py(output, spec: e.Expression, indent):
-    match spec:
-        case e.BooleanValue(_, True):
-            return
+# def specs2py(output, spec: e.Expression, indent):
+def specs2py(output, spec, indent):
     space = "  " * indent
+
     output.write(f"{space}def specification(self):\n")
+    for (lhs, rhs) in spec.bindings:
+        output.write(f"{space*2}")
+        expr2py(output, lhs)
+        output.write(" = ")
+        expr2py(output, rhs)
+        output.write("\n")
+
     output.write(f"{space*2}return ")
-    expr2py(output, spec)
+    expr2py(output, spec.specs[0])
+    
     output.write("\n\n")
 
 
@@ -354,11 +362,14 @@ def expr2py(output, expr: e.Expression):
                 output.write(")")
         case e.HoleExpr(_) | n.HoleId(_) | e.Nondet(_):
             output.write("??")
+        case n.Identifier(_, name):
+            output.write("self.")
+            output.write(name)
         case _:
             raise ValueError(f"Unsupported expression {expr}")
 
 
-def stmt2py(output, stmt: s.Statement, indent):
+def stmt2py(output, stmt: s.Statement, indent, spec=False):
     space = "  " * indent
     match stmt:
         case s.Assignment(
@@ -390,8 +401,15 @@ def stmt2py(output, stmt: s.Statement, indent):
                 stmt2py(output, orelse, indent + 1)
         case s.Block(_, stmts):
             if stmts:
-                for stmt in stmts:
-                    stmt2py(output, stmt, indent)
+                if spec:
+                    for stmt in stmts[:-1]:
+                        stmt2py(output, stmt, indent, spec)
+                    output.write(f"{space}return ")
+                    expr2py(output, stmts[-1])
+                    # print(output.getvalue())
+                else:
+                    for stmt in stmts:
+                        stmt2py(output, stmt, indent, spec)
             else:
                 output.write(f"{space}??\n")
         case s.Havoc(_, target):

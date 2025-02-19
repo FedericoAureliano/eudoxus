@@ -889,6 +889,8 @@ class Parser:
                 raise ValueError(f"Unsupported object: {node.sexp()}")
             case _:
                 return s.HoleStmt(self.fpos())
+    
+    # def parse_return_statement(self, node: TSNode)
 
     def parse_assume_statement(self, node: TSNode) -> s.Assume:
         """
@@ -1085,29 +1087,53 @@ class Parser:
             case _:
                 return s.HoleStmt(self.fpos())
 
-    def parse_spec_block(self, node: TSNode) -> e.Expression:
+    def parse_spec_block(self, node: TSNode) -> e.SpecBlock:
         """
         (function_definition
             name: (identifier)
             parameters: (parameters)
-            body: (block (return_statement)))
+            body: (block))
         """
         name = self.text(node.child_by_field_name("name"))
-        body = node.child_by_field_name("body").child(0)
+        body = node.child_by_field_name("body")     # body is a block
+    
         match name:
             case "specification" | "spec" | "specify" | "property" | "properties":
-                expressions = self.search(self.parse_expr, body)
-                expressions = [self.parse_expr(expr) for expr in expressions]
-                if len(expressions) == 0:
-                    return e.BooleanValue(self.fpos(), True)
-                elif len(expressions) == 1:
-                    return expressions[0]
-                elif len(expressions) > 1:
-                    return e.And(self.fpos(), *expressions)
+                spec_stmts = self.search(self.parse_spec_declaraction, body)
+                bindings = [self.parse_spec_declaraction(stmt) for stmt in spec_stmts]
+
+                return_expr = self.search(self.parse_return_expr, body)
+                specs = [self.parse_return_expr(expr) for expr in return_expr]
+
+                return e.SpecBlock(self.fpos(),
+                               bindings,
+                               specs
+                               )
             case _ if self.debug:
                 raise ValueError(f"Unsupported object: {name}")
             case _:
                 return e.HoleExpr(self.fpos())
+    
+    def parse_return_expr(self, node: TSNode) -> e.Expression:
+        """
+        (return_statement
+            (expression))
+        """
+        expr = self.parse_expr(node.child(1))
+        return expr
+
+    def parse_spec_declaraction(self, node: TSNode) -> tuple[Identifier, e.Expression]:
+        """
+        (expression_statement
+            (assignment
+                left: {self.parse_expr.__doc__}
+                right: {self.parse_expr.__doc__}))
+        """
+        node = node.child(0)
+        lhs = self.parse_identifier(node.child_by_field_name("left"))
+        rhs = self.parse_expr(node.child_by_field_name("right"))
+        return (lhs, rhs)
+
 
     def parse_control_statement(self, node: TSNode) -> p.Command:
         """
@@ -1265,12 +1291,14 @@ class Parser:
             or has_name(b, "property")
             or has_name(b, "properties")
         ]
-        if len(spec_blocks) == 0:
+
+        if len(spec_blocks) == 0:   # haven't handled yet
             spec = e.BooleanValue(self.fpos(), True)
         elif len(spec_blocks) == 1:
             spec = self.parse_spec_block(spec_blocks[0])
         else:
             spec = e.And(self.fpos(), *[self.parse_spec_block(b) for b in spec_blocks])
+            # this might be incorrect because spec returns a specBlock but let's see
 
         control_blocks = [
             b

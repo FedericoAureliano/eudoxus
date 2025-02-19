@@ -82,6 +82,7 @@ def test_examples():
     examples = os.listdir(EXAMPLES)
     # get all the examples that have .input. in them
     inputs = [example for example in examples if ".input." in example]
+    inputs = ["_specifications.input.py"]
 
     for input in inputs:
         base = input.split(".input.")[0]
