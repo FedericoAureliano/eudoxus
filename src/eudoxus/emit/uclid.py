@@ -4,7 +4,7 @@ import eudoxus.ast.proof as p
 import eudoxus.ast.statement as s
 import eudoxus.ast.type as t
 from eudoxus.analyze.sequential import SequentialChecker
-from eudoxus.ast.module import Module
+from eudoxus.ast.module import Module, SpecBlock
 
 keywords = set(
     [
@@ -37,8 +37,12 @@ keywords = set(
         "bmc",
         "check",
         "print_results",
+        "in",
     ]
 )
+
+
+ids = []
 
 
 def module2ucl(output, module: Module, indent):
@@ -58,7 +62,6 @@ def module2ucl(output, module: Module, indent):
     control2ucl(output, module.control, indent)
 
     output.write("}\n")
-    print(output.getvalue())
 
 
 def types2ucl(output, types: s.Block, indent):
@@ -122,25 +125,44 @@ def next2ucl(output, next: s.Block, indent):
         output.write(space + "}\n")
 
 
-def specs2ucl(output, spec: e.SpecBlock, indent):
+def specs2ucl(output, spec: SpecBlock, indent):
+    match spec:
+        case SpecBlock(_, [], []):
+            return
+
     space = "  " * indent
-    for (lhs, rhs) in spec.bindings:
+    for lhs, rhs in spec.bindings:
         output.write(f"{space}")
-        output.write("CONST ")
+        output.write("define ")
+        ids.append(lhs.name)
         expr2ucl(output, lhs)
         output.write(" : ")
         output.write("boolean = ")
         expr2ucl(output, rhs)
+        output.write(";")
         output.write("\n")
-    
+
+    # print("ids: ", ids)
     output.write(f"{space}invariant spec: ")
-    expr2ucl(output, spec.specs[0])
+    if len(spec.specs) == 0:
+        print("weird: ", spec)
+        output.write("??")
+    else:
+        expr2ucl(output, spec.specs[0])
 
     match spec:
         case e.BooleanValue(_, True):
             return
 
     output.write(";\n\n")
+
+    output.write(space + "control")
+    output.write(space + "{\n")
+    output.write(space * 2 + "v = bmc(3);\n")
+    output.write(space * 2 + "check;\n")
+    output.write(space * 2 + "print_results;\n")
+    output.write(space * 2 + "v.print_cex();\n")
+    output.write(space + "}\n")
 
 
 def control2ucl(output, control: p.Command, indent):
@@ -250,6 +272,9 @@ def type2ucl(output, type: t.Type):
 
 
 def clean_enum(value):
+    if value in keywords:
+        return value + "_"
+
     def is_valid_enum_char(c):
         return c.isalnum() or c == "_" or c == "?"
 
@@ -354,7 +379,8 @@ def expr2ucl(output, expr: e.Expression):
         case e.Xor(_, lhs, rhs):
             output.write("(")
             expr2ucl(output, lhs)
-            output.write(" xor ")
+            # output.write(" xor ")
+            output.write(" ^ ")
             expr2ucl(output, rhs)
             output.write(")")
         case e.Not(_, target):
@@ -421,6 +447,8 @@ def expr2ucl(output, expr: e.Expression):
         case e.FunctionApplication(_, name, args):
             name = id2str(name)
             output.write(name)
+            if name in ids:
+                output.write("()")
             if len(args) > 0:
                 output.write("(")
                 for i, a in enumerate(args):
@@ -431,7 +459,10 @@ def expr2ucl(output, expr: e.Expression):
         case e.HoleExpr(_) | n.HoleId(_) | e.Nondet(_):
             output.write("??")
         case n.Identifier(_, name):
+            # print("hello: ", name)
             output.write(name)
+            if name in ids:
+                output.write("()")
         case _:
             raise ValueError(f"Unsupported expression {expr}")
 

@@ -6,10 +6,6 @@ from dataclasses import dataclass
 class Position:
     unique: int
 
-# @dataclass(frozen=True)
-# class SpecBlock(Node):
-#     bindings: list[(Identifier, e.Expression)]
-#     specs: list[e.Expression]
 
 def pos2str(pos: Position) -> str:
     return str(pos.unique)
@@ -24,14 +20,21 @@ class Node:
     position: Position
 
     def _visit_children(self, visitor):
-        children = [getattr(self, v.name) for v in dataclasses.fields(self)]
+        # children = [getattr(self, v.name) for v in dataclasses.fields(self)]
+        children = []
+        for v in dataclasses.fields(self):
+            c = getattr(self, v.name)
+            children.append(c)
+            assert c is not None, f"Field {v.name} and {self}"
         new_children = []
         for child in children:
+            assert child is not None
             if isinstance(child, Node):
                 new_children.append(child.visit(visitor))
             elif isinstance(child, list):
                 inner_children = []
                 for c in child:
+                    assert c is not None
                     if isinstance(c, Node):
                         inner_children.append(c.visit(visitor))
                     elif isinstance(c, Position):
@@ -47,6 +50,9 @@ class Node:
                 continue
             else:
                 new_children.append(child)
+
+        for c in new_children:
+            assert c is not None
         return new_children
 
     def visit(self, visitor):
@@ -58,7 +64,9 @@ class Node:
                        children, and returns a new node
         """
         new_children = self._visit_children(visitor)
-        return visitor(self.__class__, self.position, new_children)
+        out = visitor(self.__class__, self.position, new_children)
+        assert out is not None
+        return out
 
     def traverse(self, enter, exit):
         """

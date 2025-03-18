@@ -1,0 +1,46 @@
+module TrafficLights {
+  type red = boolean;
+  type green = boolean;
+
+  var red1: red;
+  var green1: green;
+  var red2: red;
+  var green2: green;
+
+  init {
+    assume red1;
+    assume red2;
+
+  }
+  next {
+    if (red1) {
+      havoc green1;
+      assume green1;
+      assume red2;
+    } else {
+      if (green1) {
+        havoc red1;
+        assume red1;
+      }
+    }
+    if (red2) {
+      havoc green2;
+      assume green2;
+      assume red1;
+    } else {
+      if (green2) {
+        havoc red2;
+        assume red2;
+      }
+    }
+
+  }
+  invariant spec: !(green1 && green2);
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

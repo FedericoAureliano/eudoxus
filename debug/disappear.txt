@@ -1,0 +1,50 @@
+module VendingMachine {
+  var nbeer: bv32;
+  var nsoda: bv32;
+  var bool: boolean;
+  var int: boolean;
+  var action_bget: boolean;
+  var action_coin: boolean;
+  var action_refill: boolean;
+  var action_sget: boolean;
+  var bget: boolean;
+  var coin: boolean;
+  var max: bv32;
+  var refill: boolean;
+  var sget: boolean;
+
+  init {
+    nsoda = 0bv32;
+    ?? = 0bv32;
+
+  }
+  procedure step()
+    modifies nbeer;
+    modifies action_coin;
+    modifies action_refill;
+    modifies nsoda;
+  {
+    action_coin = (coin && ((nbeer + nsoda) < ??));
+    action_refill = refill;
+    nsoda = 0bv32;
+    nbeer = 0bv32;
+    nsoda = (if (action_refill) then max else nsoda);
+    nbeer = (if (action_refill) then max else nbeer);
+  }
+
+  next {
+    call step();
+  }
+  define action_bget() : boolean = (bget && (nbeer > 0bv32));
+  define action_coin() : boolean = (coin && ((nbeer + nsoda) < max));
+  define action_refill() : boolean = refill;
+  define action_sget() : boolean = (sget && (nsoda > 0bv32));
+  invariant spec: (sget && (refill && (nbeer && (max && (coin && (bget && (action_sget() && (action_refill() && (action_coin() && (action_bget() && (bool && int)))))))))));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

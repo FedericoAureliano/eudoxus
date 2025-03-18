@@ -3,7 +3,7 @@ import eudoxus.ast.proof as p
 import eudoxus.ast.statement as s
 import eudoxus.ast.type as t
 from eudoxus.ast import node as n
-from eudoxus.ast.module import Module
+from eudoxus.ast.module import Module, SpecBlock
 
 
 def module2py(output, module: Module, indent):
@@ -24,7 +24,7 @@ def module2py(output, module: Module, indent):
     specs2py(output, module.specification, indent)
     control2py(output, module.control, indent)
 
-    print(output.getvalue())
+    # print(output.getvalue())
     # if we didn't write anything other than the class definition, write a hole
     after = output.tell()
     if before == after:
@@ -83,10 +83,14 @@ def next2py(output, next: s.Block, indent):
 
 # def specs2py(output, spec: e.Expression, indent):
 def specs2py(output, spec, indent):
+    match spec:
+        case SpecBlock(_, [], []):
+            return
+
     space = "  " * indent
 
     output.write(f"{space}def specification(self):\n")
-    for (lhs, rhs) in spec.bindings:
+    for lhs, rhs in spec.bindings:
         output.write(f"{space*2}")
         expr2py(output, lhs)
         output.write(" = ")
@@ -94,8 +98,12 @@ def specs2py(output, spec, indent):
         output.write("\n")
 
     output.write(f"{space*2}return ")
-    expr2py(output, spec.specs[0])
-    
+    if len(spec.specs) == 0:
+        print("encountered something weird, spec looks like this: ", spec)
+        output.write("??")
+    else:
+        expr2py(output, spec.specs[0])
+
     output.write("\n\n")
 
 

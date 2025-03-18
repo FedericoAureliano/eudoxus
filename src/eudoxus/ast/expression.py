@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Tuple
+from typing import List
 
 from eudoxus.ast.node import Identifier, Node
 from eudoxus.ast.type import Type
@@ -9,11 +9,6 @@ from eudoxus.ast.type import Type
 class Expression(Node):
     pass
 
-@dataclass(frozen=True)
-# for some reason SpecBlock(Node) was not working, but doesn't seem to have problems rn
-class SpecBlock(Expression):
-    bindings: List[Tuple[Identifier, Expression]]
-    specs: List[Expression]
 
 @dataclass(frozen=True)
 class Value(Expression):

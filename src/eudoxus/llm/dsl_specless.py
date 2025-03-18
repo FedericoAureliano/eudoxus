@@ -97,27 +97,3 @@ class Module:
         ```
         """
         pass
-
-    def specification(self):
-        """(Required) Defines the specification in terms of invariant properties.
-
-        Returns:
-            bool: True if the specification is satisfied, False otherwise.
-
-        For example, the following implementation defines two invariants:
-        ```
-        def specification(self):
-            return self.x < 10 and self.y > 0
-        """
-        raise NotImplementedError
-
-    def proof(self):
-        """(Optional) Defines the control block.
-        For example, the following implementation uses 1-induction to prove
-        that the specification always holds:
-        ```
-        def proof(self):
-            induction(1)
-        ```
-        """
-        pass

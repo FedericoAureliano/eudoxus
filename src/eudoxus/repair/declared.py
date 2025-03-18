@@ -110,7 +110,7 @@ class DeclaredChecker(Checker):
                 s.Block(new_pos(), []),
                 s.Block(new_pos(), []),
                 s.Block(new_pos(), []),
-                e.BooleanValue(new_pos(), True),
+                m.SpecBlock(new_pos(), [], []),
                 p.Block(new_pos(), []),
             )
             new_modules.append(new_module)

@@ -11,14 +11,22 @@ from eudoxus.repair.interface import Checker
 class Scope:
     def __init__(self) -> None:
         self.map = {}
+        self.spec_constants = set()
 
     def add(self, name: str, pos: Position) -> None:
         if name not in self.map:
             self.map[name] = []
+
         self.map[name].append(pos)
 
     def get(self, name: str) -> List[Position]:
         return self.map.get(name, [])
+
+    def add_spec_constant(self, name: str) -> None:
+        """
+        Keep track of the spec constants so that we don't declare them as vars
+        """
+        self.spec_constants.add(name)
 
     def __repr__(self) -> str:
         return str(self.map)
@@ -30,6 +38,15 @@ class ScopeStack:
 
     def add(self, name: str, pos: Position) -> None:
         self.stack[-1].add(name, pos)
+
+    def add_spec_constant(self, name: str) -> None:
+        self.stack[-1].add_spec_constant(name)
+
+    def is_spec_constant(self, name) -> bool:
+        for scope in self.stack:
+            if name in scope.spec_constants:
+                return True
+        return False
 
     def exists(self, name: str) -> bool:
         for scope in reversed(self.stack):
@@ -85,8 +102,10 @@ class ScopeChecker(Checker):
 
     def enter_scope(self, node):
         match node:
-            case m.Module(_, _, _, _, _, _, _, _, _, _):
+            case m.Module(_, _, _, _, _, _, _, _, _, _, specblock, _):
                 self.scopes.enter_scope()
+                for lhs, _ in specblock.bindings:
+                    self.scopes.add_spec_constant(lhs.name)
             case s.LocalDecl(position, target, _) | s.InputDecl(
                 position, target, _
             ) | s.SharedDecl(position, target, _) | s.OutputDecl(position, target, _):
@@ -99,7 +118,9 @@ class ScopeChecker(Checker):
                     self.rewrites[bound.position] = Identifier(bound.position, new_name)
             case e.FunctionApplication(position, target, args):
                 new_name = self.scopes.rename(target.name)
-                if new_name is None:
+                if self.scopes.is_spec_constant(target.name):
+                    return
+                elif new_name is None:
                     self.vars_to_declare.add(target.name)
                 elif new_name != target.name:
                     new_id = Identifier(target.position, new_name)

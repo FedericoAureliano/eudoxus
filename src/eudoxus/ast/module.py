@@ -1,9 +1,19 @@
 from dataclasses import dataclass
+from typing import List, Tuple
 
 import eudoxus.ast.expression as e
 import eudoxus.ast.proof as p
 import eudoxus.ast.statement as s
 from eudoxus.ast.node import Identifier, Node
+
+
+@dataclass(frozen=True)
+class SpecBlock(Node):
+    bindings: List[Tuple[Identifier, e.Expression]]
+    specs: List[e.Expression]
+
+    def is_empty(self):
+        return len(self.specs) == 0
 
 
 @dataclass(frozen=True)
@@ -17,7 +27,7 @@ class Module(Node):
     instances: s.Statement
     init: s.Statement
     next: s.Statement
-    specification: e.Expression
+    specification: SpecBlock
     control: p.Command
 
     def is_empty(self):
@@ -30,7 +40,6 @@ class Module(Node):
             and self.instances.is_empty()
             and self.init.is_empty()
             and self.next.is_empty()
-            and isinstance(self.specification, e.BooleanValue)
-            and self.specification.value
+            and self.specification.is_empty()
             and self.control.is_empty()
         )

@@ -16,6 +16,7 @@ def clean(sentence):
     cleaned = cleaned.replace("(", "").replace(")", "")
     return cleaned
 
+
 # https://stackoverflow.com/a/76946888
 # Return string with the escape sequences at specific indexes to highlight
 def highlight_string_at_idxs(string, indexes):
@@ -82,7 +83,8 @@ def test_examples():
     examples = os.listdir(EXAMPLES)
     # get all the examples that have .input. in them
     inputs = [example for example in examples if ".input." in example]
-    inputs = ["_specifications.input.py"]
+    # inputs = ["_specifications_no_bindings.input.py"]
+    inputs = ["_spec_multiple_ands.input.py"]
 
     for input in inputs:
         base = input.split(".input.")[0]

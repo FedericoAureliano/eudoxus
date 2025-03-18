@@ -6,6 +6,7 @@ from rich.panel import Panel
 console = Console()
 GENERATOR_STYLE = "blue"
 LLM_STYLE = "bold magenta"
+# UCLID_STYLE = "green"
 
 
 def foldl(func, acc, xs):
@@ -42,6 +43,28 @@ def llm_log(*messages):
     console.log(
         message,
         style=LLM_STYLE,
+        markup=True,
+        emoji=True,
+        justify="full",
+        highlight=False,
+    )
+
+
+def uclid_log(*messages, style="green"):
+    """Logs a message from UCLID"""
+    if style == "green":
+        emoji = ":white_check_mark: "
+    else:
+        emoji = ":negative_squared_cross_mark: "
+    if len(messages) > 1:
+        message = " ".join([str(m) for m in messages[1:]])
+        message = Panel(message, title=emoji + messages[0], expand=False)
+    else:
+        message = emoji + messages[0]
+
+    console.log(
+        message,
+        style=style,
         markup=True,
         emoji=True,
         justify="full",

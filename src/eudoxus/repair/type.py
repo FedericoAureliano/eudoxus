@@ -45,6 +45,9 @@ class Universe:
         self.cmd = z3.Datatype(p.Command.__name__)
         self.mod = z3.Datatype(m.Module.__name__)
 
+        # TODO: replace with a pair of lists (one for bindings and one for invariants)?
+        self.spec_block_usort = z3.DeclareSort("spec_block_usort")
+
         self.expr_list = z3.Datatype(f"{e.Expression.__name__}_list")
         self.expr_list.declare("empty")
         self.expr_list.declare("cons", ("head", self.expr), ("tail", self.expr_list))
@@ -115,6 +118,8 @@ class Universe:
                         field_type = self.symbol_set
                     elif field_type == List[Tuple[n.Identifier, e.Expression]]:
                         field_type = self.id_expr_pair_list
+                    elif field_type == m.SpecBlock:
+                        field_type = self.spec_block_usort
                     else:
                         raise NotImplementedError(
                             f"Unsupported field type {field_type} for {field_name}"
@@ -189,26 +194,15 @@ class TypeChecker(Checker):
     def str_to_symbol(self, symbol):
         if symbol not in self.symbol_map:
             self.symbol_map[symbol] = self.fresh_constant(self.universe.symbol, symbol)
+
+        assert self.symbol_map[symbol] is not None
         return self.symbol_map[symbol]
 
     def encode(self, cls, pos, children) -> Node:
+        for c in children:
+            assert c is not None
         match cls:
             case m.Module:
-                # Hard: type(spec') == bool
-                # Soft: spec == spec'
-                # print("children: ", children)
-                spec = children[9]
-                spec_pos = self.z3_to_pos(spec)
-                spec_depth = self.get_depth(spec)
-
-                # for spec in spec.children()[1]:
-                #     spec_pos = self.z3_to_pos(spec)
-                #     spec_depth = self.get_depth(spec)
-                #     self.add_soft_constraint(
-                #         self.term_to_type(spec) == self.universe.type.BooleanType,
-                #         spec_pos,
-                #         f"bad_spec_expr_{spec_depth}",
-                #     )
                 return self.universe.mod.Module(*children)
             case n.Identifier:
                 # Input: x
@@ -1220,28 +1214,25 @@ class TypeChecker(Checker):
             case n.HoleId:
                 # return a fresh symbol
                 return self.fresh_constant(self.universe.symbol, "HoleId")
-            case e.SpecBlock:
-                bindings_ast = children[0]
-                specs_ast = children[1]
-
-                def to_pair(binding):
-                    id = binding[0]
-                    expr = binding[1]
-                    return self.universe.id_expr_pair.pair(id, expr)
-                
-                encoded_bindings = foldl(
-                    lambda acc, b: self.universe.id_expr_pair_list.cons(to_pair(b), acc),
-                    self.universe.id_expr_pair_list.empty,
-                    bindings_ast,
+            case m.SpecBlock:
+                bindings = children[0]
+                invariants = children[1]
+                for _, rhs in bindings:
+                    self.add_soft_constraint(
+                        self.term_to_type(rhs) == self.universe.type.BooleanType,
+                        self.z3_to_pos(rhs),
+                        f"bad_expr_{self.get_depth(rhs)}",
+                    )
+                for inv in invariants:
+                    self.add_soft_constraint(
+                        self.term_to_type(inv) == self.universe.type.BooleanType,
+                        self.z3_to_pos(inv),
+                        f"bad_expr_{self.get_depth(inv)}",
+                    )
+                # TODO: return a pair of lists (one for bindings one for invs)
+                return self.fresh_constant(
+                    self.universe.spec_block_usort, "GenericSpecBLock"
                 )
-                
-                encoded_specs = foldl(
-                    lambda acc, spec: self.universe.expr_list.cons(spec, acc),
-                    self.universe.expr_list.empty,
-                    specs_ast,
-                )
-                print("expr attributes: ", dir(self.universe.expr))
-                return self.universe.expr.SpecBlock(encoded_bindings, encoded_specs)
             case _:
                 raise NotImplementedError(f"Unsupported class {cls}")
 
@@ -1409,6 +1400,7 @@ class TypeChecker(Checker):
 
             def encode_and_save(cls, pos, children):
                 node = self.encode(cls, pos, children)
+                assert node is not None
                 self.pos_to_z3expr[pos] = node
                 return node
 

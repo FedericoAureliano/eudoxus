@@ -9,7 +9,7 @@ import eudoxus.ast.expression as e
 import eudoxus.ast.proof as p
 import eudoxus.ast.statement as s
 import eudoxus.ast.type as t
-from eudoxus.ast.module import Module
+from eudoxus.ast.module import Module, SpecBlock
 from eudoxus.ast.node import HoleId, Identifier, Position
 from eudoxus.utils import foldl
 
@@ -118,6 +118,7 @@ class Parser:
 
     def type_helper(self, id: Identifier, args: TSNode) -> t.Type:
         name = id.name
+        # print(f"name: {name} | args: {args.children if args else 'none'}")
         if "bool" in name.lower():
             return t.BooleanType(self.fpos())
         elif "int" in name.lower():
@@ -179,6 +180,14 @@ class Parser:
 
             # filter out duplicates
             args_list = list(dict.fromkeys(args_list))
+
+            if len(args_list) == 0:
+                return t.HoleType(self.fpos())
+
+            for i in range(len(args_list)):
+                if args_list[i].name.isnumeric():
+                    return t.HoleType(self.fpos())
+
             return t.EnumeratedType(self.fpos(), args_list)
         elif "record" in name.lower():
             fields = self.search(self.parse_string_type_pair, args, strict=False)
@@ -224,6 +233,8 @@ class Parser:
         id = self.parse_identifier(node.child_by_field_name("left"))
         rhs = self.parse_type_expr(node.child_by_field_name("right"))
         if isinstance(rhs, t.EnumeratedType):
+            if len(rhs.values) == 0:
+                print(f"found something weird.rhs len0 Here is more info: {id} {rhs}")
             fst = rhs.values[0]
             if fst.name == id.name:
                 # e.g., self.t = Enum('t', 'A', 'B', 'C')
@@ -287,14 +298,26 @@ class Parser:
                 return e.Not(pos, *args)
             case "neg" | "negative" | "negate" if len(args) == 1:
                 return e.Negate(pos, *args)
-            case "and" | "conjunct" | "conjunction" if 1 <= len(args) <= 2:
+            # case "and" | "conjunct" | "conjunction" if 1 <= len(args) <= 2:
+            case "and" | "conjunct" | "conjunction" | "and_" if 1 <= len(args):
                 if len(args) == 1:
                     return args[0]
-                return e.And(pos, *args)
-            case "or" | "disjunct" | "disjunction" if 1 <= len(args) <= 2:
+                else:
+                    curr_and = e.And(pos, args[0], args[1])
+                    for i in range(2, len(args)):
+                        curr_and = e.And(self.fpos(), args[i], curr_and)
+                    return curr_and
+            # case "or" | "disjunct" | "disjunction" if 1 <= len(args) <= 2:
+            case "or" | "disjunct" | "disjunction" if 1 <= len(args):
+                # made this n-ary
                 if len(args) == 1:
                     return args[0]
-                return e.Or(pos, *args)
+                else:
+                    curr_or = e.Or(pos, args[0], args[1])
+                    for i in range(2, len(args)):
+                        curr_or = e.Or(self.fpos(), args[i], curr_or)
+                    # return e.Or(pos, *args)
+                    return curr_or
             case "xor" | "exclusive_or" if 1 <= len(args) <= 2:
                 if len(args) == 1:
                     return args[0]
@@ -308,6 +331,7 @@ class Parser:
                     return args[0]
                 return e.Equal(pos, *args)
             case "add" | "plus" | "sum" | "addition" if 1 <= len(args) <= 2:
+                # could make this n-ary
                 if len(args) == 1:
                     return args[0]
                 return e.Add(pos, *args)
@@ -316,6 +340,7 @@ class Parser:
                     return args[0]
                 return e.Subtract(pos, *args)
             case "mul" | "multiply" | "times" | "mult" if 1 <= len(args) <= 2:
+                # could make this n-ary
                 if len(args) == 1:
                     return args[0]
                 return e.Multiply(pos, *args)
@@ -531,6 +556,7 @@ class Parser:
                 continue
             elif i == 1:
                 base = helper(ops[i - 1], args[i - 1], arg)
+
             else:
                 term = helper(ops[i - 1], args[i - 1], arg)
                 base = e.And(self.fpos(), base, term)
@@ -583,7 +609,10 @@ class Parser:
 
     def parse_integer(self, node: TSNode) -> e.Value:
         """(integer)"""
-        return e.IntegerValue(self.fpos(), int(self.text(node)))
+        if self.text(node).isnumeric():
+            return e.IntegerValue(self.fpos(), int(self.text(node)))
+        else:
+            return e.HoleExpr(self.fpos())
 
     def parse_float(self, node: TSNode) -> e.Value:
         """(float)"""
@@ -660,6 +689,7 @@ class Parser:
             case "call" if node.child_by_field_name("function").type == "call":
                 return self.parse_app_of_app_expr(node)
             case "call":
+                # print("in call looking at node: ", node)
                 return self.parse_app_expr(node)
             case "unary_operator":
                 return self.parse_unary_expression(node)
@@ -889,7 +919,7 @@ class Parser:
                 raise ValueError(f"Unsupported object: {node.sexp()}")
             case _:
                 return s.HoleStmt(self.fpos())
-    
+
     # def parse_return_statement(self, node: TSNode)
 
     def parse_assume_statement(self, node: TSNode) -> s.Assume:
@@ -1087,7 +1117,7 @@ class Parser:
             case _:
                 return s.HoleStmt(self.fpos())
 
-    def parse_spec_block(self, node: TSNode) -> e.SpecBlock:
+    def parse_spec_block(self, node: TSNode) -> SpecBlock:
         """
         (function_definition
             name: (identifier)
@@ -1095,8 +1125,9 @@ class Parser:
             body: (block))
         """
         name = self.text(node.child_by_field_name("name"))
-        body = node.child_by_field_name("body")     # body is a block
-    
+        body = node.child_by_field_name("body")  # body is a block
+        # print("body: ", body)
+        # print("body children: ", body.children)
         match name:
             case "specification" | "spec" | "specify" | "property" | "properties":
                 spec_stmts = self.search(self.parse_spec_declaraction, body)
@@ -1105,20 +1136,21 @@ class Parser:
                 return_expr = self.search(self.parse_return_expr, body)
                 specs = [self.parse_return_expr(expr) for expr in return_expr]
 
-                return e.SpecBlock(self.fpos(),
-                               bindings,
-                               specs
-                               )
+                # print("specs: ", specs)
+                return SpecBlock(self.fpos(), bindings, specs)
             case _ if self.debug:
                 raise ValueError(f"Unsupported object: {name}")
             case _:
                 return e.HoleExpr(self.fpos())
-    
+
     def parse_return_expr(self, node: TSNode) -> e.Expression:
         """
         (return_statement
             (expression))
         """
+        # print("node: ", node)
+        # print("node children: ", node.children)
+        # print("node child 1: ", node.child(1))
         expr = self.parse_expr(node.child(1))
         return expr
 
@@ -1133,7 +1165,6 @@ class Parser:
         lhs = self.parse_identifier(node.child_by_field_name("left"))
         rhs = self.parse_expr(node.child_by_field_name("right"))
         return (lhs, rhs)
-
 
     def parse_control_statement(self, node: TSNode) -> p.Command:
         """
@@ -1292,13 +1323,18 @@ class Parser:
             or has_name(b, "properties")
         ]
 
-        if len(spec_blocks) == 0:   # haven't handled yet
-            spec = e.BooleanValue(self.fpos(), True)
+        if len(spec_blocks) == 0:  # haven't handled yet
+            spec = SpecBlock(self.fpos(), [], [])
         elif len(spec_blocks) == 1:
             spec = self.parse_spec_block(spec_blocks[0])
         else:
-            spec = e.And(self.fpos(), *[self.parse_spec_block(b) for b in spec_blocks])
-            # this might be incorrect because spec returns a specBlock but let's see
+            print("in 2")
+            all_spec_blocks = [self.parse_spec_block(b) for b in spec_blocks]
+            spec = SpecBlock(
+                self.fpos(),
+                [b for bs in all_spec_blocks for b in bs.bindings],
+                [inv for invs in all_spec_blocks for inv in invs.specs],
+            )
 
         control_blocks = [
             b
