@@ -1,0 +1,42 @@
+module Module {
+  var temp: integer;
+  var heatOn: boolean;
+  var heatOff: boolean;
+  var time: bv2;
+
+  init {
+    temp = 0; //31
+    heatOn = false; //35
+    heatOff = false; //39
+    time = 0bv2; //46
+
+  }
+  next {
+    if ((time % 30bv2) == 0bv2) {
+      if (temp <= 20) {
+        heatOn' = true; //72
+        heatOff' = false; //76
+      } else {
+        if (temp > 20) {
+          heatOn' = false; //87
+          heatOff' = true; //91
+        }
+      }
+      if (heatOn) {
+        time' = (time + 30bv2); //107
+      } else {
+        if (heatOff) {
+          time' = (time + 120bv2); //121
+        }
+      }
+    }
+
+  }
+  invariant spec: ((temp >= 0) && (time >= 0bv2));
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

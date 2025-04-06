@@ -1,0 +1,67 @@
+module Sender {
+  type Bit = bv9;
+  type ControlBit = Bit;
+
+  var m: bv11;
+  var S: bv11;
+  var timeout: boolean;
+  var timer: integer;
+
+  input c: Message;
+  input b: ControlBit;
+
+  output ack: ControlBit;
+
+  init {
+    S = Message; //57
+    timeout = false; //61
+    timer = 0; //65
+
+  }
+  next {
+    timeout' = (timer >= 10); //75
+    if ((S != c) || timeout) {
+      S' = S; //90
+    } else {
+      S' = S; //96
+      timer' = 0; //100
+    }
+
+  }
+}
+module Receiver {
+  type Bit = bv9;
+  type ControlBit = Bit;
+  type Message = bv8;
+
+  var R: bv8;
+  var C: bv9;
+
+  input d: Message;
+  input b: ControlBit;
+
+  output ack: ControlBit;
+
+  next {
+    if (R == d) {
+      ack' = b; //166
+      C' = b; //171
+    } else {
+      ack' = ack; //177
+      C' = C; //182
+    }
+
+  }
+}
+module Communication {
+  type Bit = bv9;
+  type Message = bv8;
+
+  var ControlBit: bv2;
+  var C: bv3;
+  var c: bv4;
+
+  instance sender: Sender(ack:(ControlBit), b:(C), c:(c));
+  instance receiver: Receiver(ack:(ControlBit), b:(sender.ack), d:(sender.S));
+
+}

@@ -1,0 +1,49 @@
+module PnueliProtocol {
+  var s: bv1;
+  var s_next: bv1;
+  var y0: bv1;
+  var y0_next: bv1;
+  var y1: bv1;
+  var y1_next: bv1;
+
+  init {
+    s = 1bv1; //47
+
+  }
+  procedure step()
+    modifies s;
+    modifies y0_next;
+    modifies s_next;
+    modifies y0;
+    modifies y1_next;
+    modifies y1;
+  {
+    y0_next = y0; //54
+    y1_next = y1; //59
+    s_next = s; //64
+    if ((y0 == y1_next) && (s == 1bv1)) {
+      y0_next = 1bv1; //87
+      s_next = y0_next; //92
+    }
+    if ((y1 == y0_next) && (s == 1bv1)) {
+      y1_next = 1bv1; //117
+      s_next = y1_next; //122
+    }
+    y0 = y0_next; //129
+    y1 = y1_next; //134
+    s = s_next; //139
+  }
+
+  next {
+    call step();
+  }
+  invariant mutual_exclusion : (((y0 == y1) && (y0 == y1_next)) || ((y0 == y1) && (y0 == y1)));
+  invariant starvation_freedom : ((y0 == y1_next) && (y1 == y0_next));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

@@ -1,0 +1,81 @@
+module VendingMachine {
+  var bget_enabled: boolean;
+  var coin_enabled: boolean;
+  var refill_enabled: boolean;
+  var ret_coin_enabled: boolean;
+  var sget_enabled: boolean;
+  var nsoda: integer;
+  var nbeer: integer;
+  var sget: boolean;
+  var bget: boolean;
+  var refill: boolean;
+  var coin: boolean;
+
+  init {
+    nsoda = 0; //58
+    nbeer = 0; //62
+    sget = false; //66
+    bget = false; //70
+    refill = false; //74
+    coin = false; //78
+
+  }
+  procedure step()
+    modifies refill;
+    modifies sget;
+    modifies coin_enabled;
+    modifies sget_enabled;
+    modifies refill_enabled;
+    modifies ret_coin_enabled;
+    modifies coin;
+    modifies nsoda;
+    modifies nbeer;
+    modifies bget_enabled;
+    modifies bget;
+  {
+    coin_enabled = true; //84
+    refill_enabled = true; //88
+    sget_enabled = (nsoda > 0); //96
+    bget_enabled = (nbeer > 0); //104
+    ret_coin_enabled = ((nsoda == 0) && (nbeer == 0)); //118
+    if (coin_enabled) {
+      coin = true; //125
+    } else {
+      coin = false; //130
+    }
+    if (refill_enabled) {
+      refill = true; //138
+    } else {
+      refill = false; //143
+    }
+    if (sget_enabled) {
+      sget = true; //151
+    } else {
+      sget = false; //156
+    }
+    if (bget_enabled) {
+      bget = true; //164
+    } else {
+      bget = false; //169
+    }
+    if (ret_coin_enabled) {
+      coin = false; //177
+      refill = false; //181
+      sget = false; //185
+      bget = false; //189
+      nsoda = 0; //193
+      nbeer = 0; //197
+    }
+  }
+
+  next {
+    call step();
+  }
+  invariant spec: true;
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

@@ -1,0 +1,33 @@
+module RailroadCrossing {
+  var approaching: boolean;
+  var gate_lowered: boolean;
+  var near_gate: boolean;
+  var train_passed: boolean;
+  var train_state: bv2;
+  var controller_state: bv2;
+  var gate_state: bv1;
+
+  init {
+    train_state = 0bv2; //48
+    controller_state = 0bv2; //55
+    gate_state = 0bv1; //62
+
+  }
+  next {
+    approaching' = (train_state == 1bv2); //75
+    near_gate' = (controller_state == 2bv2); //86
+    train_passed' = (controller_state == 3bv2); //97
+    gate_lowered' = (controller_state == 1bv2); //108
+    train_state' = (if (approaching) then 2bv2 else (if (train_passed) then 1bv2 else train_state)); //127
+    controller_state' = (if (approaching) then 1bv2 else (if (gate_lowered) then 2bv2 else (if (train_passed) then 3bv2 else controller_state))); //153
+    gate_state' = (if (near_gate) then 1bv1 else (if (train_passed) then 0bv1 else gate_state)); //172
+
+  }
+  invariant spec: ((train_state != 2bv2) || (gate_state != 1bv1));
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

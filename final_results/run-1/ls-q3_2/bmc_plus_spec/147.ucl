@@ -1,0 +1,55 @@
+module Module {
+  var temp: integer;
+  var heatOn: boolean;
+  var heatOff: boolean;
+  var timer: integer;
+
+  init {
+    temp = 15; //30
+    heatOn = false; //34
+    heatOff = false; //38
+    timer = 30; //42
+
+  }
+  next {
+    if ((temp <= 20) && !heatOn) {
+      if (timer < 30) {
+        heatOn' = false; //64
+        heatOff' = true; //68
+        timer' = (timer + 1); //75
+      } else {
+        timer' = 0; //80
+        heatOn' = true; //84
+        heatOff' = false; //88
+      }
+    } else {
+      if ((temp > 20) && heatOn) {
+        if (timer < 120) {
+          heatOn' = true; //109
+          heatOff' = false; //113
+          timer' = (timer + 1); //120
+        } else {
+          timer' = 0; //125
+          heatOn' = false; //129
+          heatOff' = true; //133
+        }
+      } else {
+        timer' = (timer + 1); //142
+      }
+    }
+
+  }
+  invariant temp_inv : (temp >= 0);
+  invariant timer_inv : (timer >= 0);
+  invariant time_inv : ((heatOn ==> (timer >= 30)) && (heatOff ==> (timer <= 120)));
+  invariant heatoff_inv : (timer >= 120);
+  invariant heaton_inv : (timer >= 30);
+  invariant temp_inv : (temp == temp);
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

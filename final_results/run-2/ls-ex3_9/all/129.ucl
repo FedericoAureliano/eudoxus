@@ -1,0 +1,76 @@
+module TrafficLight {
+  var count: integer;
+  var pedestrian: boolean;
+  var sigG: boolean;
+  var sigR: boolean;
+  var sigY: boolean;
+  var State: record { RED: bv2, GREEN: bv2, YELLOW: bv2 };
+  var state: bv2;
+
+  init {
+    state = State.RED; //58
+    count = 0; //62
+    sigR = true; //66
+    sigG = false; //70
+    sigY = false; //74
+    pedestrian = false; //78
+
+  }
+  procedure step()
+    modifies sigY;
+    modifies state;
+    modifies sigG;
+    modifies count;
+    modifies sigR;
+  {
+    if (state == State.RED) {
+      sigR = true; //93
+      sigG = false; //97
+      sigY = false; //101
+      count = (count + 1); //108
+      if (count == 60) {
+        state = State.GREEN; //121
+        count = 0; //125
+      }
+    } else {
+      if (state == State.GREEN) {
+        sigR = false; //141
+        sigG = true; //145
+        sigY = false; //149
+        count = (count + 1); //156
+        if (pedestrian && (count >= 60)) {
+          state = State.YELLOW; //172
+          count = 0; //176
+        }
+      } else {
+        if (state == State.YELLOW) {
+          sigR = false; //192
+          sigG = false; //196
+          sigY = true; //200
+          count = (count + 1); //207
+          if (count == 5) {
+            state = State.RED; //220
+          }
+        }
+      }
+    }
+  }
+
+  next {
+    call step();
+  }
+  invariant state_inv : ((((state == State.RED) && (sigR == true)) && (sigG == false)) && (sigY == false));
+  invariant count_inv : (((state == State.RED) && (0 <= count)) && (count <= 60));
+  invariant sigG_inv : ((state == State.GREEN) && (sigG == true));
+  invariant sigY_inv : ((state == State.YELLOW) && (sigY == true));
+  invariant sigR_inv : ((state == State.RED) && (sigR == true));
+  invariant pedestrian_inv : ((pedestrian == true) && ((state == State.GREEN) || (state == State.YELLOW)));
+  invariant count_inv : ((state == State.YELLOW) && (count < 5));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

@@ -1,0 +1,84 @@
+module VendingMachine {
+  var max: bv8;
+  var nsoda: bv8;
+  var nbeer: bv8;
+  var refill: boolean;
+
+  output coin: boolean;
+  output ret_coin: boolean;
+  output sget: boolean;
+  output bget: boolean;
+
+  init {
+    coin = true; //50
+    ret_coin = false; //54
+    nsoda = 0bv8; //61
+    nbeer = 0bv8; //68
+    max = 10bv8; //75
+    sget = false; //79
+    bget = false; //83
+    refill = true; //87
+
+  }
+  procedure step()
+    modifies bget;
+    modifies coin;
+    modifies sget;
+    modifies nbeer;
+    modifies ret_coin;
+    modifies nsoda;
+  {
+    if (refill) {
+      nsoda = max; //97
+      nbeer = max; //102
+    }
+    if (ret_coin) {
+      coin = false; //111
+    } else {
+      coin = true; //116
+    }
+    if (nsoda > 0bv8) {
+      sget = true; //130
+    }
+    if (nbeer > 0bv8) {
+      bget = true; //145
+    }
+    if ((nsoda == 0bv8) && (nbeer == 0bv8)) {
+      ret_coin = true; //169
+    }
+    if (coin) {
+      ret_coin = false; //178
+    } else {
+      if (refill) {
+        nsoda = max; //187
+        nbeer = max; //192
+      } else {
+        if (sget) {
+          nsoda = (nsoda - 1bv8); //206
+        } else {
+          if (bget) {
+            nbeer = (nbeer - 1bv8); //220
+          }
+        }
+      }
+    }
+  }
+
+  next {
+    call step();
+  }
+  invariant nsoda_inv : ((nsoda >= 0bv8) && (nsoda <= max));
+  invariant nbeer_inv : ((nbeer >= 0bv8) && (nbeer <= max));
+  invariant sget_inv : (sget == (nsoda > 0bv8));
+  invariant bget_inv : (bget == (nbeer > 0bv8));
+  invariant refill_inv : (refill == true);
+  invariant coin_inv : coin;
+  invariant ret_coin_inv : ((ret_coin == (nsoda == 0bv8)) || (nbeer == 0bv8));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

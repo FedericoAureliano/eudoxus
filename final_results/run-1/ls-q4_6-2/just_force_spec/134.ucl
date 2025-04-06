@@ -1,0 +1,53 @@
+module Module {
+  var buckled: boolean;
+  var ignition: boolean;
+  var red_light: boolean;
+  var sound_beeper: boolean;
+  var time: integer;
+
+  init {
+    sound_beeper = false; //34
+    red_light = false; //38
+
+  }
+  procedure step()
+    modifies sound_beeper;
+    modifies time;
+    modifies red_light;
+  {
+    if (ignition && !buckled) {
+      sound_beeper = true; //51
+      time = 0; //55
+      red_light = true; //59
+    } else {
+      sound_beeper = false; //64
+      red_light = false; //68
+    }
+    if (sound_beeper && (time < 30)) {
+      time = (time + 1); //85
+    } else {
+      sound_beeper = false; //90
+    }
+    if (!buckled) {
+      red_light = true; //99
+    } else {
+      red_light = false; //104
+    }
+  }
+
+  next {
+    call step();
+  }
+  invariant ignition_inv : (ignition == true);
+  invariant buckled_inv : (buckled == true);
+  invariant time_inv : ((time >= 0) && (time <= 30));
+  invariant sound_beeper_inv : (if ((ignition && !buckled) && (time < 30)) then (sound_beeper == true) else (sound_beeper == false));
+  invariant red_light_inv : (if !buckled then (red_light == true) else (red_light == false));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

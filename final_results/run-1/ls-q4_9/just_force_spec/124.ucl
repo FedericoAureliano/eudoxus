@@ -1,0 +1,88 @@
+module TrafficLights {
+  var State: bv3;
+  var main_timer: bv16;
+  var secondary_detector: bv1;
+  var secondary_light_timer: bv8;
+
+  output mG: boolean;
+  output mY: boolean;
+  output mR: boolean;
+  output sG: boolean;
+  output sY: boolean;
+  output sR: boolean;
+
+  init {
+    State = 0bv3; //62
+    main_timer = 240bv16; //69
+    secondary_detector = 0bv1; //76
+    secondary_light_timer = 185bv8; //83
+
+  }
+  procedure step()
+    modifies mY;
+    modifies sY;
+    modifies secondary_light_timer;
+    modifies mG;
+    modifies mR;
+    modifies main_timer;
+    modifies sG;
+    modifies sR;
+    modifies State;
+  {
+    if (secondary_light_timer == 0bv8) {
+      secondary_light_timer = 55bv8; //101
+      State = 2bv3; //108
+      if (secondary_detector == 0bv1) {
+        State = 2bv3; //124
+      }
+    } else {
+      secondary_light_timer = (secondary_light_timer - 1bv8); //137
+    }
+    if (main_timer == 0bv16) {
+      main_timer = 240bv16; //154
+      if ((secondary_detector == 1bv1) && (State == 0bv3)) {
+        State = 5bv3; //179
+      } else {
+        if (State == 5bv3) {
+          State = 1bv3; //196
+        } else {
+          if (State == 1bv3) {
+            State = 0bv3; //213
+          } else {
+            if (State == 4bv3) {
+              State = 0bv3; //230
+            }
+          }
+        }
+      }
+      if (State != 0bv3) {
+        State = 0bv3; //251
+      }
+    } else {
+      main_timer = (main_timer - 1bv16); //264
+    }
+    mG = (State == 0bv3); //276
+    mY = (State == 1bv3); //287
+    mR = (State == 2bv3); //298
+    sG = (State == 4bv3); //309
+    sY = (State == 7bv3); //320
+    sR = (State == 0bv3); //331
+  }
+
+  next {
+    call step();
+  }
+  invariant mG_inv : (mG ==> !sG);
+  invariant mY_inv : (mY ==> !(sG || sY));
+  invariant mR_inv : (mR ==> !(sG || sY));
+  invariant sG_inv : (sG ==> mR);
+  invariant sY_inv : (sY ==> mG);
+  invariant sR_inv : (sR ==> (mG && mY));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

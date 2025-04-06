@@ -1,0 +1,58 @@
+module Module {
+  var count: integer;
+  var pedestrian: boolean;
+  var sigG: boolean;
+  var sigR: boolean;
+  var sigY: boolean;
+  var state: integer;
+
+  init {
+    state = 0; //38
+
+  }
+  next {
+    if (count == 60) {
+      if (state == 0) {
+        state' = 1; //56
+        sigG' = true; //60
+      } else {
+        if ((state == 1) && pedestrian) {
+          state' = 2; //74
+          sigG' = false; //78
+          sigY' = true; //82
+        } else {
+          if (state == 1) {
+            state' = 3; //93
+            sigG' = false; //97
+          } else {
+            if (state == 3) {
+              state' = 1; //108
+              sigY' = true; //112
+              sigR' = true; //116
+            }
+          }
+        }
+      }
+    }
+    if (state != 0) {
+      count' = (count + 1); //136
+    }
+    if (pedestrian) {
+      pedestrian' = true; //145
+    }
+
+  }
+  invariant count_inv : ((count >= 0) && (count <= 60));
+  invariant pedestrian_inv : (pedestrian ==> true);
+  invariant state_inv : ((state == 3) || ((state == 2) || ((state == 0) || (state == 1))));
+  invariant sigG_inv : (sigG == (state == 1));
+  invariant sigY_inv : (sigY == (state == 2));
+  invariant sigR_inv : (sigR == (state == 0));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

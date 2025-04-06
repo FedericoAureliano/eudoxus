@@ -1,0 +1,41 @@
+module TrafficLights {
+  var traffic_light1: enum { GREEN, RED };
+  var traffic_light2: enum { GREEN, RED };
+  var green1: integer;
+  var red1: integer;
+  var green2: integer;
+  var red2: integer;
+
+  init {
+    traffic_light1 = GREEN; //42
+    traffic_light2 = RED; //46
+
+  }
+  next {
+    if ((traffic_light1 == RED) && (traffic_light2 == GREEN)) {
+      traffic_light1' = GREEN; //64
+      traffic_light2' = RED; //68
+    } else {
+      if ((traffic_light1 == GREEN) && (traffic_light2 == RED)) {
+        traffic_light1' = RED; //85
+        traffic_light2' = GREEN; //89
+      }
+    }
+
+  }
+  invariant red2_inv : (if (traffic_light2 == RED) then true else false);
+  invariant traffic_light_state_inv : (((green1 + red1) == 1) && ((green2 + red2) == 1));
+  invariant traffic_light1_inv : ((traffic_light1 == GREEN) || (traffic_light1 == RED));
+  invariant traffic_light2_inv : ((traffic_light2 == GREEN) || (traffic_light2 == RED));
+  invariant combined_state_inv : (((traffic_light1 == GREEN) && (traffic_light2 == RED)) || ((traffic_light1 == RED) && (traffic_light2 == GREEN)));
+  invariant green1 : (if (traffic_light1 == GREEN) then true else false);
+  invariant red1 : (if (traffic_light1 == RED) then true else false);
+  invariant green2 : (if (traffic_light2 == GREEN) then true else false);
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

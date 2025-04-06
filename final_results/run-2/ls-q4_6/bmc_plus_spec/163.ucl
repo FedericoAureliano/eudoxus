@@ -1,0 +1,38 @@
+module Module {
+  var Boolean: boolean;
+  var Integer: integer;
+  var door_open: boolean;
+  var light_on: boolean;
+  var timer: integer;
+
+  init {
+    light_on = false; //34
+    timer = 0; //38
+
+  }
+  next {
+    if (door_open) {
+      light_on' = true; //47
+      timer' = 30; //51
+    } else {
+      if (timer > 0) {
+        timer' = (timer - 1); //65
+      } else {
+        light_on' = false; //70
+      }
+    }
+
+  }
+  invariant door_open_inv : (door_open == Boolean);
+  invariant light_on_inv : (light_on == Boolean);
+  invariant timer_inv : (timer == Integer);
+  invariant light_on_inv : (light_on == (door_open || (timer > 0)));
+  invariant timer_inv : ((timer >= 0) && (timer <= 30));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

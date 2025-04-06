@@ -1,0 +1,63 @@
+module Channel {
+  var b: bv2;
+  var m: integer;
+
+}
+module Sender {
+  var b: bv2;
+  var m: integer;
+
+  init {
+    m = 0; //45
+    b = 0bv2; //52
+
+  }
+  next {
+    if (b == 0bv2) {
+      m' = (m + 1); //70
+      b' = (1bv2 - b); //80
+    }
+
+  }
+}
+module Receiver {
+  var b: bv3;
+  var m: integer;
+  var res_b: bv3;
+  var res_m: integer;
+
+  next {
+    if (b == 1bv3) {
+      if ((res_m == m) && (res_b == b)) {
+        m' = (m + 1); //144
+        b' = (1bv3 - b); //154
+      } else {
+        b' = b; //160
+      }
+    }
+
+  }
+}
+module CommunicationProtocl {
+  var valid_ack: boolean;
+
+  instance S: Sender();
+  instance R: Receiver();
+  instance c: Channel();
+  instance d: Channel();
+
+  invariant s_m_inv : (S.m >= 0);
+  invariant r_m_inv : (R.m >= 0);
+  invariant s_b_inv : (S.b == c.b);
+  invariant r_b_inv : (R.b == d.b);
+  invariant c_buffer_inv : true;
+  invariant d_buffer_inv : true;
+  invariant valid_ack : (R.b == R.res_b);
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

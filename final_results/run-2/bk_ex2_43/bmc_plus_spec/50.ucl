@@ -1,0 +1,105 @@
+module CircuitComposition {
+  type bit = boolean;
+
+  var temp_r1: boolean;
+  var temp_r2: boolean;
+  var x2: boolean;
+  var r1: bit;
+  var r2: bit;
+
+  output y1: bit;
+  output y2: bit;
+
+  init {
+    r1 = false; //48
+    r2 = false; //52
+    x2 = false; //56
+    y1 = false; //60
+    y2 = false; //64
+
+  }
+  next {
+    temp_r1' = r1; //71
+    temp_r2' = r2; //76
+    r2' = (x2 || r2); //84
+    y1' = temp_r1; //89
+    r1' = !temp_r1; //95
+    y2' = (x2 || r2); //103
+
+  }
+  invariant r1_inv : !r1;
+  invariant y1_inv : r1;
+  invariant x2_inv : x2;
+  invariant y2_inv : (x2 || r2);
+  invariant r2_inv : (x2 || r2);
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}
+module C1 {
+  type bit = boolean;
+
+  var r1: bit;
+  var y1: bit;
+
+  init {
+    r1 = false; //169
+    y1 = false; //173
+
+  }
+  next {
+    y1' = r1; //180
+
+  }
+  invariant spec: true;
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}
+module C2 {
+  type bit = boolean;
+
+  var r2: bit;
+  var y2: bit;
+
+  input x2: bit;
+
+  init {
+    r2 = false; //216
+    y2 = false; //220
+
+  }
+  next {
+    r2' = (x2 || r2); //230
+    y2' = (x2 || r2); //238
+
+  }
+  invariant spec: true;
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}
+module SynchronousComposition {
+  type bit = boolean;
+
+  instance c1: C1();
+  instance c2: C2(x2:(c1.y1));
+
+  invariant spec: ((c1.y1 == c2.r1) && (c2.y2 == c2.r2));
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

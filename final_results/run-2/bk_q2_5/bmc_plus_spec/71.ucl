@@ -1,0 +1,42 @@
+module MutualExclusion {
+  type Bit = bv1;
+
+  var s_next: bv1;
+  var y0: bv1;
+  var y1: bv1;
+  var s: Bit;
+
+  init {
+    s = 1bv1; //42
+    y0 = 0bv1; //49
+    y1 = 0bv1; //56
+
+  }
+  procedure step()
+    modifies s_next;
+    modifies s;
+  {
+    s_next = (if ((s == 0bv1) && (y0 == 1bv1)) then 1bv1 else s); //85
+    s_next = (if ((s == 1bv1) && (y1 == 1bv1)) then 0bv1 else s); //112
+    s = s_next; //117
+  }
+
+  next {
+    call step();
+  }
+  invariant s_next_inv : ((s_next == 1bv1) && ((y1 == 1bv1) || ((s_next == s) && (s_next == 1bv1))));
+  invariant s_inv : (((y1 == 1bv1) || (y0 == 1bv1)) || ((s == 0bv1) || (s == 1bv1)));
+  invariant y0_inv : ((y0 == 1bv1) ==> (s == 0bv1));
+  invariant y1_inv : ((y1 == 1bv1) ==> (s == 1bv1));
+  invariant mutual_exclusion_property_inv : ((y0 == 0bv1) || (y1 == 0bv1));
+  invariant mutual_exclusion_inv : !mutual_exclusion_property_inv;
+  invariant s_y0_inv : ((s == 0bv1) ==> (y0 == 1bv1));
+  invariant s_y1_inv : ((s == 1bv1) ==> (y1 == 1bv1));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

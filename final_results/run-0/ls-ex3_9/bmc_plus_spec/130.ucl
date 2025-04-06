@@ -1,0 +1,99 @@
+module TrafficLight {
+  var sigG_inv: boolean;
+  var count: integer;
+  var pedestrian: boolean;
+  var sigG: boolean;
+  var sigR: boolean;
+  var sigY: boolean;
+  var state: integer;
+  var timer: integer;
+
+  init {
+    state = 0; //46
+    count = 0; //50
+    timer = 0; //54
+    sigG = false; //58
+    sigY = false; //62
+    sigR = true; //66
+    pedestrian = false; //70
+
+  }
+  next {
+    if (state == 0) {
+      sigR' = true; //82
+      sigY' = false; //86
+      sigG' = false; //90
+      if (timer == 59) {
+        state' = 1; //100
+        timer' = 0; //104
+      } else {
+        timer' = (timer + 1); //112
+      }
+    } else {
+      if (state == 1) {
+        sigR' = false; //124
+        sigY' = false; //128
+        sigG' = true; //132
+        if (pedestrian) {
+          if (timer >= 60) {
+            state' = 2; //145
+            timer' = 0; //149
+          } else {
+            state' = 3; //154
+            timer' = 0; //158
+          }
+        } else {
+          if (timer == 59) {
+            state' = 3; //170
+            timer' = 0; //174
+          } else {
+            timer' = (timer + 1); //182
+          }
+        }
+      } else {
+        if (state == 2) {
+          sigR' = false; //195
+          sigY' = true; //199
+          sigG' = false; //203
+          if (timer == 4) {
+            state' = 0; //213
+            timer' = 0; //217
+          } else {
+            timer' = (timer + 1); //225
+          }
+        } else {
+          if (state == 3) {
+            sigR' = false; //237
+            sigY' = false; //241
+            sigG' = true; //245
+            if (timer == 59) {
+              state' = 2; //255
+              timer' = 0; //259
+            } else {
+              timer' = (timer + 1); //267
+            }
+          }
+        }
+      }
+    }
+
+  }
+  invariant count_inv : ((state != 0) || ((count >= 0) && (count <= 60)));
+  invariant pedestrian_inv : ((pedestrian == false) ==> ((state != 1) || ((state == 1) && (timer <= 59))));
+  invariant sigr_inv : ((state == 0) ==> sigR);
+  invariant sigg_inv : (((state == 1) || (state == 3)) ==> sigG);
+  invariant sigy_inv : ((state == 2) ==> sigY);
+  invariant sigr_inv : ((state == 0) ==> sigR);
+  invariant state_inv : ((state >= 0) && (state <= 3));
+  invariant timer_inv : ((state == 0) ==> ((timer >= 0) && (timer <= 59)));
+  invariant sigg_inv : (sigG ==> (state == 1));
+  invariant sigY_inv : (sigY ==> (state == 2));
+  invariant sigR_inv : (sigR ==> (state == 0));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

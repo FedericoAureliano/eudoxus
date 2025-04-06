@@ -1,7 +1,4 @@
 import csv
-import os
-import re
-import subprocess
 import sys
 import time
 from datetime import datetime
@@ -10,12 +7,11 @@ from io import StringIO
 from pathlib import Path
 
 import typer
-from pydantic import BaseModel
 from typing_extensions import Annotated
 
 from eudoxus.emit.python import module2py
 from eudoxus.emit.uclid import module2ucl
-from eudoxus.llm.gpt import chat, chat_constrained
+from eudoxus.llm.gpt import chat
 from eudoxus.llm.prompts import get_complete_prompt, get_sketch_prompt
 from eudoxus.llm.utils import extract_code
 from eudoxus.parse.python import Parser
@@ -31,7 +27,20 @@ from eudoxus.repair.scope import ScopeChecker
 from eudoxus.repair.select import SelectChecker
 from eudoxus.repair.type import TypeChecker
 from eudoxus.rewrite import Rewriter
-from eudoxus.utils import generator_log, llm_log, uclid_log
+from eudoxus.utils import (
+    add_control_block,
+    change_model,
+    filter_cex,
+    generator_log,
+    get_bmc_error_fixes,
+    get_smoke_error_fixes,
+    insert_block_fixes,
+    llm_log,
+    rewrite_module_with_llm_bmc,
+    run_smoke_testing,
+    run_uclid,
+    uclid_log,
+)
 
 
 class Language(str, Enum):
@@ -66,12 +75,10 @@ def main_(
     remind: bool = True,
     solver: Annotated[bool, typer.Option(hidden=True)] = True,
     debug: Annotated[bool, typer.Option(hidden=True)] = False,
-    semantic_assistance: SemanticInvolvement = SemanticInvolvement.vanilla,
-    verf_eng_feedback: bool = False,
-    to_csv: bool = False,
-    constrained_decode: bool = False,
-    change_spec_loc: bool = False,
-    spec_loop: bool = False,
+    semantic_assistance: bool = False,
+    use_bmc: bool = False,
+    use_smoke: bool = False,
+    csv_loc: str = "",
 ) -> None:
     if output is None:
         output = sys.stdout
@@ -86,8 +93,9 @@ def main_(
         output = open(output, "w")
 
     # in the case of code repair, you don't want semantic assistance
-    if iterations < 1:
-        syntax_pipeline(
+    # if iterations < 1:
+    if not semantic_assistance and not (use_bmc or use_smoke):
+        repaired, _, _ = syntax_pipeline(
             task,
             language,
             model,
@@ -98,38 +106,38 @@ def main_(
             remind,
             solver,
             semantic_assistance,
-            constrained_decode,
-            change_spec_loc,
-            spec_loop,
         )
+        repair(repaired, language, output, False, debug, solver)
         if output is not sys.stdout:
             output.close()
     else:
         # initialize the csv
-        if to_csv:
-            if CSV_LOC not in os.listdir():
-                with open(CSV_LOC, "w", newline="") as file:
-                    writer = csv.writer(file)
-                    writer.writerow(
-                        [
-                            "task",
-                            "date",
-                            "semantic assistance",
-                            "suggestions",
-                            "invariants",
-                            "constr_decode",
-                            "passed_assertions",
-                            "failed_assertions",
-                            "original_lines",
-                            "final_lines",
-                            "llm_calls",
-                            "llm_time",
-                            "repair_time",
-                            "Spec Defined",
-                            "Exit Cause",
-                            "output",
-                        ]
-                    )
+        if csv_loc:
+            with open(csv_loc, "w", newline="") as file:
+                writer = csv.writer(file)
+                writer.writerow(
+                    [
+                        "task",
+                        "date",
+                        "use_bmc",
+                        "use_smoke",
+                        "force external spec",
+                        "passed_assertions",
+                        "failed_assertions",
+                        "original_lines",
+                        "final_lines",
+                        "llm_calls",
+                        "llm_time",
+                        "repair_time",
+                        "Spec Defined",
+                        "Exit Cause",
+                        "output_name",
+                        "smoke warnings",
+                        "sem loop time",
+                        "num. suggested fixes",
+                        "total tokens",
+                    ]
+                )
 
         semantic_pipeline(
             task,
@@ -142,12 +150,10 @@ def main_(
             remind,
             solver,
             semantic_assistance,
-            verf_eng_feedback,
-            to_csv,
-            constrained_decode,
-            change_spec_loc,
+            use_bmc,
+            use_smoke,
+            csv_loc,
             sem_iters,
-            spec_loop,
         )
         if output is not sys.stdout:
             # print("going to close the output")
@@ -164,276 +170,432 @@ def semantic_pipeline(
     debug,
     remind,
     solver,
-    semantic_assistance,
-    verf_eng_feedback,
-    to_csv,
-    constr_decode,
-    change_spec_loc,
+    gen_ext_spec,
+    use_bmc,
+    use_smoke,
+    csv_loc,
     sem_iters,
-    spec_loop,
 ):
-    # MAX_SEM_ITER = 2
-    # MAX_SEM_ITER = sem_iters
-
-    sem_iter = 1
-    UCL_LOC = "testing.ucl"
+    MAX_SEM_ITER = sem_iters
+    sem_iter = 0
+    UCL_LOC = "testing_numbers.ucl"
     BASE_TASK_LOC = task
-    id = datetime.now()
+    date = datetime.now()
 
-    # print("hello from semantic pipeline")
-    # do-while loop
     all_stats = []
-    # through each iteration through the syntactic - semantic pipeline,
-    # uclid_passes needs to start off as false or we will take the value
-    #  from the previous iteration which might have passed uclid, but
-    # not had a specification block defined
-    uclid_passes = False
-    spec_defined = False
-    failed_assertions = 0
-    passed_assertions = 0
-    semantic_stats = f"  SEMANTIC ITERATION {sem_iter}\n"
-    print("semantic iteration: ", sem_iter)
-    syntatic_correct_py_code, stats, stat_dict = syntax_pipeline(
-        task,
-        language,
-        model,
-        output,
-        inference,
-        iterations,
-        debug,
-        remind,
-        solver,
-        semantic_assistance,
-        constr_decode,
-        change_spec_loc,
-        spec_loop,
-    )
-    original_lines = stat_dict["original_lines"]
-    final_lines = stat_dict["final_lines"]
-    llm_calls = stat_dict["llm_calls"]
-    llm_time = stat_dict["llm_time"]
-    repair_time = stat_dict["repair_time"]
-    suggestions = stat_dict["suggestions"]
-    gen_inv = stat_dict["gen_inv"]
-    spec_defined = "def specification(self)" in syntatic_correct_py_code
-
-    stats = semantic_stats + stats
-    if not verf_eng_feedback:
-        if to_csv:
-            with open(CSV_LOC, "a+") as file:
-                writer = csv.writer(file)
-                writer.writerow(
-                    [
-                        BASE_TASK_LOC,
-                        id,
-                        semantic_assistance,
-                        suggestions,
-                        gen_inv,
-                        constr_decode,
-                        "N/A",
-                        "N/A",
-                        original_lines,
-                        final_lines,
-                        llm_calls,
-                        llm_time,
-                        repair_time,
-                        spec_defined,
-                        "user did not want verification",
-                        output.name,
-                    ]
-                )
-        new_contents = syntatic_correct_py_code
-        return
-
-    # in the case that we are not giving feedback, we just want keep
-    # the file open so that we can write to it outside the loop
-    if output is not sys.stdout:
-        # print("going to close the output")
-        output.close()
-    # print("syntatic correct py code: \n", syntatic_correct_py_code)
-    # python code gets translated into uclid, cleaned up and then
-    # written to a testing location
-    # just for UCLID code, to encode the python into uclid and write
-    #  it for uclid5 execution
-    UCL_out_fd = open(UCL_LOC, "w")
-    encoded_py_code = syntatic_correct_py_code.encode()
-    modules = Parser(encoded_py_code).parse()
-    # by this point, the module should have gone through all of the
-    # associated checks
-    # should not be holes
-    modules = [m for m in modules if not m.is_empty()]
-    for m in modules:
-        module2ucl(UCL_out_fd, m, 0)
-    UCL_out_fd.close()
-
-    # open the file,
-    read_fd = open(UCL_LOC, "r")
-    # read the contents
-    module_as_ucl = read_fd.read()
-    # close the file
-    read_fd.close()
-
-    if "??" in module_as_ucl:
-        print("found ?? in model, can't run uclid")
-        stats += "Failed Assertions: N/A\n"
-        stats += "Passed Assertions: N/A\n"
-        all_stats.append(stats)
-        if to_csv:
-            with open(CSV_LOC, "a+") as file:
-                writer = csv.writer(file)
-                writer.writerow(
-                    [
-                        BASE_TASK_LOC,
-                        id,
-                        semantic_assistance,
-                        suggestions,
-                        gen_inv,
-                        constr_decode,
-                        "N/A",
-                        "N/A",
-                        original_lines,
-                        final_lines,
-                        llm_calls,
-                        llm_time,
-                        repair_time,
-                        spec_defined,
-                        "?? in model",
-                        output.name,
-                    ]
-                )
-        return
-
-    new_contents = process_code(module_as_ucl)
-    module_name = get_module_name(new_contents)
-    # print(new_contents)
-
-    new_file_loc = "testing.ucl"
-    write_fd = open(new_file_loc, "w")
-    write_fd.write(new_contents)
-    write_fd.close()
-
-    # important to have uclid downloaded and in the path
-    try:
-        command = f"uclid {new_file_loc} -m {module_name}"
-        # print("running: ", command)
-        result = subprocess.run(
-            command,
-            shell=True,
-            executable="/bin/bash",
-            capture_output=True,
-            text=True,
+    code_with_fix_holes = ""  # starts off as empty
+    best_model_info = {}
+    best_model_info["model"] = ""
+    best_model_info["passed_assertions"] = 0
+    best_model_info["failed_assertions"] = 0
+    best_model_info["uclid_passes"] = False
+    best_model_info["warnings"] = 0
+    while True:
+        if sem_iter == MAX_SEM_ITER:
+            break
+        start_time = time.time()
+        sem_iter += 1
+        uclid_passes = False
+        spec_defined = False
+        failed_assertions = 0
+        passed_assertions = 0
+        warnings = 54321
+        block_fix_pair_list = []
+        # TODO: Perhaps only need to do this if we have verf feedback... but not sure
+        semantic_stats = f"  SEMANTIC ITERATION {sem_iter}\n"
+        task = BASE_TASK_LOC
+        syntatic_correct_py_code, stats, stat_dict = syntax_pipeline(
+            task,
+            language,
+            model,
+            output,
+            inference,
+            iterations,
+            debug,
+            remind,
+            solver,
+            gen_ext_spec,
+            code_with_fix_holes,
         )
-        # Get the standard output
-        stdout = result.stdout
-        # Get the standard error (if any)
-        error = result.stderr
+        original_lines = stat_dict["original_lines"]
+        final_lines = stat_dict["final_lines"]
+        llm_calls = stat_dict["llm_calls"]
+        llm_time = stat_dict["llm_time"]
+        repair_time = stat_dict["repair_time"]
+        spec_defined = "def specification(self)" in syntatic_correct_py_code
+        stats = semantic_stats + stats
+        if not (use_bmc or use_smoke):
+            if csv_loc:
+                with open(csv_loc, "a+") as file:
+                    writer = csv.writer(file)
+                    passed_assertions = ""
+                    failed_assertions = ""
+                    smoke_warnings = ""
+                    sem_loop_time = round(time.time() - start_time, 2)
+                    num_suggested_fixes = ""
+                    total_tokens = ""
+                    writer.writerow(
+                        [
+                            BASE_TASK_LOC,
+                            date,
+                            use_bmc,
+                            use_smoke,
+                            gen_ext_spec,
+                            passed_assertions,
+                            failed_assertions,
+                            original_lines,
+                            final_lines,
+                            llm_calls,
+                            llm_time,
+                            repair_time,
+                            spec_defined,
+                            "user did not want verification",
+                            output.name,
+                            smoke_warnings,
+                            sem_loop_time,
+                            num_suggested_fixes,
+                            total_tokens,
+                        ]
+                    )
+            best_model_info["model"] = syntatic_correct_py_code
+            break
 
-        if error:
-            stdout = "ERROR: " + error + stdout + "\n" + new_contents
+        UCL_out_fd = open(UCL_LOC, "w")
+        encoded_py_code = syntatic_correct_py_code.encode()
+        modules = Parser(encoded_py_code).parse()
 
-        def extract_uclid_stats(log_output):
-            # match = re.search(r"(\d+) assertions failed", log_output)
-            # method_one = 0
-            # if match:
-            #     method_one = int(match.group(1))
+        modules = [m for m in modules if not m.is_empty()]
+        python_out_fd = open("testing_numbers.py", "w")
+        for m in modules:
+            module2ucl(UCL_out_fd, m, 0)
+            module2py(python_out_fd, m, 0)
+        UCL_out_fd.close()
+        python_out_fd.close()
 
-            failed = log_output.lower().count("failed ->")
-            passed = log_output.lower().count("passed ->")
+        # bring back the files with the statement ids
+        read_fd = open(UCL_LOC, "r")
+        module_as_ucl = read_fd.read()
+        read_fd.close()
 
-            return max(0, failed), max(0, passed)
+        new_python_fd = open("testing_numbers.py", "r")
+        syntatic_correct_py_code = new_python_fd.read()
+        new_python_fd.close()
 
-        failed_assertions, passed_assertions = extract_uclid_stats(stdout)
+        if "??" in module_as_ucl:
+            print("found ?? in model, can't run uclid")
+            stats += "Failed Assertions: N/A\n"
+            stats += "Passed Assertions: N/A\n"
+            stats += "-------------------\n"
+            all_stats.append(stats)
+            if csv_loc:
+                with open(csv_loc, "a+") as file:
+                    writer = csv.writer(file)
+                    smoke_warnings = ""
+                    sem_loop_time = round(time.time() - start_time, 2)
+                    num_suggested_fixes = ""
+                    total_tokens = ""
+                    writer.writerow(
+                        [
+                            BASE_TASK_LOC,
+                            date,
+                            use_bmc,
+                            use_smoke,
+                            gen_ext_spec,
+                            passed_assertions,
+                            failed_assertions,
+                            original_lines,
+                            final_lines,
+                            llm_calls,
+                            llm_time,
+                            repair_time,
+                            spec_defined,
+                            "holes in the uclid module",
+                            output.name,
+                            smoke_warnings,
+                            sem_loop_time,
+                            num_suggested_fixes,
+                            total_tokens,
+                        ]
+                    )
+            continue
 
-        style = "red"
-        # if failed not in stdout lower then it defo passed
-        # if failed is in stdout, there could be the case that it is \
-        # saying `0 assertions failed` so we check that
-        if (
-            "failed" not in stdout.lower() or failed_assertions == 0
-        ) and "error" not in stdout.lower():
-            # print(f"failed assertions count: {failed_assertions} | \
-            # 'failed' not in stdout: {'failed' not in stdout.lower()} \
-            # | error: {'error' not in stdout.lower()}")
-            style = "green"
-            uclid_passes = True
-
-        uclid_log("UCLID MODULE: ", module_as_ucl, style=style)
-        uclid_log("Running UCLID Terminal Output: ", stdout, style=style)
-    except Exception as e:
-        print("error: ", e)
-
-    stats += f"Failed Assertions:  {failed_assertions}\n"
-    stats += f"Passed Assertions:  {passed_assertions}\n"
-    stats += "-------------------\n"
-    all_stats.append(stats)
-    sem_iter += 1
-
-    if to_csv:
-        with open(CSV_LOC, "a+") as file:
-            writer = csv.writer(file)
-            writer.writerow(
-                [
-                    BASE_TASK_LOC,
-                    id,
-                    semantic_assistance,
-                    suggestions,
-                    gen_inv,
-                    constr_decode,
-                    passed_assertions,
-                    failed_assertions,
-                    original_lines,
-                    final_lines,
-                    llm_calls,
-                    llm_time,
-                    repair_time,
-                    spec_defined,
-                    "no failures",
-                    output.name,
-                ]
+        # RUN UCLID
+        if use_bmc:
+            uclid_log("UCL MOD BEFORE BMC", module_as_ucl)
+            passed_assertions, failed_assertions, stdout, uclid_passes = run_uclid(
+                module_as_ucl, task, syntatic_correct_py_code, iterations=0
             )
-    # if sem_iter > MAX_SEM_ITER:
-    #     break
+            print(
+                f"ran uclid with 0 iterations | \
+                    passed: {passed_assertions} |\
+                          failed: {failed_assertions}"
+            )
 
-    if uclid_passes:
-        if spec_defined:
-            # need to have uclid pass with a specification block
-            print("uclid passed and we have a specification block defined")
-            # break
-        else:
-            stdout = "No specification block defined. Make sure the \
-                specifications represent the essence of the task description.\n"
+            if (
+                failed_assertions == 0
+                and passed_assertions != 0
+                and "errors found." not in stdout
+            ):
+                passed_assertions, failed_assertions, stdout, uclid_passes = run_uclid(
+                    module_as_ucl, task, syntatic_correct_py_code, iterations=3
+                )
+                print(
+                    f"ran uclid with 3 iterations | \
+                        passed: {passed_assertions} |\
+                              failed: {failed_assertions}"
+                )
 
-    # if uclid doesn't pass, then there is already an error message to take\
-    #  into consideration
+                if (
+                    failed_assertions == 0
+                    and passed_assertions != 0
+                    and "errors found." not in stdout
+                ):
+                    (
+                        passed_assertions,
+                        failed_assertions,
+                        stdout,
+                        uclid_passes,
+                    ) = run_uclid(
+                        module_as_ucl, task, syntatic_correct_py_code, llm_call=True
+                    )
+                    print(
+                        f"ran uclid with llm iterations | \
+                            passed: {passed_assertions} | \
+                                failed: {failed_assertions}"
+                    )
 
-    # get the base task from the location
-    with open(BASE_TASK_LOC, "r") as f:
-        task = f.read()
+            stats += f"Failed Assertions:  {failed_assertions}\n"
+            stats += f"Passed Assertions:  {passed_assertions}\n"
 
-    if constr_decode:
-        summarized_response = get_err_message_summary_constrained(
-            syntatic_correct_py_code, stdout, task
-        )
-    else:
-        summarized_response = get_err_message_summary(
-            syntatic_correct_py_code, stdout, task
-        )
-    task += "\n" + summarized_response
-    temp_write_loc = "temp.txt"
-    with open(temp_write_loc, "w") as f:
-        f.write(task)
+            uclid_log("Original UCLID Terminal Output: ", stdout)
+            # FILTER OUTPUT
+            if uclid_passes:
+                if not spec_defined:
+                    final_uclid_cex = "No specification block defined. Make sure \
+                        the specifications represent the essence of the\
+                              task description.\n"
+                    uclid_passes = False
 
-    # task is supposed to be a file loc, so it needs to be updated after writing
-    # we change the filepath to be temp_write_loc, because it will have \
-    # the updated task material
-    task = temp_write_loc
+            uclid_cex = stdout.lower()
+            final_uclid_cex = filter_cex(uclid_cex)
+            if not final_uclid_cex and uclid_passes:  # empty uclid cex and uclid pass
+                final_uclid_cex = "All BMC cases passed"
+            if "errors found" in final_uclid_cex:
+                uclid_passes = False
 
-    if verf_eng_feedback:
-        uclid_log("UCLID: ", module_as_ucl, style=style)
-        print("uclid passed: ", uclid_passes)
+            uclid_log(
+                "Filtered UCLID Terminal Output: ", final_uclid_cex, style="green"
+            )
+
+            if (
+                not use_smoke
+                and failed_assertions == 0
+                and uclid_passes
+                and passed_assertions != 0
+            ):
+                print(
+                    "stopping condition for just using bmc (found no \
+                        failed assertions and uclid passes)"
+                )
+                best_model_info["model"] = syntatic_correct_py_code
+                stats += "-------------------\n"
+                all_stats.append(stats)
+                if csv_loc:
+                    with open(csv_loc, "a+") as file:
+                        writer = csv.writer(file)
+                        smoke_warnings = ""
+                        sem_loop_time = round(time.time() - start_time, 2)
+                        num_suggested_fixes = ""
+                        total_tokens = ""
+                        writer.writerow(
+                            [
+                                BASE_TASK_LOC,
+                                date,
+                                use_bmc,
+                                use_smoke,
+                                gen_ext_spec,
+                                passed_assertions,
+                                failed_assertions,
+                                original_lines,
+                                final_lines,
+                                llm_calls,
+                                llm_time,
+                                repair_time,
+                                spec_defined,
+                                "uclid passed and no failed assertions",
+                                output.name,
+                                smoke_warnings,
+                                sem_loop_time,
+                                num_suggested_fixes,
+                                total_tokens,
+                            ]
+                        )
+                break
+
+            with open(BASE_TASK_LOC, "r") as f:
+                task_ = f.read()
+            if failed_assertions != 0:
+                block_fix_pair_list = get_bmc_error_fixes(
+                    syntatic_correct_py_code, final_uclid_cex, task_
+                )
+
+        # SMOKE TESTING
+        if use_smoke:
+            if use_bmc and failed_assertions != 0:
+                print("smoke feature enabled, but failed bmc so not running")
+            else:
+                with open(BASE_TASK_LOC, "r") as f:
+                    task_ = f.read()
+                module_as_ucl = add_control_block(module_as_ucl)
+                module_as_ucl = rewrite_module_with_llm_bmc(
+                    task_, syntatic_correct_py_code, module_as_ucl
+                )
+                uclid_log("UCL MOD BEFORE SMOKE TESTING", module_as_ucl)
+                warnings, final_uclid_cex = run_smoke_testing(module_as_ucl)
+                if not use_bmc or (use_bmc and failed_assertions == 0):
+                    block_fix_pair_list = get_smoke_error_fixes(
+                        syntatic_correct_py_code, final_uclid_cex, task_
+                    )
+                stats += f"Warnings:        {warnings}\n"
+                if (warnings == 0 and not use_bmc) or (
+                    warnings == 0 and use_bmc and passed_assertions != 0
+                ):
+                    best_model_info["model"] = syntatic_correct_py_code
+                    stats += "-------------------\n"
+                    all_stats.append(stats)
+                    if csv_loc:
+                        with open(csv_loc, "a+") as file:
+                            writer = csv.writer(file)
+                            sem_loop_time = round(time.time() - start_time, 2)
+                            num_suggested_fixes = ""
+                            total_tokens = ""
+                            writer.writerow(
+                                [
+                                    BASE_TASK_LOC,
+                                    date,
+                                    use_bmc,
+                                    use_smoke,
+                                    gen_ext_spec,
+                                    passed_assertions,
+                                    failed_assertions,
+                                    original_lines,
+                                    final_lines,
+                                    llm_calls,
+                                    llm_time,
+                                    repair_time,
+                                    spec_defined,
+                                    "smoke testing found no warnings",
+                                    output.name,
+                                    warnings,
+                                    sem_loop_time,
+                                    num_suggested_fixes,
+                                    total_tokens,
+                                ]
+                            )
+                    break
+
+        stats += "-------------------\n"
+        all_stats.append(stats)
+
+        # COMPARE MODELS
+
+        if change_model(
+            passed_assertions,
+            failed_assertions,
+            uclid_passes,
+            warnings,
+            best_model_info,
+            use_bmc,
+            use_smoke,
+        ):
+            print("changed model")
+            best_model_info["model"] = syntatic_correct_py_code
+            best_model_info["passed_assertions"] = passed_assertions
+            best_model_info["failed_assertions"] = failed_assertions
+            best_model_info["uclid_passes"] = uclid_passes
+            best_model_info["warnings"] = warnings
+
+        llm_log("SYNTACTIC CORRECT CODE: ", syntatic_correct_py_code)
+        uclid_log("UCLID CEX: ", final_uclid_cex)
+
+        # if verf_eng_feedback:
+        #     if uclid_passes:
+        #         print("uclid passed: ", uclid_passes)
+        #         if warnings == 0:
+        #             print("smoke testing did not find unreachable lines")
+        #             uclid_log("BEST UCLID: ", module_as_ucl, style="green")
+        #             break
+
+        # get the base task from the location
+        with open(BASE_TASK_LOC, "r") as f:
+            task = f.read()
+
+        block_fix_pair_string = ""
+        for b, f in block_fix_pair_list:
+            block_fix_pair_string += f"block: {b}\n"
+            block_fix_pair_string += f"fix: {f}\n\n"
+        llm_log("Summarized (Constrained) Error Message", block_fix_pair_string)
+
+        for block, fix in block_fix_pair_list:
+            # todo, have a check for ablock that doesn't exist or isn't allowed
+            block = block.lower()
+            if "init" in block:
+                syntatic_correct_py_code = insert_block_fixes(
+                    "def init(self):", syntatic_correct_py_code, fix
+                )
+
+            elif "locals" in block:
+                syntatic_correct_py_code = insert_block_fixes(
+                    "def locals(self):", syntatic_correct_py_code, fix
+                )
+
+            elif "next" in block:
+                syntatic_correct_py_code = insert_block_fixes(
+                    "def next(self):", syntatic_correct_py_code, fix
+                )
+
+            elif "specification" in block:
+                syntatic_correct_py_code = insert_block_fixes(
+                    "def specification(self):", syntatic_correct_py_code, fix
+                )
+
+        code_with_fix_holes = syntatic_correct_py_code
+
+        llm_log("LLM SPEC LOOP RESPONSE: ", code_with_fix_holes)
+
+        if csv_loc:
+            with open(csv_loc, "a+") as file:
+                writer = csv.writer(file)
+                sem_loop_time = round(time.time() - start_time, 2)
+                num_suggested_fixes = len(block_fix_pair_list)
+                total_tokens = ""
+                writer.writerow(
+                    [
+                        BASE_TASK_LOC,
+                        date,
+                        use_bmc,
+                        use_smoke,
+                        gen_ext_spec,
+                        passed_assertions,
+                        failed_assertions,
+                        original_lines,
+                        final_lines,
+                        llm_calls,
+                        llm_time,
+                        repair_time,
+                        spec_defined,
+                        f"finished iteration {sem_iter}",
+                        output.name,
+                        warnings,
+                        sem_loop_time,
+                        num_suggested_fixes,
+                        total_tokens,
+                    ]
+                )
 
     generator_log("Stats:", " ".join(all_stats))
-    repair(new_contents, language, output, False, debug, solver)
+    best_py_model = best_model_info["model"]
+    repair(best_py_model, language, output, False, debug, solver)
 
     return
 
@@ -451,9 +613,6 @@ def return_with_valid_paren(code):
             else:
                 open_locations.append(i)
 
-    def insert_string(original_string, insert_string, index):
-        return original_string[:index] + insert_string + original_string[index:]
-
     # hopefully you don't need this but in case, this is still kind of here
     # for insert_loc in open_locations:
     #     code = insert_string(code)
@@ -463,50 +622,6 @@ def return_with_valid_paren(code):
             code += ")"
 
     return code
-
-
-def filter_llm_response(llm_response):
-    return llm_response
-    delimiter = "def specification(self):"
-    if delimiter in llm_response:
-        spec_start = llm_response.index(delimiter)
-        start = llm_response[:spec_start]
-        remaining = llm_response[spec_start + len(delimiter) :]
-
-        end_index = len(remaining)
-        if "def " in remaining:
-            end_index = remaining.index("def ")
-
-        search_space = remaining[:end_index]
-
-        spec_lines = search_space.split("\n")
-        BANNED_WORDS = ["int", "bool", "self.int", "self.bool", "Boolean", "Integer"]
-        filtered_spec = []
-        for spec_line in spec_lines:
-            # check for duplicates
-            if "=" in spec_line:
-                equals_op_loc = spec_line.index("=")
-                lhs = spec_line[:equals_op_loc].strip()
-                if f"{lhs} = {lhs}" in spec_line:
-                    print("specline is the same thing repeated: ", spec_line)
-                    continue
-
-            # line_by_space = spec_line.split(" ")
-            # if len(line_by_space) != len(set(line_by_space)):
-            #     print(f"continued because the lengths of the list and set were\
-            #  not the same| list: {line_by_space} | set: {set(line_by_space)}")
-            #     continue
-            good_word = True
-            for banned_word in BANNED_WORDS:
-                if banned_word in spec_line:
-                    good_word = False
-                    print("found banned word: " + banned_word + " in " + spec_line)
-            if good_word:
-                filtered_spec.append(spec_line)
-
-        return start + delimiter + "\n ".join(filtered_spec)
-    else:
-        return llm_response
 
 
 def syntax_pipeline(
@@ -519,10 +634,8 @@ def syntax_pipeline(
     debug,
     remind,
     solver,
-    semantic_assistance,
-    constr_decode,
-    change_spec_loc,
-    spec_loop,
+    gen_ext_spec,
+    code_with_holes="",
 ):
     clocks = {"llm": 0, "repair": 0}
 
@@ -542,25 +655,21 @@ def syntax_pipeline(
         repair(task, language, output, inference, debug, solver)
         return
 
-    # [ANI] put an if check here in the case that you just want to update the python\
-    #  code directly which would remove the following 16 lines
-    # and you need to change teh get_complete_prompt
-    # should be able to remove the below
-    if semantic_assistance == SemanticInvolvement.external_llm:
-        if constr_decode:
-            task, specs = get_task_with_constrained_specs(task)
+    # if (not code_with_holes and not gen_ext_spec):
+    prompt = get_sketch_prompt(task, spec_format="default")
+
+    if gen_ext_spec:
+        if code_with_holes:
+            prompt = get_complete_prompt(
+                code_with_holes, task, remind, spec_format="force_spec"
+            )
         else:
-            task, specs = get_task_with_specs(task)
-    prompt = get_sketch_prompt(
-        task, semantic_assistance, change_spec_loc, spec_loop, True
-    )  # could this also go into the semantic pipeline?
-    generator_log("Prompt:", prompt)
+            prompt = get_sketch_prompt(task, spec_format="specless")
+
     llm_response = timeit("llm", chat, prompt, model)
-    # filter llm response
-    llm_log("Original Response:", llm_response)
-    llm_response = filter_llm_response(llm_response)
-    # llm_log("Response:", llm_response)
-    llm_log("Filtered Response:", llm_response)
+
+    generator_log("Prompt:", prompt)
+    llm_log("Response:", llm_response)
     python = extract_code(llm_response)
     original = python
     generator_log("Extracted:", python)
@@ -569,33 +678,39 @@ def syntax_pipeline(
         "repair", repair, python, Language.python, repaired, inference, debug, solver
     )
     repaired = repaired.getvalue()
-    # if "def spec" not in repaired:
-    #     repaired += "\n def specification(self):\n"
-    #     repaired += "       ??\n"
     generator_log("Repaired:", repaired)
+    revert_to = repaired
 
     llm_calls = 1
-    aug_dsl = True
     for _ in range(1, iterations):
-        if "??" not in repaired and "def spec" in repaired:
+        if len(repaired) < 10:  # in case repaired is really messed up
+            print("repaired is messed up")
+            repaired = revert_to
+        else:
+            revert_to = repaired
+
+        # if we are not running semantic then this will pass if no ??
+        # if we are running semantic then this will pass if we have gone
+        # through atleast once
+        # want to go through atleast once in semantic bc the spec block
+        # is added in the prompt below
+        if "??" not in repaired and (not gen_ext_spec or llm_calls > 1):
             break
-        # may need to change this prompt if you have the if check at 177
-        prompt = get_complete_prompt(
-            repaired,
-            task,
-            remind,
-            semantic_assistance,
-            change_spec_loc,
-            spec_loop,
-            aug_dsl,
-        )
+
+        if gen_ext_spec:
+            prompt = get_complete_prompt(
+                repaired, task, remind, spec_format="force_spec"
+            )
+        else:
+            prompt = get_complete_prompt(repaired, task, remind, spec_format="default")
         generator_log("Prompt:", prompt)
+
         llm_response = timeit("llm", chat, prompt, model)
         llm_log("Original Response:", llm_response)
-        llm_response = filter_llm_response(llm_response)
-        llm_log("Filtered Response:", llm_response)
+
         python = extract_code(llm_response)
         generator_log("Extracted:", python)
+
         repaired = StringIO()
         timeit(
             "repair",
@@ -607,48 +722,21 @@ def syntax_pipeline(
             debug,
             solver,
         )
+
         repaired = repaired.getvalue()
         generator_log("Repaired:", repaired)
         llm_calls += 1
-
-    # print("GOING TO RUN THE SPEC LOOP!")
-    # spec_loop = True
-    # if spec_loop:
-    #     sem_loop_iter = 5
-    #     _, specs = get_task_with_constrained_specs(task)
-    #     llm_log("SPECS: ", specs)
-    #     ran_loop = False
-    #     for _ in range(1, sem_loop_iter):
-    #         if "??" not in repaired and "return True" not in repaired and \
-    # "def specification" in repaired and ran_loop:
-    #             break
-    #         prompt = get_spec_complete_prompt(repaired, task, specs)
-    #         generator_log("Prompt:", prompt)
-    #         llm_response = timeit("llm", chat, prompt, model)
-    #         llm_log("Response:", llm_response)
-    #         python = extract_code(llm_response)
-    #         generator_log("Extracted:", python)
-    #         repaired = StringIO()
-    #         timeit("repair", repair, python, Language.python, repaired, \
-    # inference, debug, solver,)
-    #         repaired = repaired.getvalue()
-    #         generator_log("Repaired:", repaired)
-    #         ran_loop = True
 
     original_lines = len(original.splitlines())
     final_lines = len(repaired.splitlines())
     llm_time = round(clocks["llm"], 2)
     repair_time = round(clocks["repair"], 2)
-    suggestions = extract_hints(task)
-    gen_inv = extract_invariants(task)
 
     stats = f"Original Lines: {original_lines}\n"
     stats += f"Final Lines:    {final_lines}\n"
     stats += f"LLM Calls:      {llm_calls}\n"
     stats += f"LLM Time:       {llm_time}s\n"
     stats += f"Repair Time:    {repair_time}s\n"
-    stats += f"Suggestions:     {suggestions}\n"
-    stats += f"Gen. Inv:        {gen_inv}\n"
     generator_log("Stats:", stats)
 
     stats_as_dict = {
@@ -657,43 +745,15 @@ def syntax_pipeline(
         "llm_calls": llm_calls,
         "llm_time": llm_time,
         "repair_time": repair_time,
-        "suggestions": suggestions,
-        "gen_inv": gen_inv,
     }
 
-    # this is essentially used for printing to the correct associated file
-    # repair(repaired, language, output, False, debug, solver)  # moved to the \
-    # semantic pipeline because this is just used for printing
-
     return repaired, stats, stats_as_dict
-
-
-def extract_hints(code):
-    pattern = r"\[\w+\s\d+\]"
-    matches = re.findall(pattern, code)
-    return len(matches)
-
-
-def extract_invariants(code):
-    INVARIANT_DELIMITED = "make sure that you satisfy the following specifications"
-    if INVARIANT_DELIMITED not in code.lower():
-        return 0
-    else:
-        matches_one = 0
-        matches_two = 0
-        pattern_one = r"\d+\."
-        matches_one = re.findall(pattern_one, code)
-
-        pattern_two = r"\[Invariant \d+\]"
-        matches_two = re.findall(pattern_two, code)
-        return len(max(matches_one, matches_two))
 
 
 def repair(src, language, output, inference, debug, solver):
     def write():
         if language == Language.python:
             for m in modules:
-                # print("module to print: ", m)
                 module2py(output, m, 0)
 
         if language == Language.uclid:
@@ -718,9 +778,6 @@ def repair(src, language, output, inference, debug, solver):
         src = src.encode()
 
     modules = Parser(src, debug).parse()
-    # print("in repair")
-    # print("modules: ", modules)
-    # filter out any empty modules named Module
     modules = [m for m in modules if not m.is_empty()]
 
     if inference:
@@ -755,210 +812,6 @@ def repair(src, language, output, inference, debug, solver):
 
         # print(f"{len(modules)} checker: {checker}")
         # for m in modules:
-        #     print("init when printing: ", m.init)
+        #     print("init when printing: ", m.locals)
 
     write()
-
-
-def get_task_with_specs(task):
-    """ask an llm to come up with specs for task"""
-    prompt = "You are an expert in formal methods, specializing in generating \
-        system properties and specifications. Your task is to generate invariants\
-              for a system based on its natural language description.\n"
-
-    prompt += "Guidelines:\n \
-    1. Invariants: Identify properties that must hold true in all states of the\
-          system. These are conditions that are always true regardless of the \
-            system's execution path.\n"
-
-    prompt += "Input: \n \
-        I will provide you with a natural language description of the system, \
-            including: \n \
-            * The components and their interactions. \
-            * The desired behaviors of the system. \
-            * Any constraints, safety, or performance requirements.\n"
-
-    prompt += "Output: \n \
-        * A list of invariants expressed in mathematical notation"
-
-    prompt += task
-
-    specs = chat(prompt, Model.gpt35)
-
-    new_task = task
-    new_task += "\n Make sure that you satisfy the following specifications: \n"
-    new_task += specs
-
-    return new_task, specs
-
-
-def get_task_with_constrained_specs(task):
-    # print("going to add specs to this task: ", task)
-    """using constrained decoding, get an llm to come up with specs for the task"""
-
-    class invariant(BaseModel):
-        invariant: str
-        task_mapping: str
-
-    class invariantList(BaseModel):
-        inv_list: list[invariant]
-
-    prompt = "You are an expert in formal methods, specializing in generating \
-        system properties and specifications. Your task is to generate a list of\
-              simple invariants for a system based on its natural language \
-                description.\n"
-
-    prompt += "Guidelines:\n \
-    1. Invariants: Identify simple properties that must hold true in all states\
-          of the system. These are conditions that are always true regardless of\
-              the system's execution path.\n"
-
-    prompt += "Input: \n \
-        I will provide you with a natural language description of the system, \
-            including: \n \
-            * The components and their interactions. \
-            * The desired behaviors of the system. \
-            * Any constraints, safety, or performance requirements.\n"
-
-    prompt += "Output: \n \
-        * A list of simple invariants expressed in mathematical notation where \
-            each invariant is mapped to a portion of the task."
-
-    prompt += task
-
-    specs = chat_constrained(prompt, Model.gpt35, invariantList)
-    list_of_inv = "\n".join(
-        [f"[Invariant {i+1}] " + s.invariant for i, s in enumerate(specs.inv_list)]
-    )
-
-    new_task = task
-    new_task += "\n Make sure that you satisfy the following specifications: \n"
-    new_task += list_of_inv
-    return new_task, list_of_inv
-
-
-def get_task_with_LTL_specs(task):
-    """ask an llm to come up with specs for task"""
-    prompt = "You are an expert in formal methods, specializing in generating\
-          system properties and specifications. Your task is to generate invariants\
-              and LTL specifications for a system based on its natural language\
-                  description.\n"
-
-    prompt += "Guidelines:\n \
-    1. Invariants: Identify properties that must hold true in all states of \
-        the system. These are conditions that are always true regardless of\
-              the system's execution path.\n \
-    2. LTL Specifications: Formulate Linear Temporal Logic properties that \
-        capture temporal behaviors of the system. These properties should \
-            describe relationships or constraints that hold over time \
-                (e.g., safety, liveness, fairness).\n"
-
-    prompt += "Input: \n \
-        I will provide you with a natural language description of the system, \
-            including: \n \
-            * The components and their interactions. \
-            * The desired behaviors of the system. \
-            * Any constraints, safety, or performance requirements.\n"
-
-    prompt += "Output: \n \
-        * A list of invariants expressed in mathematical notation \
-        * A list of LTL Specifications in standard syntax (e.g., G (p -> Fq), \
-            where G is 'Globally' and F is 'Eventually'). \
-        * Provide explanations for each property, detailing why it is relevant \
-            and representative of the system.\n"
-
-    prompt += task
-
-    specs = chat(prompt, Model.gpt35)
-
-    new_task = task
-    new_task += "\n Make sure that you satisfy the following specifications: \n"
-    new_task += specs
-
-    return new_task
-
-
-def get_err_message_summary(model, error_message, nl_desc):
-    prompt = "You are an expert formal methods engineer tasked with debugging\
-          and refining a Python model. The model was generated from a natural\
-              language description of a system but fails to satisfy some of the\
-                  required properties. Analyze the model and the error message step\
-                      by step, and ONLY suggest clear, actionable, and specific\
-                          clarifications to the TASK. Focus on ensuring semantic\
-                              accuracy and alignment with the original description.\n"
-    # prompt += "Format your response like the following: [Hint 1] \
-    # The specification block shouldn't have 'return True' because \
-    # it isn't helpful for validating program execution.\n"
-    prompt += f"Natural Language Description: {nl_desc}\n"
-    prompt += f"Generated Python Model: {model}\n"
-    prompt += f"Specification Counterexamples: {error_message}\n"
-    prompt += "Please ONLY provide your suggestions for material to add to the \
-        task description without providing any python code. Return the most\
-              important hints first."
-    summary = chat(prompt, Model.gpt4)
-    return summary
-
-
-def get_err_message_summary_constrained(model, error_message, nl_desc):
-    class Suggestion(BaseModel):
-        description: str
-        related_cex: str
-
-    class SuggestionList(BaseModel):
-        suggestions: list[Suggestion]
-
-    prompt = """You are a formal methods specialist analyzing failed verification\
-          attempts. Your task is to:
-1. Identify why the generated UCLID5 model failed to satisfy specifications
-2. Determine what information is missing/ambiguous in the original task description
-3. Propose precise natural language clarifications to prevent similar errors
-
-Follow this analysis framework:
-a) Map counterexample states to system requirements
-b) Identify temporal/logical constraints violated in the error trace
-c) Locate ambiguous predicates or incomplete invariants in the NL description
-d) Suggest minimal, impactful task description additions
-
-Focus exclusively on requirements-level clarifications - NEVER suggest code changes."""
-
-    prompt += f"\n\nORIGINAL TASK DESCRIPTION:\n{nl_desc}"
-    prompt += f"\n\nGENERATED UCLID5 MODEL:\n{model}"
-    prompt += f"\n\nVERIFICATION FAILURE ANALYSIS:\n{error_message}"
-
-    user_prompt = """Provide 2 hints using this format:
-- <Concise imperative statement about required task clarification> \n
-Example:
-Explicitly specify maximum allowed latency between request and \
-    response (CE shows 5-cycle delay in line 45) \n """
-
-    summary = chat_constrained(prompt, user_prompt, SuggestionList)
-    return "\n".join(
-        [f"[Hint {i+1}] " + s.description for i, s in enumerate(summary.suggestions)]
-    )
-
-
-# do the updating logic
-def process_code(code):
-    # Find all define names without parameters (those without parentheses)
-    define_names = set(re.findall(r"^\s*define\s+(\w+)\s*:", code, flags=re.MULTILINE))
-
-    # Process each name to replace occurrences without parentheses
-    for name in define_names:
-        # Use a regex that matches the whole word not followed by \
-        # '(' (with possible whitespace)
-        pattern = re.compile(
-            r"\b{}\b(?!\s*\()".format(re.escape(name)), flags=re.MULTILINE
-        )
-        code = pattern.sub(f"{name}()", code)
-
-    return code
-
-
-def get_module_name(code):
-    pattern = r"module\s+([a-zA-Z0-9_]+)\s*{"
-    match = re.search(pattern, code)
-    module_name = ""
-    if match:
-        module_name = match.group(1)
-
-    return module_name

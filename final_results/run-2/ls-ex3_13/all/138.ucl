@@ -1,0 +1,87 @@
+module TrafficLight {
+  var count: integer;
+  var nondet_1: boolean;
+  var pedestrian: boolean;
+  var sigG: boolean;
+  var sigR: boolean;
+  var sigY: boolean;
+  var state: integer;
+
+  init {
+    havoc nondet_1; //41
+    state = 0; //45
+    count = 0; //49
+    pedestrian = nondet_1; //54
+
+  }
+  procedure step()
+    modifies count;
+    modifies sigG;
+    modifies sigY;
+    modifies sigR;
+    modifies state;
+  {
+    if (state == 0) {
+      sigR = true; //66
+      sigY = false; //70
+      sigG = false; //74
+      count = 0; //78
+      state = 1; //82
+    } else {
+      if (state == 1) {
+        sigR = false; //93
+        sigY = false; //97
+        sigG = true; //101
+        count = (count + 1); //108
+        if ((count >= 60) && pedestrian) {
+          if (count >= 120) {
+            state = 2; //127
+            count = 0; //131
+          } else {
+            state = 3; //136
+            count = 60; //140
+          }
+        }
+      } else {
+        if (state == 2) {
+          sigR = false; //154
+          sigY = true; //158
+          sigG = false; //162
+          count = (count + 1); //169
+          if (count >= 5) {
+            state = 0; //179
+            count = 0; //183
+          }
+        } else {
+          if (state == 3) {
+            sigR = false; //196
+            sigY = false; //200
+            sigG = false; //204
+            count = (count + 1); //211
+            if (count >= 60) {
+              state = 2; //221
+              count = 0; //225
+            }
+          }
+        }
+      }
+    }
+  }
+
+  next {
+    call step();
+  }
+  invariant count_inv : ((count >= 0) && (count <= 120));
+  invariant pedestrian_inv : (pedestrian == nondet_1);
+  invariant sigG_inv : (sigG == (state == 1));
+  invariant sigR_inv : (sigR == (state == 0));
+  invariant sigY_inv : (sigY == (state == 2));
+  invariant state_inv : ((state >= 0) && (state <= 3));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

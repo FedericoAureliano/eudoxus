@@ -1,0 +1,63 @@
+module AlternatingBitProtocol {
+  type Bit = boolean;
+  type Tuple = [integer]Bit;
+
+  var message1: Bit;
+  var message2: Bit;
+  var senderState: Bit;
+  var receiverState: Bit;
+
+  input senderInput: Tuple;
+  input receiverInput: Tuple;
+
+  output senderOutput: Tuple;
+  output receiverOutput: Tuple;
+
+  init {
+    senderState = false; //61
+    receiverState = false; //65
+
+  }
+  next {
+    if (!senderState) {
+      if (!receiverInput[1]) {
+        senderState' = true; //81
+      } else {
+        senderState' = false; //86
+      }
+    } else {
+      if (senderState) {
+        if ((receiverInput[0] == message1) && receiverInput[1]) {
+          senderState' = false; //109
+        } else {
+          senderState' = true; //114
+        }
+      }
+    }
+    if (!receiverState) {
+      receiverOutput' = receiverInput; //127
+      if (!senderInput[1]) {
+        receiverState' = true; //137
+      } else {
+        receiverState' = false; //142
+      }
+    } else {
+      if (receiverState) {
+        receiverOutput' = senderOutput; //152
+        if ((senderInput[0] == message2) && senderInput[1]) {
+          receiverState' = false; //170
+        } else {
+          receiverState' = true; //175
+        }
+      }
+    }
+
+  }
+  invariant spec: true;
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

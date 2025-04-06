@@ -1,0 +1,47 @@
+module Module {
+  var b1: boolean;
+  var b2: boolean;
+  var x: bv2;
+
+  init {
+    b1 = false; //27
+    b2 = false; //31
+    x = 1bv2; //38
+
+  }
+  procedure step()
+    modifies b2;
+    modifies b1;
+    modifies x;
+  {
+    if (b1) {
+      x = 2bv2; //50
+    }
+    if ((x == 1bv2) && !b2) {
+      b1 = true; //69
+    }
+    if ((x == 1bv2) || !b2) {
+      b1 = false; //88
+    }
+    if (b2) {
+      x = 1bv2; //100
+    }
+    if ((x == 2bv2) && !b1) {
+      b2 = true; //119
+    }
+    if ((x == 2bv2) || !b1) {
+      b2 = false; //138
+    }
+  }
+
+  next {
+    call step();
+  }
+  invariant spec: true;
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

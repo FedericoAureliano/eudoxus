@@ -1,0 +1,60 @@
+module BeverageVendingMachine {
+  type Instantiate = enum { beer, pay, select, soda };
+
+  var get_beer: boolean;
+  var get_soda: boolean;
+  var insert_coin: boolean;
+  var next_state: enum { beer, pay, select, soda };
+  var current_state: Instantiate;
+
+  init {
+    current_state = pay; //47
+
+  }
+  procedure step()
+    modifies next_state;
+  {
+    next_state = current_state; //54
+    if (current_state == pay) {
+      if (insert_coin) {
+        next_state = select; //67
+      }
+    } else {
+      if (current_state == select) {
+        if (get_soda) {
+          next_state = soda; //83
+        } else {
+          if (get_beer) {
+            next_state = beer; //91
+          }
+        }
+      } else {
+        if ((current_state == soda) || (current_state == beer)) {
+          next_state = pay; //111
+        }
+      }
+    }
+  }
+
+  next {
+    call step();
+  }
+  invariant current_state_inv : ((!soda_inv || !(current_state == soda)) || (next_state == pay));
+  invariant current_state_inv : ((!beer_inv || !(current_state == beer)) || (next_state == pay));
+  invariant next_state_inv : ((!((current_state == pay) && insert_coin) || !(current_state == select)) || (next_state == select));
+  invariant current_state_inv : ((!((current_state == select) && get_soda) || !(current_state == soda)) || (next_state == soda));
+  invariant current_state_inv : ((!((current_state == select) && get_beer) || !(current_state == beer)) || (next_state == beer));
+  invariant current_state_inv : ((!(soda_inv || beer_inv) || !(current_state == pay)) || (next_state == pay));
+  invariant pay_inv : (current_state == pay);
+  invariant select_inv : (current_state == select);
+  invariant soda_inv : (current_state == soda);
+  invariant beer_inv : (current_state == beer);
+  invariant insert_coin_inv : insert_coin;
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

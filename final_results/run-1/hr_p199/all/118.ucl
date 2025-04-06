@@ -1,0 +1,55 @@
+module FerryPuzzle {
+  type Range = integer;
+  type Location = Range;
+  type CarryItem = bv2;
+
+  var ferryman: Location;
+  var goat: Location;
+  var cabbage: Location;
+  var wolf: Location;
+  var carry: integer;
+
+  next {
+    ferryman' = (1 - ferryman); //52
+    if (ferryman == 0) {
+      if (carry == 1) {
+        goat' = 0; //68
+      } else {
+        if (carry == 2) {
+          wolf' = 0; //79
+        } else {
+          if (carry == 3) {
+            cabbage' = 0; //90
+          }
+        }
+      }
+    } else {
+      if (carry == 1) {
+        goat' = 1; //105
+      } else {
+        if (carry == 2) {
+          wolf' = 1; //116
+        } else {
+          if (carry == 3) {
+            cabbage' = 1; //127
+          }
+        }
+      }
+    }
+
+  }
+  invariant ferryman_inv : ((ferryman >= 0) && (ferryman <= 1));
+  invariant goat_inv : ((goat >= 0) && (goat <= 1));
+  invariant cabbage_inv : ((cabbage >= 0) && (cabbage <= 1));
+  invariant wolf_inv : ((wolf >= 0) && (wolf <= 1));
+  invariant carry_inv : ((carry >= 0) && (carry <= 3));
+  invariant conflict_1 : ((ferryman == 1) && ((goat == 0) && ((cabbage == 0) || (wolf == 0))));
+  invariant conflict_2 : ((ferryman == 0) && ((goat == 1) && ((cabbage == 1) || (wolf == 1))));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

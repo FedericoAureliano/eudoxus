@@ -1,0 +1,60 @@
+module AlternatingBitProtocol {
+  type Output = bv1;
+
+  var ack: bv1;
+  var message1: bv1;
+  var message2: bv1;
+  var st: bv1;
+  var unknown: bv1;
+
+  output st_out: Output;
+  output ack_out: Output;
+
+  init {
+    st = 0bv1; //57
+    message1 = 0bv1; //64
+    message2 = 0bv1; //71
+    ack = 0bv1; //78
+    ack_out = 0bv1; //85
+    st_out = 0bv1; //92
+
+  }
+  next {
+    if (st == 0bv1) {
+      if ((message1 == 0bv1) && (ack_out == 0bv1)) {
+        ack_out' = 1bv1; //128
+      }
+    } else {
+      if (st == 1bv1) {
+        if ((message2 == 0bv1) && (ack == unknown)) {
+          ack_out' = 1bv1; //163
+        }
+      }
+    }
+    if (ack == st) {
+      if (st == 0bv1) {
+        st_out' = 1bv1; //191
+      } else {
+        if (st == 1bv1) {
+          st_out' = 0bv1; //208
+        }
+      }
+    } else {
+      st_out' = st; //217
+    }
+
+  }
+  invariant st_inv : ((st == 0bv1) || (st == 1bv1));
+  invariant message1_inv : ((message1 == 0bv1) || (message1 == 1bv1));
+  invariant message2_inv : ((message2 == 0bv1) || (message2 == 1bv1));
+  invariant ack_inv : ((ack == 0bv1) || (ack == 1bv1));
+  invariant ack_out_inv : ((ack_out == 0bv1) || (ack_out == 1bv1));
+  invariant st_out_inv : ((st_out == 0bv1) || (st_out == 1bv1));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

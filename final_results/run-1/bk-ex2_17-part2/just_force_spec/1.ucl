@@ -1,0 +1,55 @@
+module TrafficLight {
+  type state = bv1;
+
+  var green1_inv: boolean;
+  var green2_inv: boolean;
+  var nondet_1: boolean;
+  var red1_inv: boolean;
+  var red2_inv: boolean;
+  var choice: boolean;
+  var red1: state;
+  var green1: state;
+  var red2: state;
+  var green2: state;
+
+  init {
+    red1 = 1bv1; //63
+    red2 = 1bv1; //70
+
+  }
+  next {
+    havoc nondet_1; //75
+    if ((red1 == 1bv1) && (red2 == 1bv1)) {
+      choice' = nondet_1; //98
+      if (choice) {
+        red1' = 0bv1; //108
+      } else {
+        red2' = 0bv1; //116
+      }
+    } else {
+      if ((red1 == 0bv1) && (green1 == 1bv1)) {
+        red1' = 1bv1; //143
+        green1' = 0bv1; //150
+      } else {
+        if ((red2 == 0bv1) && (green2 == 1bv1)) {
+          red2' = 1bv1; //176
+          green2' = 0bv1; //183
+        }
+      }
+    }
+
+  }
+  invariant red1_inv : ((red1 == 1bv1) || (red1 == 0bv1));
+  invariant red2_inv : ((red2 == 1bv1) || (red2 == 0bv1));
+  invariant green1_inv : ((red1 == 0bv1) ==> (green1 == 1bv1));
+  invariant green2_inv : ((red2 == 0bv1) ==> (green2 == 1bv1));
+  invariant red1_or_green1_inv : ((red1 == 1bv1) ^ (green1 == 0bv1));
+  invariant red2_or_green2_inv : ((red2 == 1bv1) ^ (green2 == 0bv1));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

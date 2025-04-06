@@ -1,0 +1,38 @@
+module Module {
+  var BCR_state_inv: boolean;
+  var BP_state_inv: boolean;
+  var Printer_state_inv: boolean;
+  var BCR_state: bv1;
+  var BCR_state_next: bv1;
+  var BP_state: bv1;
+  var BP_state_next: bv1;
+  var Printer_state: bv1;
+  var Printer_state_next: bv1;
+
+  init {
+    BCR_state = 0bv1; //59
+    BP_state = 0bv1; //66
+    Printer_state = 0bv1; //73
+
+  }
+  next {
+    BCR_state_next' = (if (BCR_state_inv) then 1bv1 else (1bv1 - BCR_state)); //92
+    BP_state_next' = (if (BP_state_inv) then 1bv1 else (1bv1 - BP_state)); //109
+    Printer_state_next' = (if (Printer_state_inv) then 1bv1 else (1bv1 - Printer_state)); //126
+
+  }
+  invariant bcr_state_inv : (BCR_state == 0bv1);
+  invariant bp_state_inv : ((BP_state == 0bv1) && (Printer_state == 0bv1));
+  invariant printer_state_inv : (Printer_state == 0bv1);
+  invariant bcr_state_next_inv : ((BCR_state == 0bv1) || (BCR_state == 1bv1));
+  invariant bp_state_next_inv : ((BP_state == 0bv1) || (BP_state == 1bv1));
+  invariant printer_state_next_inv : ((Printer_state == 0bv1) || (Printer_state == 1bv1));
+  invariant system_progress_inv : (((BCR_state == 0bv1) || (BP_state == 0bv1)) || (Printer_state == 0bv1));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

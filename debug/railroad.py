@@ -1,4 +1,4 @@
-"""class RailroadCrossing(Module):
+class RailroadCrossing(Module):
     def locals(self):
         self.train_state = Enum("far", "in", "near")
         self.controller_state = Enum("0", "1", "2", "3")
@@ -33,4 +33,3 @@
             (self.train_state == "far") and (self.gate_state == "up")
         ) and (self.controller_state == "0")
         return self.invariant1 and self.invariant2
-"""

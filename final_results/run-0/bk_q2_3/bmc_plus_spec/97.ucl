@@ -1,0 +1,58 @@
+module Junction {
+  type State = integer;
+
+  var L1: State;
+  var L2: State;
+  var L3: State;
+  var L4: State;
+
+  init {
+    L1 = 2; //35
+    L2 = 2; //39
+    L3 = 2; //43
+    L4 = 2; //47
+
+  }
+  next {
+    if ((L1 == 2) && (L3 == 2)) {
+      L1' = 0; //65
+      L3' = 0; //69
+    } else {
+      if ((L1 == 0) && (L3 == 0)) {
+        L1' = 1; //86
+        L3' = 1; //90
+      } else {
+        if ((L1 == 1) && (L3 == 1)) {
+          L1' = 2; //107
+          L3' = 2; //111
+          L2' = 0; //115
+        } else {
+          if (L2 == 0) {
+            L2' = 1; //126
+          } else {
+            if (L4 == 0) {
+              L4' = 1; //137
+              L1' = 2; //141
+              L3' = 2; //145
+            }
+          }
+        }
+      }
+    }
+
+  }
+  invariant c_inv : (((((L1 == L3) ==> (L1 == 0)) && ((((L1 == 3) || (L1 == 2)) || (L1 == 0)) || (L1 == 1))) && ((((L2 == 3) || (L2 == 2)) || (L2 == 0)) || (L2 == 1))) && ((((L4 == 3) || (L4 == 2)) || (L4 == 0)) || (L4 == 1)));
+  invariant l1_inv : (L1 == 2);
+  invariant l2_inv : (L2 == 2);
+  invariant l3_inv : (L3 == 2);
+  invariant l4_inv : (L4 == 2);
+  invariant l1_l3_inv : ((L1 == L3) && (L1 == 0));
+  invariant l2_l4_inv : ((L2 == 1) || (L2 == 0));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

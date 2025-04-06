@@ -1,0 +1,1338 @@
+[00:08:57] ╭──────────────────────────────────────────────────────── 🤖 Prompt: ────────────────────────────────────────────────────────╮ utils.py:29
+           │ Write Python code that extends the `Module` class below to complete the following task.                                    │
+           │                                                                                                                            │
+           │ > Consider the intersection of two one-way streets, called Main and Secondary. A light on each street controls its         │
+           │ traffic. Each light goes through a cycle consisting of a red (R), green (G), and yellow (Y) phases. It is a safety         │
+           │ requirement that when one light is in its green or yellow phase, the other is in its red phase. The yellow phase is always │
+           │ 5 seconds long. The traffic lights operate as follows. A sensor in the secondary road detects a vehicle. While no vehicle  │
+           │ is detected, there is a 4 minute-long cycle with the main light having 3 minutes of green, 5 seconds of yellow, and 55     │
+           │ seconds of red. The secondary light is red for 3 minutes and 5 seconds (while the main light is green and yellow), green   │
+           │ for 50 seconds, then yellow for 5 seconds. If a vehicle is detected on the secondary road, the traffic light quickly gives │
+           │ a right of way to the secondary road. When this happens, the main light aborts its green phase and immediately switches to │
+           │ its 5 second yellow phase. If the vehicle is detected while the main light is yellow or red, the system continues as if    │
+           │ there were no vehicle. Model a system that controls the lights. Let this system have six pure outputs, one for each light, │
+           │ named mG, mY, and mR, to designate the main light being green, yellow, or red, respectively, and sG, sY, and sR, to        │
+           │ designate the secondary light being green, yellow, or red, respectively. These signals should be generated to turn on a    │
+           │ light. You can implicitly assume that when one light is turned on, whichever has been on is turned off. Use the variable   │
+           │ names mG, mY, mR, sG, sY, sR.                                                                                              │
+           │                                                                                                                            │
+           │ Reply with your Python code inside one unique code block.                                                                  │
+           │                                                                                                                            │
+           │ ```python                                                                                                                  │
+           │ class Module:                                                                                                              │
+           │     """An abstract class to represent a UCLID5 module."""                                                                  │
+           │                                                                                                                            │
+           │     def types(self):                                                                                                       │
+           │         """(Optional) Defines the type declarations.                                                                       │
+           │         For example, the following implementation defines a 8-bit type called T:                                           │
+           │         ```                                                                                                                │
+           │         def types(self):                                                                                                   │
+           │             self.T = BitVector(8)                                                                                          │
+           │         ```                                                                                                                │
+           │         """                                                                                                                │
+           │         pass                                                                                                               │
+           │                                                                                                                            │
+           │     def locals(self):                                                                                                      │
+           │         """(Optional) Defines the local variables and their types.                                                         │
+           │         For example, the following implementation defines an 8-bit variable x                                              │
+           │         and an integer variable y:                                                                                         │
+           │         ```                                                                                                                │
+           │         def locals(self):                                                                                                  │
+           │             self.x = BitVector(8)                                                                                          │
+           │             self.y = Integer()                                                                                             │
+           │         ```                                                                                                                │
+           │         """                                                                                                                │
+           │         pass                                                                                                               │
+           │                                                                                                                            │
+           │     def inputs(self):                                                                                                      │
+           │         """(Optional) Defines the input variables and their types.                                                         │
+           │         For example, the following implementation defines an input variable x,                                             │
+           │         which is an array of 8-bit bitvectors indexed by 2-bit bitvectors:                                                 │
+           │         ```                                                                                                                │
+           │         def inputs(self):                                                                                                  │
+           │             self.x = Array(BitVector(2), BitVector(8))                                                                     │
+           │         ```                                                                                                                │
+           │         """                                                                                                                │
+           │         pass                                                                                                               │
+           │                                                                                                                            │
+           │     def outputs(self):                                                                                                     │
+           │         """(Optional) Defines the output variables and their types.                                                        │
+           │         For example, the following implementation defines an output variable y,                                            │
+           │         which is a real number:                                                                                            │
+           │         ```                                                                                                                │
+           │         def outputs(self):                                                                                                 │
+           │             self.y = Real()                                                                                                │
+           │         ```                                                                                                                │
+           │         """                                                                                                                │
+           │         pass                                                                                                               │
+           │                                                                                                                            │
+           │     def shared_vars(self):                                                                                                 │
+           │         """(Optional) Defines the shared variables and their types.                                                        │
+           │         For example, the following implementation defines a shared variable z,                                             │
+           │         which is an array of booleans indexed by integers:                                                                 │
+           │         ```                                                                                                                │
+           │         def shared_vars(self):                                                                                             │
+           │             self.z = Array(Integer(), Boolean())                                                                           │
+           │         ```                                                                                                                │
+           │         """                                                                                                                │
+           │         pass                                                                                                               │
+           │                                                                                                                            │
+           │     def instances(self):                                                                                                   │
+           │         """(Optional) Defines the instances of other modules and relates their                                             │
+           │         input, output, and shared variables to local variables. Every instance                                             │
+           │         variable must be related to a local variable. For example, let M be                                                │
+           │         another module with inputs x and y, and output z. The following                                                    │
+           │         implementation defines an instance of M called m, and connects M's                                                 │
+           │         input variable x to the local variable self.a, M's input variable y to                                             │
+           │         the local variable self.b, and M's output variable z to the local                                                  │
+           │         variable self.c:                                                                                                   │
+           │         ```                                                                                                                │
+           │         def instances(self):                                                                                               │
+           │             self.m = M(x=self.a, y=self.b, z=self.c)                                                                       │
+           │         ```                                                                                                                │
+           │         """                                                                                                                │
+           │         pass                                                                                                               │
+           │                                                                                                                            │
+           │     def init(self):                                                                                                        │
+           │         """(Optional) Defines how variables are initialized.                                                               │
+           │         For example, the following implementation initializes x to 0 if y is                                               │
+           │         greater than or equal to 20:                                                                                       │
+           │         ```                                                                                                                │
+           │         def init(self):                                                                                                    │
+           │             if self.y >= 20:                                                                                               │
+           │                 self.x = 0                                                                                                 │
+           │         ```                                                                                                                │
+           │         """                                                                                                                │
+           │         pass                                                                                                               │
+           │                                                                                                                            │
+           │     def next(self):                                                                                                        │
+           │         """(Optional) Defines the transition relation.                                                                     │
+           │         For example, the following implementation increments x or decrements y                                             │
+           │         depending on z:                                                                                                    │
+           │         ```                                                                                                                │
+           │         def next(self):                                                                                                    │
+           │             if self.z:                                                                                                     │
+           │                 self.x = self.x + 1                                                                                        │
+           │             else:                                                                                                          │
+           │                 self.y = self.y - 1                                                                                        │
+           │         ```                                                                                                                │
+           │         """                                                                                                                │
+           │         pass                                                                                                               │
+           │ ```                                                                                                                        │
+           │                                                                                                                            │
+           │ I can definitely do that! Here is the Python code:                                                                         │
+           │ ```python                                                                                                                  │
+           │                                                                                                                            │
+           ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+           ╭──────────────────────────────────────────────────── 🧠 Response: ─────────────────────────────────────────────────────╮      utils.py:47
+           │ class TrafficLights(Module):                                                                                          │
+           │                                                                                                                       │
+           │     def types(self):                                                                                                  │
+           │         self.color = BitVector(3) # R(0), G(1), Y(2)                                                                  │
+           │                                                                                                                       │
+           │     def locals(self):                                                                                                 │
+           │         self.main_state = self.color                                                                                  │
+           │         self.sec_state = self.color                                                                                   │
+           │         self.time = BitVector(18) # 0-7199: 0-5 seconds correspond to the G/Y/R phases for better matching with time  │
+           │                                                                                                                       │
+           │     def inputs(self):                                                                                                 │
+           │         self.secondary_vehicle = Boolean()                                                                            │
+           │                                                                                                                       │
+           │     def outputs(self):                                                                                                │
+           │         self.mG = Boolean()                                                                                           │
+           │         self.mY = Boolean()                                                                                           │
+           │         self.mR = Boolean()                                                                                           │
+           │         self.sG = Boolean()                                                                                           │
+           │         self.sY = Boolean()                                                                                           │
+           │         self.sR = Boolean()                                                                                           │
+           │                                                                                                                       │
+           │     def init(self):                                                                                                   │
+           │         self.main_state = self.color.from_int(1) # Main light starts as green                                         │
+           │         self.sec_state = self.color.from_int(0) # Secondary light starts as red                                       │
+           │         self.time = self.time.from_int(0) # Start time at 0                                                           │
+           │                                                                                                                       │
+           │     def next(self):                                                                                                   │
+           │         # If no vehicle detected on secondary road                                                                    │
+           │         if not self.secondary_vehicle:                                                                                │
+           │             # Main light cycle                                                                                        │
+           │             if self.time < 180:                                                                                       │
+           │                 self.main_state = self.color.from_int(1) # Green                                                      │
+           │             elif self.time < 185:                                                                                     │
+           │                 self.main_state = self.color.from_int(2) # Yellow                                                     │
+           │             else:                                                                                                     │
+           │                 self.main_state = self.color.from_int(0) # Red                                                        │
+           │                                                                                                                       │
+           │             # Secondary light cycle                                                                                   │
+           │             if self.time < 180:                                                                                       │
+           │                 self.sec_state = self.color.from_int(0) # Red                                                         │
+           │             elif self.time < 295:                                                                                     │
+           │                 self.sec_state = self.color.from_int(1) # Green                                                       │
+           │             else:                                                                                                     │
+           │                 self.sec_state = self.color.from_int(2) # Yellow                                                      │
+           │                                                                                                                       │
+           │             # Update time                                                                                             │
+           │             self.time = (self.time + 1) % 7200                                                                        │
+           │                                                                                                                       │
+           │         # If vehicle detected on secondary road                                                                       │
+           │         else:                                                                                                         │
+           │             # Main light turns yellow for 5 seconds                                                                   │
+           │             self.main_state = self.color.from_int(2) # Yellow                                                         │
+           │                                                                                                                       │
+           │             # Secondary light cycle                                                                                   │
+           │             if self.time < 355:                                                                                       │
+           │                 self.sec_state = self.color.from_int(0) # Red                                                         │
+           │             elif self.time < 405:                                                                                     │
+           │                 self.sec_state = self.color.from_int(1) # Green                                                       │
+           │             else:                                                                                                     │
+           │                 self.sec_state = self.color.from_int(2) # Yellow                                                      │
+           │                                                                                                                       │
+           │             # Update time                                                                                             │
+           │             self.time = (self.time + 1) % 7200                                                                        │
+           │                                                                                                                       │
+           │         # Output assignments                                                                                          │
+           │         self.mG = self.main_state == self.color.from_int(1)                                                           │
+           │         self.mY = self.main_state == self.color.from_int(2)                                                           │
+           │         self.mR = self.main_state == self.color.from_int(0)                                                           │
+           │         self.sG = self.sec_state == self.color.from_int(1)                                                            │
+           │         self.sY = self.sec_state == self.color.from_int(2)                                                            │
+           │         self.sR = self.sec_state == self.color.from_int(0)                                                            │
+           │ ```                                                                                                                   │
+           ╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+           ╭──────────────────────────────────────────────────── 🤖 Extracted: ────────────────────────────────────────────────────╮      utils.py:29
+           │                                                                                                                       │
+           │ class TrafficLights(Module):                                                                                          │
+           │                                                                                                                       │
+           │     def types(self):                                                                                                  │
+           │         self.color = BitVector(3) # R(0), G(1), Y(2)                                                                  │
+           │                                                                                                                       │
+           │     def locals(self):                                                                                                 │
+           │         self.main_state = self.color                                                                                  │
+           │         self.sec_state = self.color                                                                                   │
+           │         self.time = BitVector(18) # 0-7199: 0-5 seconds correspond to the G/Y/R phases for better matching with time  │
+           │                                                                                                                       │
+           │     def inputs(self):                                                                                                 │
+           │         self.secondary_vehicle = Boolean()                                                                            │
+           │                                                                                                                       │
+           │     def outputs(self):                                                                                                │
+           │         self.mG = Boolean()                                                                                           │
+           │         self.mY = Boolean()                                                                                           │
+           │         self.mR = Boolean()                                                                                           │
+           │         self.sG = Boolean()                                                                                           │
+           │         self.sY = Boolean()                                                                                           │
+           │         self.sR = Boolean()                                                                                           │
+           │                                                                                                                       │
+           │     def init(self):                                                                                                   │
+           │         self.main_state = self.color.from_int(1) # Main light starts as green                                         │
+           │         self.sec_state = self.color.from_int(0) # Secondary light starts as red                                       │
+           │         self.time = self.time.from_int(0) # Start time at 0                                                           │
+           │                                                                                                                       │
+           │     def next(self):                                                                                                   │
+           │         # If no vehicle detected on secondary road                                                                    │
+           │         if not self.secondary_vehicle:                                                                                │
+           │             # Main light cycle                                                                                        │
+           │             if self.time < 180:                                                                                       │
+           │                 self.main_state = self.color.from_int(1) # Green                                                      │
+           │             elif self.time < 185:                                                                                     │
+           │                 self.main_state = self.color.from_int(2) # Yellow                                                     │
+           │             else:                                                                                                     │
+           │                 self.main_state = self.color.from_int(0) # Red                                                        │
+           │                                                                                                                       │
+           │             # Secondary light cycle                                                                                   │
+           │             if self.time < 180:                                                                                       │
+           │                 self.sec_state = self.color.from_int(0) # Red                                                         │
+           │             elif self.time < 295:                                                                                     │
+           │                 self.sec_state = self.color.from_int(1) # Green                                                       │
+           │             else:                                                                                                     │
+           │                 self.sec_state = self.color.from_int(2) # Yellow                                                      │
+           │                                                                                                                       │
+           │             # Update time                                                                                             │
+           │             self.time = (self.time + 1) % 7200                                                                        │
+           │                                                                                                                       │
+           │         # If vehicle detected on secondary road                                                                       │
+           │         else:                                                                                                         │
+           │             # Main light turns yellow for 5 seconds                                                                   │
+           │             self.main_state = self.color.from_int(2) # Yellow                                                         │
+           │                                                                                                                       │
+           │             # Secondary light cycle                                                                                   │
+           │             if self.time < 355:                                                                                       │
+           │                 self.sec_state = self.color.from_int(0) # Red                                                         │
+           │             elif self.time < 405:                                                                                     │
+           │                 self.sec_state = self.color.from_int(1) # Green                                                       │
+           │             else:                                                                                                     │
+           │                 self.sec_state = self.color.from_int(2) # Yellow                                                      │
+           │                                                                                                                       │
+           │             # Update time                                                                                             │
+           │             self.time = (self.time + 1) % 7200                                                                        │
+           │                                                                                                                       │
+           │         # Output assignments                                                                                          │
+           │         self.mG = self.main_state == self.color.from_int(1)                                                           │
+           │         self.mY = self.main_state == self.color.from_int(2)                                                           │
+           │         self.mR = self.main_state == self.color.from_int(0)                                                           │
+           │         self.sG = self.sec_state == self.color.from_int(1)                                                            │
+           │         self.sY = self.sec_state == self.color.from_int(2)                                                            │
+           │         self.sR = self.sec_state == self.color.from_int(0)                                                            │
+           ╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+[00:08:58] ╭─────────────────────────────────── 🤖 Repaired: ────────────────────────────────────╮                                        utils.py:29
+           │ class TrafficLights(Module):                                                        │
+           │   def types(self):                                                                  │
+           │     self.color = BitVector(3)                                                       │
+           │                                                                                     │
+           │   def locals(self):                                                                 │
+           │     self.main_state = self.color                                                    │
+           │     self.sec_state = self.color                                                     │
+           │     self.time = BitVector(18)                                                       │
+           │                                                                                     │
+           │   def inputs(self):                                                                 │
+           │     self.secondary_vehicle = bool                                                   │
+           │                                                                                     │
+           │   def outputs(self):                                                                │
+           │     self.mG = bool                                                                  │
+           │     self.mY = bool                                                                  │
+           │     self.mR = bool                                                                  │
+           │     self.sG = bool                                                                  │
+           │     self.sY = bool                                                                  │
+           │     self.sR = bool                                                                  │
+           │                                                                                     │
+           │   def next(self):                                                                   │
+           │     if not self.secondary_vehicle:                                                  │
+           │       if (self.time < BitVectorVal(180, 18)):                                       │
+           │         ??                                                                          │
+           │       else:                                                                         │
+           │         if (self.time < BitVectorVal(185, 18)):                                     │
+           │           ??                                                                        │
+           │       if (self.time < BitVectorVal(180, 18)):                                       │
+           │         ??                                                                          │
+           │       else:                                                                         │
+           │         if (self.time < BitVectorVal(295, 18)):                                     │
+           │           ??                                                                        │
+           │       self.time = ((self.time + BitVectorVal(1, 18)) % BitVectorVal(7200, 18)) #106 │
+           │     else:                                                                           │
+           │       if (self.time < BitVectorVal(355, 18)):                                       │
+           │         ??                                                                          │
+           │       else:                                                                         │
+           │         if (self.time < BitVectorVal(405, 18)):                                     │
+           │           ??                                                                        │
+           │       self.time = ((self.time + BitVectorVal(1, 18)) % BitVectorVal(7200, 18)) #132 │
+           │     self.mG = ?? #139                                                               │
+           │     self.mY = ?? #145                                                               │
+           │     self.mR = ?? #151                                                               │
+           │     self.sG = ?? #157                                                               │
+           │     self.sY = ?? #163                                                               │
+           │     self.sR = ?? #169                                                               │
+           │                                                                                     │
+           │                                                                                     │
+           ╰─────────────────────────────────────────────────────────────────────────────────────╯
+[00:09:05] ╭──────────────────────────────────────────────────────── 🤖 Prompt: ────────────────────────────────────────────────────────╮ utils.py:29
+           │                                                                                                                            │
+           │ Fix the following Python code by replacing every occurrence of `??` with the correct code.                                 │
+           │ ```python                                                                                                                  │
+           │ class TrafficLights(Module):                                                                                               │
+           │   def types(self):                                                                                                         │
+           │     self.color = BitVector(3)                                                                                              │
+           │                                                                                                                            │
+           │   def locals(self):                                                                                                        │
+           │     self.main_state = self.color                                                                                           │
+           │     self.sec_state = self.color                                                                                            │
+           │     self.time = BitVector(18)                                                                                              │
+           │                                                                                                                            │
+           │   def inputs(self):                                                                                                        │
+           │     self.secondary_vehicle = bool                                                                                          │
+           │                                                                                                                            │
+           │   def outputs(self):                                                                                                       │
+           │     self.mG = bool                                                                                                         │
+           │     self.mY = bool                                                                                                         │
+           │     self.mR = bool                                                                                                         │
+           │     self.sG = bool                                                                                                         │
+           │     self.sY = bool                                                                                                         │
+           │     self.sR = bool                                                                                                         │
+           │                                                                                                                            │
+           │   def next(self):                                                                                                          │
+           │     if not self.secondary_vehicle:                                                                                         │
+           │       if (self.time < BitVectorVal(180, 18)):                                                                              │
+           │         ??                                                                                                                 │
+           │       else:                                                                                                                │
+           │         if (self.time < BitVectorVal(185, 18)):                                                                            │
+           │           ??                                                                                                               │
+           │       if (self.time < BitVectorVal(180, 18)):                                                                              │
+           │         ??                                                                                                                 │
+           │       else:                                                                                                                │
+           │         if (self.time < BitVectorVal(295, 18)):                                                                            │
+           │           ??                                                                                                               │
+           │       self.time = ((self.time + BitVectorVal(1, 18)) % BitVectorVal(7200, 18)) #106                                        │
+           │     else:                                                                                                                  │
+           │       if (self.time < BitVectorVal(355, 18)):                                                                              │
+           │         ??                                                                                                                 │
+           │       else:                                                                                                                │
+           │         if (self.time < BitVectorVal(405, 18)):                                                                            │
+           │           ??                                                                                                               │
+           │       self.time = ((self.time + BitVectorVal(1, 18)) % BitVectorVal(7200, 18)) #132                                        │
+           │     self.mG = ?? #139                                                                                                      │
+           │     self.mY = ?? #145                                                                                                      │
+           │     self.mR = ?? #151                                                                                                      │
+           │     self.sG = ?? #157                                                                                                      │
+           │     self.sY = ?? #163                                                                                                      │
+           │     self.sR = ?? #169                                                                                                      │
+           │                                                                                                                            │
+           │   def specification(self):                                                                                                 │
+           │     #(self.time < BitVectorVal(180, 18)) and not self.secondary_vehicle in prop logic looks like:                          │
+           │     self.mG_inv = ??                                                                                                       │
+           │     #((BitVectorVal(180, 18) <= self.time < BitVectorVal(185, 18)) or (BitVectorVal(350, 18) <= self.time <                │
+           │ BitVectorVal(355, 18))) and not self.secondary_vehicle in prop logic looks like:                                           │
+           │     self.mY_inv = ??                                                                                                       │
+           │     #((BitVectorVal(185, 18) <= self.time < BitVectorVal(295, 18)) or (BitVectorVal(355, 18) <= self.time <                │
+           │ BitVectorVal(3550, 18))) or self.secondary_vehicle or (BitVectorVal(355, 18) <= self.time < BitVectorVal(405, 18)) in prop │
+           │ logic looks like:                                                                                                          │
+           │     self.mR_inv = ??                                                                                                       │
+           │     #(BitVectorVal(295, 18) <= self.time < BitVectorVal(345, 18)) and not self.secondary_vehicle in prop logic looks like: │
+           │     self.sG_inv = ??                                                                                                       │
+           │     #(BitVectorVal(345, 18) <= self.time < BitVectorVal(350, 18)) and not self.secondary_vehicle in prop logic looks like: │
+           │     self.sY_inv = ??                                                                                                       │
+           │     #(self.time < BitVectorVal(295, 18)) or (BitVectorVal(350, 18) <= self.time < BitVectorVal(7200, 18)) or               │
+           │ self.secondary_vehicle or (BitVectorVal(405, 18) <= self.time < BitVectorVal(7200, 18)) in prop logic looks like:          │
+           │     self.sR_inv = ??                                                                                                       │
+           │     # return expression should combine all previous invariants together                                                    │
+           │     return ??                                                                                                              │
+           │                                                                                                                            │
+           │ ```                                                                                                                        │
+           │ Make sure that your code extends the `Module` class below and that it completes the following task.                        │
+           │                                                                                                                            │
+           │ > Consider the intersection of two one-way streets, called Main and Secondary. A light on each street controls its         │
+           │ traffic. Each light goes through a cycle consisting of a red (R), green (G), and yellow (Y) phases. It is a safety         │
+           │ requirement that when one light is in its green or yellow phase, the other is in its red phase. The yellow phase is always │
+           │ 5 seconds long. The traffic lights operate as follows. A sensor in the secondary road detects a vehicle. While no vehicle  │
+           │ is detected, there is a 4 minute-long cycle with the main light having 3 minutes of green, 5 seconds of yellow, and 55     │
+           │ seconds of red. The secondary light is red for 3 minutes and 5 seconds (while the main light is green and yellow), green   │
+           │ for 50 seconds, then yellow for 5 seconds. If a vehicle is detected on the secondary road, the traffic light quickly gives │
+           │ a right of way to the secondary road. When this happens, the main light aborts its green phase and immediately switches to │
+           │ its 5 second yellow phase. If the vehicle is detected while the main light is yellow or red, the system continues as if    │
+           │ there were no vehicle. Model a system that controls the lights. Let this system have six pure outputs, one for each light, │
+           │ named mG, mY, and mR, to designate the main light being green, yellow, or red, respectively, and sG, sY, and sR, to        │
+           │ designate the secondary light being green, yellow, or red, respectively. These signals should be generated to turn on a    │
+           │ light. You can implicitly assume that when one light is turned on, whichever has been on is turned off. Use the variable   │
+           │ names mG, mY, mR, sG, sY, sR.                                                                                              │
+           │                                                                                                                            │
+           │ Reply with your Python code inside one unique code block.                                                                  │
+           │                                                                                                                            │
+           │ ```python                                                                                                                  │
+           │ class Module:                                                                                                              │
+           │     """An abstract class to represent a UCLID5 module."""                                                                  │
+           │                                                                                                                            │
+           │     def types(self):                                                                                                       │
+           │         """(Optional) Defines the type declarations.                                                                       │
+           │         For example, the following implementation defines a 8-bit type called T:                                           │
+           │         ```                                                                                                                │
+           │         def types(self):                                                                                                   │
+           │             self.T = BitVector(8)                                                                                          │
+           │         ```                                                                                                                │
+           │         """                                                                                                                │
+           │         pass                                                                                                               │
+           │                                                                                                                            │
+           │     def locals(self):                                                                                                      │
+           │         """(Optional) Defines the local variables and their types.                                                         │
+           │         For example, the following implementation defines an 8-bit variable x                                              │
+           │         and an integer variable y:                                                                                         │
+           │         ```                                                                                                                │
+           │         def locals(self):                                                                                                  │
+           │             self.x = BitVector(8)                                                                                          │
+           │             self.y = Integer()                                                                                             │
+           │         ```                                                                                                                │
+           │         """                                                                                                                │
+           │         pass                                                                                                               │
+           │                                                                                                                            │
+           │     def inputs(self):                                                                                                      │
+           │         """(Optional) Defines the input variables and their types.                                                         │
+           │         For example, the following implementation defines an input variable x,                                             │
+           │         which is an array of 8-bit bitvectors indexed by 2-bit bitvectors:                                                 │
+           │         ```                                                                                                                │
+           │         def inputs(self):                                                                                                  │
+           │             self.x = Array(BitVector(2), BitVector(8))                                                                     │
+           │         ```                                                                                                                │
+           │         """                                                                                                                │
+           │         pass                                                                                                               │
+           │                                                                                                                            │
+           │     def outputs(self):                                                                                                     │
+           │         """(Optional) Defines the output variables and their types.                                                        │
+           │         For example, the following implementation defines an output variable y,                                            │
+           │         which is a real number:                                                                                            │
+           │         ```                                                                                                                │
+           │         def outputs(self):                                                                                                 │
+           │             self.y = Real()                                                                                                │
+           │         ```                                                                                                                │
+           │         """                                                                                                                │
+           │         pass                                                                                                               │
+           │                                                                                                                            │
+           │     def shared_vars(self):                                                                                                 │
+           │         """(Optional) Defines the shared variables and their types.                                                        │
+           │         For example, the following implementation defines a shared variable z,                                             │
+           │         which is an array of booleans indexed by integers:                                                                 │
+           │         ```                                                                                                                │
+           │         def shared_vars(self):                                                                                             │
+           │             self.z = Array(Integer(), Boolean())                                                                           │
+           │         ```                                                                                                                │
+           │         """                                                                                                                │
+           │         pass                                                                                                               │
+           │                                                                                                                            │
+           │     def instances(self):                                                                                                   │
+           │         """(Optional) Defines the instances of other modules and relates their                                             │
+           │         input, output, and shared variables to local variables. Every instance                                             │
+           │         variable must be related to a local variable. For example, let M be                                                │
+           │         another module with inputs x and y, and output z. The following                                                    │
+           │         implementation defines an instance of M called m, and connects M's                                                 │
+           │         input variable x to the local variable self.a, M's input variable y to                                             │
+           │         the local variable self.b, and M's output variable z to the local                                                  │
+           │         variable self.c:                                                                                                   │
+           │         ```                                                                                                                │
+           │         def instances(self):                                                                                               │
+           │             self.m = M(x=self.a, y=self.b, z=self.c)                                                                       │
+           │         ```                                                                                                                │
+           │         """                                                                                                                │
+           │         pass                                                                                                               │
+           │                                                                                                                            │
+           │     def init(self):                                                                                                        │
+           │         """(Optional) Defines how variables are initialized.                                                               │
+           │         For example, the following implementation initializes x to 0 if y is                                               │
+           │         greater than or equal to 20:                                                                                       │
+           │         ```                                                                                                                │
+           │         def init(self):                                                                                                    │
+           │             if self.y >= 20:                                                                                               │
+           │                 self.x = 0                                                                                                 │
+           │         ```                                                                                                                │
+           │         """                                                                                                                │
+           │         pass                                                                                                               │
+           │                                                                                                                            │
+           │     def next(self):                                                                                                        │
+           │         """(Optional) Defines the transition relation.                                                                     │
+           │         For example, the following implementation increments x or decrements y                                             │
+           │         depending on z:                                                                                                    │
+           │         ```                                                                                                                │
+           │         def next(self):                                                                                                    │
+           │             if self.z:                                                                                                     │
+           │                 self.x = self.x + 1                                                                                        │
+           │             else:                                                                                                          │
+           │                 self.y = self.y - 1                                                                                        │
+           │         ```                                                                                                                │
+           │         """                                                                                                                │
+           │         pass                                                                                                               │
+           │                                                                                                                            │
+           │     def specification(self):                                                                                               │
+           │         """(Required) Defines the specification in terms of invariant properties.                                          │
+           │                                                                                                                            │
+           │         Returns:                                                                                                           │
+           │             bool: True if the specification is satisfied, False otherwise.                                                 │
+           │                                                                                                                            │
+           │         For example, the following implementation defines two invariants:                                                  │
+           │         ```                                                                                                                │
+           │         def specification(self):                                                                                           │
+           │             return self.x < 10 and self.y > 0                                                                              │
+           │                                                                                                                            │
+           │         DO NOT JUST RETURN THE VARIABLE TYPES!                                                                             │
+           │         """                                                                                                                │
+           │         raise NotImplementedError                                                                                          │
+           │ ```                                                                                                                        │
+           │                                                                                                                            │
+           │ I can definitely do that! Here is the fixed Python code:                                                                   │
+           │ ```python                                                                                                                  │
+           │                                                                                                                            │
+           ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+[00:09:16] ╭────────────────────────────────────────────────── 🧠 Original Response: ───────────────────────────────────────────────────╮ utils.py:47
+           │ ```python                                                                                                                  │
+           │ class TrafficLights(Module):                                                                                               │
+           │   def types(self):                                                                                                         │
+           │     self.color = BitVector(3)                                                                                              │
+           │                                                                                                                            │
+           │   def locals(self):                                                                                                        │
+           │     self.main_state = self.color                                                                                           │
+           │     self.sec_state = self.color                                                                                            │
+           │     self.time = BitVector(18)                                                                                              │
+           │                                                                                                                            │
+           │   def inputs(self):                                                                                                        │
+           │     self.secondary_vehicle = bool                                                                                          │
+           │                                                                                                                            │
+           │   def outputs(self):                                                                                                       │
+           │     self.mG = bool                                                                                                         │
+           │     self.mY = bool                                                                                                         │
+           │     self.mR = bool                                                                                                         │
+           │     self.sG = bool                                                                                                         │
+           │     self.sY = bool                                                                                                         │
+           │     self.sR = bool                                                                                                         │
+           │                                                                                                                            │
+           │   def next(self):                                                                                                          │
+           │     if not self.secondary_vehicle:                                                                                         │
+           │       if (self.time < BitVectorVal(180, 18)):                                                                              │
+           │         self.mG = True                                                                                                     │
+           │         self.mY = False                                                                                                    │
+           │         self.mR = False                                                                                                    │
+           │         self.sG = False                                                                                                    │
+           │         self.sY = False                                                                                                    │
+           │         self.sR = True                                                                                                     │
+           │       else:                                                                                                                │
+           │         if (self.time < BitVectorVal(185, 18)):                                                                            │
+           │           self.mG = False                                                                                                  │
+           │           self.mY = True                                                                                                   │
+           │           self.mR = False                                                                                                  │
+           │           self.sG = False                                                                                                  │
+           │           self.sY = False                                                                                                  │
+           │           self.sR = True                                                                                                   │
+           │       if (self.time < BitVectorVal(180, 18)):                                                                              │
+           │         self.mG = True                                                                                                     │
+           │         self.mY = False                                                                                                    │
+           │         self.mR = False                                                                                                    │
+           │         self.sG = False                                                                                                    │
+           │         self.sY = False                                                                                                    │
+           │         self.sR = True                                                                                                     │
+           │       else:                                                                                                                │
+           │         if (self.time < BitVectorVal(295, 18)):                                                                            │
+           │           self.mG = False                                                                                                  │
+           │           self.mY = False                                                                                                  │
+           │           self.mR = True                                                                                                   │
+           │           self.sG = False                                                                                                  │
+           │           self.sY = False                                                                                                  │
+           │           self.sR = True                                                                                                   │
+           │       self.time = ((self.time + BitVectorVal(1, 18)) % BitVectorVal(7200, 18)) #106                                        │
+           │     else:                                                                                                                  │
+           │       if (self.time < BitVectorVal(355, 18)):                                                                              │
+           │         self.mG = False                                                                                                    │
+           │         self.mY = False                                                                                                    │
+           │         self.mR = True                                                                                                     │
+           │         self.sG = False                                                                                                    │
+           │         self.sY = False                                                                                                    │
+           │         self.sR = True                                                                                                     │
+           │       else:                                                                                                                │
+           │         if (self.time < BitVectorVal(405, 18)):                                                                            │
+           │           self.mG = False                                                                                                  │
+           │           self.mY = True                                                                                                   │
+           │           self.mR = False                                                                                                  │
+           │           self.sG = True                                                                                                   │
+           │           self.sY = False                                                                                                  │
+           │           self.sR = False                                                                                                  │
+           │       self.time = ((self.time + BitVectorVal(1, 18)) % BitVectorVal(7200, 18)) #132                                        │
+           │                                                                                                                            │
+           │   def specification(self):                                                                                                 │
+           │     #(self.time < BitVectorVal(180, 18)) and not self.secondary_vehicle in prop logic looks like:                          │
+           │     self.mG_inv = (self.time < BitVectorVal(180, 18)) and not self.secondary_vehicle                                       │
+           │     #((BitVectorVal(180, 18) <= self.time < BitVectorVal(185, 18)) or (BitVectorVal(350, 18) <= self.time <                │
+           │ BitVectorVal(355, 18))) and not self.secondary_vehicle in prop logic looks like:                                           │
+           │     self.mY_inv = ((BitVectorVal(180, 18) <= self.time < BitVectorVal(185, 18)) or (BitVectorVal(350, 18) <= self.time <   │
+           │ BitVectorVal(355, 18))) and not self.secondary_vehicle                                                                     │
+           │     #((BitVectorVal(185, 18) <= self.time < BitVectorVal(295, 18)) or (BitVectorVal(355, 18) <= self.time <                │
+           │ BitVectorVal(3550, 18)) or self.secondary_vehicle or (BitVectorVal(355, 18) <= self.time < BitVectorVal(405, 18))) in prop │
+           │ logic looks like:                                                                                                          │
+           │     self.mR_inv = ((BitVectorVal(185, 18) <= self.time < BitVectorVal(295, 18)) or (BitVectorVal(355, 18) <= self.time <   │
+           │ BitVectorVal(3550, 18)) or self.secondary_vehicle or (BitVectorVal(355, 18) <= self.time < BitVectorVal(405, 18)))         │
+           │     #(BitVectorVal(295, 18) <= self.time < BitVectorVal(345, 18)) and not self.secondary_vehicle in prop logic looks like: │
+           │     self.sG_inv = (BitVectorVal(295, 18) <= self.time < BitVectorVal(345, 18)) and not self.secondary_vehicle              │
+           │     #(BitVectorVal(345, 18) <= self.time < BitVectorVal(350, 18)) and not self.secondary_vehicle in prop logic looks like: │
+           │     self.sY_inv = (BitVectorVal(345, 18) <= self.time < BitVectorVal(350, 18)) and not self.secondary_vehicle              │
+           │     #(self.time < BitVectorVal(295, 18)) or (BitVectorVal(350, 18) <= self.time < BitVectorVal(7200, 18)) or               │
+           │ self.secondary_vehicle or (BitVectorVal(405, 18) <= self.time < BitVectorVal(7200, 18)) in prop logic looks like:          │
+           │     self.sR_inv = (self.time < BitVectorVal(295, 18)) or (BitVectorVal(350, 18) <= self.time < BitVectorVal(7200, 18)) or  │
+           │ self.secondary_vehicle or (BitVectorVal(405, 18) <= self.time < BitVectorVal(7200, 18))                                    │
+           │     # return expression should combine all previous invariants together                                                    │
+           │     return self.mG_inv,self.mY_inv,self.mR_inv,self.sG_inv,self.sY_inv,self.sR_inv                                         │
+           │ ```                                                                                                                        │
+           ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+           ╭────────────────────────────────────────────────────── 🤖 Extracted: ───────────────────────────────────────────────────────╮ utils.py:29
+           │                                                                                                                            │
+           │ class TrafficLights(Module):                                                                                               │
+           │   def types(self):                                                                                                         │
+           │     self.color = BitVector(3)                                                                                              │
+           │                                                                                                                            │
+           │   def locals(self):                                                                                                        │
+           │     self.main_state = self.color                                                                                           │
+           │     self.sec_state = self.color                                                                                            │
+           │     self.time = BitVector(18)                                                                                              │
+           │                                                                                                                            │
+           │   def inputs(self):                                                                                                        │
+           │     self.secondary_vehicle = bool                                                                                          │
+           │                                                                                                                            │
+           │   def outputs(self):                                                                                                       │
+           │     self.mG = bool                                                                                                         │
+           │     self.mY = bool                                                                                                         │
+           │     self.mR = bool                                                                                                         │
+           │     self.sG = bool                                                                                                         │
+           │     self.sY = bool                                                                                                         │
+           │     self.sR = bool                                                                                                         │
+           │                                                                                                                            │
+           │   def next(self):                                                                                                          │
+           │     if not self.secondary_vehicle:                                                                                         │
+           │       if (self.time < BitVectorVal(180, 18)):                                                                              │
+           │         self.mG = True                                                                                                     │
+           │         self.mY = False                                                                                                    │
+           │         self.mR = False                                                                                                    │
+           │         self.sG = False                                                                                                    │
+           │         self.sY = False                                                                                                    │
+           │         self.sR = True                                                                                                     │
+           │       else:                                                                                                                │
+           │         if (self.time < BitVectorVal(185, 18)):                                                                            │
+           │           self.mG = False                                                                                                  │
+           │           self.mY = True                                                                                                   │
+           │           self.mR = False                                                                                                  │
+           │           self.sG = False                                                                                                  │
+           │           self.sY = False                                                                                                  │
+           │           self.sR = True                                                                                                   │
+           │       if (self.time < BitVectorVal(180, 18)):                                                                              │
+           │         self.mG = True                                                                                                     │
+           │         self.mY = False                                                                                                    │
+           │         self.mR = False                                                                                                    │
+           │         self.sG = False                                                                                                    │
+           │         self.sY = False                                                                                                    │
+           │         self.sR = True                                                                                                     │
+           │       else:                                                                                                                │
+           │         if (self.time < BitVectorVal(295, 18)):                                                                            │
+           │           self.mG = False                                                                                                  │
+           │           self.mY = False                                                                                                  │
+           │           self.mR = True                                                                                                   │
+           │           self.sG = False                                                                                                  │
+           │           self.sY = False                                                                                                  │
+           │           self.sR = True                                                                                                   │
+           │       self.time = ((self.time + BitVectorVal(1, 18)) % BitVectorVal(7200, 18)) #106                                        │
+           │     else:                                                                                                                  │
+           │       if (self.time < BitVectorVal(355, 18)):                                                                              │
+           │         self.mG = False                                                                                                    │
+           │         self.mY = False                                                                                                    │
+           │         self.mR = True                                                                                                     │
+           │         self.sG = False                                                                                                    │
+           │         self.sY = False                                                                                                    │
+           │         self.sR = True                                                                                                     │
+           │       else:                                                                                                                │
+           │         if (self.time < BitVectorVal(405, 18)):                                                                            │
+           │           self.mG = False                                                                                                  │
+           │           self.mY = True                                                                                                   │
+           │           self.mR = False                                                                                                  │
+           │           self.sG = True                                                                                                   │
+           │           self.sY = False                                                                                                  │
+           │           self.sR = False                                                                                                  │
+           │       self.time = ((self.time + BitVectorVal(1, 18)) % BitVectorVal(7200, 18)) #132                                        │
+           │                                                                                                                            │
+           │   def specification(self):                                                                                                 │
+           │     #(self.time < BitVectorVal(180, 18)) and not self.secondary_vehicle in prop logic looks like:                          │
+           │     self.mG_inv = (self.time < BitVectorVal(180, 18)) and not self.secondary_vehicle                                       │
+           │     #((BitVectorVal(180, 18) <= self.time < BitVectorVal(185, 18)) or (BitVectorVal(350, 18) <= self.time <                │
+           │ BitVectorVal(355, 18))) and not self.secondary_vehicle in prop logic looks like:                                           │
+           │     self.mY_inv = ((BitVectorVal(180, 18) <= self.time < BitVectorVal(185, 18)) or (BitVectorVal(350, 18) <= self.time <   │
+           │ BitVectorVal(355, 18))) and not self.secondary_vehicle                                                                     │
+           │     #((BitVectorVal(185, 18) <= self.time < BitVectorVal(295, 18)) or (BitVectorVal(355, 18) <= self.time <                │
+           │ BitVectorVal(3550, 18)) or self.secondary_vehicle or (BitVectorVal(355, 18) <= self.time < BitVectorVal(405, 18))) in prop │
+           │ logic looks like:                                                                                                          │
+           │     self.mR_inv = ((BitVectorVal(185, 18) <= self.time < BitVectorVal(295, 18)) or (BitVectorVal(355, 18) <= self.time <   │
+           │ BitVectorVal(3550, 18)) or self.secondary_vehicle or (BitVectorVal(355, 18) <= self.time < BitVectorVal(405, 18)))         │
+           │     #(BitVectorVal(295, 18) <= self.time < BitVectorVal(345, 18)) and not self.secondary_vehicle in prop logic looks like: │
+           │     self.sG_inv = (BitVectorVal(295, 18) <= self.time < BitVectorVal(345, 18)) and not self.secondary_vehicle              │
+           │     #(BitVectorVal(345, 18) <= self.time < BitVectorVal(350, 18)) and not self.secondary_vehicle in prop logic looks like: │
+           │     self.sY_inv = (BitVectorVal(345, 18) <= self.time < BitVectorVal(350, 18)) and not self.secondary_vehicle              │
+           │     #(self.time < BitVectorVal(295, 18)) or (BitVectorVal(350, 18) <= self.time < BitVectorVal(7200, 18)) or               │
+           │ self.secondary_vehicle or (BitVectorVal(405, 18) <= self.time < BitVectorVal(7200, 18)) in prop logic looks like:          │
+           │     self.sR_inv = (self.time < BitVectorVal(295, 18)) or (BitVectorVal(350, 18) <= self.time < BitVectorVal(7200, 18)) or  │
+           │ self.secondary_vehicle or (BitVectorVal(405, 18) <= self.time < BitVectorVal(7200, 18))                                    │
+           │     # return expression should combine all previous invariants together                                                    │
+           │     return self.mG_inv,self.mY_inv,self.mR_inv,self.sG_inv,self.sY_inv,self.sR_inv                                         │
+           ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+encountered something weird, spec looks like this:  SpecBlock(position=Position(unique=483), bindings=[(Identifier(position=Position(unique=308), name='mG_inv'), And(position=Position(unique=320), arg1=LessThan(position=Position(unique=316), arg1=FunctionApplication(position=Position(unique=310), callee=Identifier(position=Position(unique=309), name='time'), arguments=[]), arg2=BitVectorValue(position=Position(unique=314), value=180, width=18)), arg2=Not(position=Position(unique=319), arg=FunctionApplication(position=Position(unique=318), callee=Identifier(position=Position(unique=317), name='secondary_vehicle'), arguments=[])))), (Identifier(position=Position(unique=321), name='mY_inv'), And(position=Position(unique=354), arg1=Or(position=Position(unique=350), arg1=And(position=Position(unique=335), arg1=LessThanOrEqual(position=Position(unique=333), arg1=BitVectorValue(position=Position(unique=325), value=180, width=18), arg2=FunctionApplication(position=Position(unique=327), callee=Identifier(position=Position(unique=326), name='time'), arguments=[])), arg2=LessThan(position=Position(unique=334), arg1=FunctionApplication(position=Position(unique=327), callee=Identifier(position=Position(unique=326), name='time'), arguments=[]), arg2=BitVectorValue(position=Position(unique=331), value=185, width=18))), arg2=And(position=Position(unique=349), arg1=LessThanOrEqual(position=Position(unique=347), arg1=BitVectorValue(position=Position(unique=339), value=350, width=18), arg2=FunctionApplication(position=Position(unique=341), callee=Identifier(position=Position(unique=340), name='time'), arguments=[])), arg2=LessThan(position=Position(unique=348), arg1=FunctionApplication(position=Position(unique=341), callee=Identifier(position=Position(unique=340), name='time'), arguments=[]), arg2=BitVectorValue(position=Position(unique=345), value=355, width=18)))), arg2=Not(position=Position(unique=353), arg=FunctionApplication(position=Position(unique=352), callee=Identifier(position=Position(unique=351), name='secondary_vehicle'), arguments=[])))), (Identifier(position=Position(unique=355), name='mR_inv'), Or(position=Position(unique=402), arg1=Or(position=Position(unique=387), arg1=Or(position=Position(unique=384), arg1=And(position=Position(unique=369), arg1=LessThanOrEqual(position=Position(unique=367), arg1=BitVectorValue(position=Position(unique=359), value=185, width=18), arg2=FunctionApplication(position=Position(unique=361), callee=Identifier(position=Position(unique=360), name='time'), arguments=[])), arg2=LessThan(position=Position(unique=368), arg1=FunctionApplication(position=Position(unique=361), callee=Identifier(position=Position(unique=360), name='time'), arguments=[]), arg2=BitVectorValue(position=Position(unique=365), value=295, width=18))), arg2=And(position=Position(unique=383), arg1=LessThanOrEqual(position=Position(unique=381), arg1=BitVectorValue(position=Position(unique=373), value=355, width=18), arg2=FunctionApplication(position=Position(unique=375), callee=Identifier(position=Position(unique=374), name='time'), arguments=[])), arg2=LessThan(position=Position(unique=382), arg1=FunctionApplication(position=Position(unique=375), callee=Identifier(position=Position(unique=374), name='time'), arguments=[]), arg2=BitVectorValue(position=Position(unique=379), value=3550, width=18)))), arg2=FunctionApplication(position=Position(unique=386), callee=Identifier(position=Position(unique=385), name='secondary_vehicle'), arguments=[])), arg2=And(position=Position(unique=401), arg1=LessThanOrEqual(position=Position(unique=399), arg1=BitVectorValue(position=Position(unique=391), value=355, width=18), arg2=FunctionApplication(position=Position(unique=393), callee=Identifier(position=Position(unique=392), name='time'), arguments=[])), arg2=LessThan(position=Position(unique=400), arg1=FunctionApplication(position=Position(unique=393), callee=Identifier(position=Position(unique=392), name='time'), arguments=[]), arg2=BitVectorValue(position=Position(unique=397), value=405, width=18))))), (Identifier(position=Position(unique=403), name='sG_inv'), And(position=Position(unique=421), arg1=And(position=Position(unique=417), arg1=LessThanOrEqual(position=Position(unique=415), arg1=BitVectorValue(position=Position(unique=407), value=295, width=18), arg2=FunctionApplication(position=Position(unique=409), callee=Identifier(position=Position(unique=408), name='time'), arguments=[])), arg2=LessThan(position=Position(unique=416), arg1=FunctionApplication(position=Position(unique=409), callee=Identifier(position=Position(unique=408), name='time'), arguments=[]), arg2=BitVectorValue(position=Position(unique=413), value=345, width=18))), arg2=Not(position=Position(unique=420), arg=FunctionApplication(position=Position(unique=419), callee=Identifier(position=Position(unique=418), name='secondary_vehicle'), arguments=[])))), (Identifier(position=Position(unique=422), name='sY_inv'), And(position=Position(unique=440), arg1=And(position=Position(unique=436), arg1=LessThanOrEqual(position=Position(unique=434), arg1=BitVectorValue(position=Position(unique=426), value=345, width=18), arg2=FunctionApplication(position=Position(unique=428), callee=Identifier(position=Position(unique=427), name='time'), arguments=[])), arg2=LessThan(position=Position(unique=435), arg1=FunctionApplication(position=Position(unique=428), callee=Identifier(position=Position(unique=427), name='time'), arguments=[]), arg2=BitVectorValue(position=Position(unique=432), value=350, width=18))), arg2=Not(position=Position(unique=439), arg=FunctionApplication(position=Position(unique=438), callee=Identifier(position=Position(unique=437), name='secondary_vehicle'), arguments=[])))), (Identifier(position=Position(unique=441), name='sR_inv'), Or(position=Position(unique=482), arg1=Or(position=Position(unique=467), arg1=Or(position=Position(unique=464), arg1=LessThan(position=Position(unique=449), arg1=FunctionApplication(position=Position(unique=443), callee=Identifier(position=Position(unique=442), name='time'), arguments=[]), arg2=BitVectorValue(position=Position(unique=447), value=295, width=18)), arg2=And(position=Position(unique=463), arg1=LessThanOrEqual(position=Position(unique=461), arg1=BitVectorValue(position=Position(unique=453), value=350, width=18), arg2=FunctionApplication(position=Position(unique=455), callee=Identifier(position=Position(unique=454), name='time'), arguments=[])), arg2=LessThan(position=Position(unique=462), arg1=FunctionApplication(position=Position(unique=455), callee=Identifier(position=Position(unique=454), name='time'), arguments=[]), arg2=BitVectorValue(position=Position(unique=459), value=7200, width=18)))), arg2=FunctionApplication(position=Position(unique=466), callee=Identifier(position=Position(unique=465), name='secondary_vehicle'), arguments=[])), arg2=And(position=Position(unique=481), arg1=LessThanOrEqual(position=Position(unique=479), arg1=BitVectorValue(position=Position(unique=471), value=405, width=18), arg2=FunctionApplication(position=Position(unique=473), callee=Identifier(position=Position(unique=472), name='time'), arguments=[])), arg2=LessThan(position=Position(unique=480), arg1=FunctionApplication(position=Position(unique=473), callee=Identifier(position=Position(unique=472), name='time'), arguments=[]), arg2=BitVectorValue(position=Position(unique=477), value=7200, width=18)))))], specs=[])
+[00:09:19] ╭─────────────────────────────────────────────────────── 🤖 Repaired: ───────────────────────────────────────────────────────╮ utils.py:29
+           │ class TrafficLights(Module):                                                                                               │
+           │   def types(self):                                                                                                         │
+           │     self.color = BitVector(3)                                                                                              │
+           │                                                                                                                            │
+           │   def locals(self):                                                                                                        │
+           │     self.main_state = self.color                                                                                           │
+           │     self.sec_state = self.color                                                                                            │
+           │     self.time = BitVector(18)                                                                                              │
+           │                                                                                                                            │
+           │   def inputs(self):                                                                                                        │
+           │     self.secondary_vehicle = bool                                                                                          │
+           │                                                                                                                            │
+           │   def outputs(self):                                                                                                       │
+           │     self.mG = bool                                                                                                         │
+           │     self.mY = bool                                                                                                         │
+           │     self.mR = bool                                                                                                         │
+           │     self.sG = bool                                                                                                         │
+           │     self.sY = bool                                                                                                         │
+           │     self.sR = bool                                                                                                         │
+           │                                                                                                                            │
+           │   def next(self):                                                                                                          │
+           │     if not self.secondary_vehicle:                                                                                         │
+           │       if (self.time < BitVectorVal(180, 18)):                                                                              │
+           │         self.mG = True #77                                                                                                 │
+           │         self.mY = False #81                                                                                                │
+           │         self.mR = False #85                                                                                                │
+           │         self.sG = False #89                                                                                                │
+           │         self.sY = False #93                                                                                                │
+           │         self.sR = True #97                                                                                                 │
+           │       else:                                                                                                                │
+           │         if (self.time < BitVectorVal(185, 18)):                                                                            │
+           │           self.mG = False #111                                                                                             │
+           │           self.mY = True #115                                                                                              │
+           │           self.mR = False #119                                                                                             │
+           │           self.sG = False #123                                                                                             │
+           │           self.sY = False #127                                                                                             │
+           │           self.sR = True #131                                                                                              │
+           │       if (self.time < BitVectorVal(180, 18)):                                                                              │
+           │         self.mG = True #147                                                                                                │
+           │         self.mY = False #151                                                                                               │
+           │         self.mR = False #155                                                                                               │
+           │         self.sG = False #159                                                                                               │
+           │         self.sY = False #163                                                                                               │
+           │         self.sR = True #167                                                                                                │
+           │       else:                                                                                                                │
+           │         if (self.time < BitVectorVal(295, 18)):                                                                            │
+           │           self.mG = False #181                                                                                             │
+           │           self.mY = False #185                                                                                             │
+           │           self.mR = True #189                                                                                              │
+           │           self.sG = False #193                                                                                             │
+           │           self.sY = False #197                                                                                             │
+           │           self.sR = True #201                                                                                              │
+           │       self.time = ((self.time + BitVectorVal(1, 18)) % BitVectorVal(7200, 18)) #219                                        │
+           │     else:                                                                                                                  │
+           │       if (self.time < BitVectorVal(355, 18)):                                                                              │
+           │         self.mG = False #233                                                                                               │
+           │         self.mY = False #237                                                                                               │
+           │         self.mR = True #241                                                                                                │
+           │         self.sG = False #245                                                                                               │
+           │         self.sY = False #249                                                                                               │
+           │         self.sR = True #253                                                                                                │
+           │       else:                                                                                                                │
+           │         if (self.time < BitVectorVal(405, 18)):                                                                            │
+           │           self.mG = False #267                                                                                             │
+           │           self.mY = True #271                                                                                              │
+           │           self.mR = False #275                                                                                             │
+           │           self.sG = True #279                                                                                              │
+           │           self.sY = False #283                                                                                             │
+           │           self.sR = False #287                                                                                             │
+           │       self.time = ((self.time + BitVectorVal(1, 18)) % BitVectorVal(7200, 18)) #305                                        │
+           │                                                                                                                            │
+           │   def specification(self):                                                                                                 │
+           │     self.mG_inv = ((self.time < BitVectorVal(180, 18)) and not self.secondary_vehicle)                                     │
+           │     self.mY_inv = ((((BitVectorVal(180, 18) <= self.time) and (self.time < BitVectorVal(185, 18))) or ((BitVectorVal(350,  │
+           │ 18) <= self.time) and (self.time < BitVectorVal(355, 18)))) and not self.secondary_vehicle)                                │
+           │     self.mR_inv = (((((BitVectorVal(185, 18) <= self.time) and (self.time < BitVectorVal(295, 18))) or ((BitVectorVal(355, │
+           │ 18) <= self.time) and (self.time < BitVectorVal(3550, 18)))) or self.secondary_vehicle) or ((BitVectorVal(355, 18) <=      │
+           │ self.time) and (self.time < BitVectorVal(405, 18))))                                                                       │
+           │     self.sG_inv = (((BitVectorVal(295, 18) <= self.time) and (self.time < BitVectorVal(345, 18))) and not                  │
+           │ self.secondary_vehicle)                                                                                                    │
+           │     self.sY_inv = (((BitVectorVal(345, 18) <= self.time) and (self.time < BitVectorVal(350, 18))) and not                  │
+           │ self.secondary_vehicle)                                                                                                    │
+           │     self.sR_inv = ((((self.time < BitVectorVal(295, 18)) or ((BitVectorVal(350, 18) <= self.time) and (self.time <         │
+           │ BitVectorVal(7200, 18)))) or self.secondary_vehicle) or ((BitVectorVal(405, 18) <= self.time) and (self.time <             │
+           │ BitVectorVal(7200, 18))))                                                                                                  │
+           │     return ??                                                                                                              │
+           │                                                                                                                            │
+           │                                                                                                                            │
+           ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+[00:09:21] ╭──────────────────────────────────────────────────────── 🤖 Prompt: ────────────────────────────────────────────────────────╮ utils.py:29
+           │                                                                                                                            │
+           │ Fix the following Python code by replacing every occurrence of `??` with the correct code.                                 │
+           │ ```python                                                                                                                  │
+           │ class TrafficLights(Module):                                                                                               │
+           │   def types(self):                                                                                                         │
+           │     self.color = BitVector(3)                                                                                              │
+           │                                                                                                                            │
+           │   def locals(self):                                                                                                        │
+           │     self.main_state = self.color                                                                                           │
+           │     self.sec_state = self.color                                                                                            │
+           │     self.time = BitVector(18)                                                                                              │
+           │                                                                                                                            │
+           │   def inputs(self):                                                                                                        │
+           │     self.secondary_vehicle = bool                                                                                          │
+           │                                                                                                                            │
+           │   def outputs(self):                                                                                                       │
+           │     self.mG = bool                                                                                                         │
+           │     self.mY = bool                                                                                                         │
+           │     self.mR = bool                                                                                                         │
+           │     self.sG = bool                                                                                                         │
+           │     self.sY = bool                                                                                                         │
+           │     self.sR = bool                                                                                                         │
+           │                                                                                                                            │
+           │   def next(self):                                                                                                          │
+           │     if not self.secondary_vehicle:                                                                                         │
+           │       if (self.time < BitVectorVal(180, 18)):                                                                              │
+           │         self.mG = True #77                                                                                                 │
+           │         self.mY = False #81                                                                                                │
+           │         self.mR = False #85                                                                                                │
+           │         self.sG = False #89                                                                                                │
+           │         self.sY = False #93                                                                                                │
+           │         self.sR = True #97                                                                                                 │
+           │       else:                                                                                                                │
+           │         if (self.time < BitVectorVal(185, 18)):                                                                            │
+           │           self.mG = False #111                                                                                             │
+           │           self.mY = True #115                                                                                              │
+           │           self.mR = False #119                                                                                             │
+           │           self.sG = False #123                                                                                             │
+           │           self.sY = False #127                                                                                             │
+           │           self.sR = True #131                                                                                              │
+           │       if (self.time < BitVectorVal(180, 18)):                                                                              │
+           │         self.mG = True #147                                                                                                │
+           │         self.mY = False #151                                                                                               │
+           │         self.mR = False #155                                                                                               │
+           │         self.sG = False #159                                                                                               │
+           │         self.sY = False #163                                                                                               │
+           │         self.sR = True #167                                                                                                │
+           │       else:                                                                                                                │
+           │         if (self.time < BitVectorVal(295, 18)):                                                                            │
+           │           self.mG = False #181                                                                                             │
+           │           self.mY = False #185                                                                                             │
+           │           self.mR = True #189                                                                                              │
+           │           self.sG = False #193                                                                                             │
+           │           self.sY = False #197                                                                                             │
+           │           self.sR = True #201                                                                                              │
+           │       self.time = ((self.time + BitVectorVal(1, 18)) % BitVectorVal(7200, 18)) #219                                        │
+           │     else:                                                                                                                  │
+           │       if (self.time < BitVectorVal(355, 18)):                                                                              │
+           │         self.mG = False #233                                                                                               │
+           │         self.mY = False #237                                                                                               │
+           │         self.mR = True #241                                                                                                │
+           │         self.sG = False #245                                                                                               │
+           │         self.sY = False #249                                                                                               │
+           │         self.sR = True #253                                                                                                │
+           │       else:                                                                                                                │
+           │         if (self.time < BitVectorVal(405, 18)):                                                                            │
+           │           self.mG = False #267                                                                                             │
+           │           self.mY = True #271                                                                                              │
+           │           self.mR = False #275                                                                                             │
+           │           self.sG = True #279                                                                                              │
+           │           self.sY = False #283                                                                                             │
+           │           self.sR = False #287                                                                                             │
+           │       self.time = ((self.time + BitVectorVal(1, 18)) % BitVectorVal(7200, 18)) #305                                        │
+           │                                                                                                                            │
+           │   def specification(self):                                                                                                 │
+           │                                                                                                                            │
+           │     self.mG_inv = ((self.time < BitVectorVal(180, 18)) and not self.secondary_vehicle)                                     │
+           │     self.mY_inv = ((((BitVectorVal(180, 18) <= self.time) and (self.time < BitVectorVal(185, 18))) or ((BitVectorVal(350,  │
+           │ 18) <= self.time) and (self.time < BitVectorVal(355, 18)))) and not self.secondary_vehicle)                                │
+           │     self.mR_inv = (((((BitVectorVal(185, 18) <= self.time) and (self.time < BitVectorVal(295, 18))) or ((BitVectorVal(355, │
+           │ 18) <= self.time) and (self.time < BitVectorVal(3550, 18)))) or self.secondary_vehicle) or ((BitVectorVal(355, 18) <=      │
+           │ self.time) and (self.time < BitVectorVal(405, 18))))                                                                       │
+           │     self.sG_inv = (((BitVectorVal(295, 18) <= self.time) and (self.time < BitVectorVal(345, 18))) and not                  │
+           │ self.secondary_vehicle)                                                                                                    │
+           │     self.sY_inv = (((BitVectorVal(345, 18) <= self.time) and (self.time < BitVectorVal(350, 18))) and not                  │
+           │ self.secondary_vehicle)                                                                                                    │
+           │     self.sR_inv = ((((self.time < BitVectorVal(295, 18)) or ((BitVectorVal(350, 18) <= self.time) and (self.time <         │
+           │ BitVectorVal(7200, 18)))) or self.secondary_vehicle) or ((BitVectorVal(405, 18) <= self.time) and (self.time <             │
+           │ BitVectorVal(7200, 18))))                                                                                                  │
+           │     return ??                                                                                                              │
+           │                                                                                                                            │
+           │                                                                                                                            │
+           │ ```                                                                                                                        │
+           │ Make sure that your code extends the `Module` class below and that it completes the following task.                        │
+           │                                                                                                                            │
+           │ > Consider the intersection of two one-way streets, called Main and Secondary. A light on each street controls its         │
+           │ traffic. Each light goes through a cycle consisting of a red (R), green (G), and yellow (Y) phases. It is a safety         │
+           │ requirement that when one light is in its green or yellow phase, the other is in its red phase. The yellow phase is always │
+           │ 5 seconds long. The traffic lights operate as follows. A sensor in the secondary road detects a vehicle. While no vehicle  │
+           │ is detected, there is a 4 minute-long cycle with the main light having 3 minutes of green, 5 seconds of yellow, and 55     │
+           │ seconds of red. The secondary light is red for 3 minutes and 5 seconds (while the main light is green and yellow), green   │
+           │ for 50 seconds, then yellow for 5 seconds. If a vehicle is detected on the secondary road, the traffic light quickly gives │
+           │ a right of way to the secondary road. When this happens, the main light aborts its green phase and immediately switches to │
+           │ its 5 second yellow phase. If the vehicle is detected while the main light is yellow or red, the system continues as if    │
+           │ there were no vehicle. Model a system that controls the lights. Let this system have six pure outputs, one for each light, │
+           │ named mG, mY, and mR, to designate the main light being green, yellow, or red, respectively, and sG, sY, and sR, to        │
+           │ designate the secondary light being green, yellow, or red, respectively. These signals should be generated to turn on a    │
+           │ light. You can implicitly assume that when one light is turned on, whichever has been on is turned off. Use the variable   │
+           │ names mG, mY, mR, sG, sY, sR.                                                                                              │
+           │                                                                                                                            │
+           │ Reply with your Python code inside one unique code block.                                                                  │
+           │                                                                                                                            │
+           │ ```python                                                                                                                  │
+           │ class Module:                                                                                                              │
+           │     """An abstract class to represent a UCLID5 module."""                                                                  │
+           │                                                                                                                            │
+           │     def types(self):                                                                                                       │
+           │         """(Optional) Defines the type declarations.                                                                       │
+           │         For example, the following implementation defines a 8-bit type called T:                                           │
+           │         ```                                                                                                                │
+           │         def types(self):                                                                                                   │
+           │             self.T = BitVector(8)                                                                                          │
+           │         ```                                                                                                                │
+           │         """                                                                                                                │
+           │         pass                                                                                                               │
+           │                                                                                                                            │
+           │     def locals(self):                                                                                                      │
+           │         """(Optional) Defines the local variables and their types.                                                         │
+           │         For example, the following implementation defines an 8-bit variable x                                              │
+           │         and an integer variable y:                                                                                         │
+           │         ```                                                                                                                │
+           │         def locals(self):                                                                                                  │
+           │             self.x = BitVector(8)                                                                                          │
+           │             self.y = Integer()                                                                                             │
+           │         ```                                                                                                                │
+           │         """                                                                                                                │
+           │         pass                                                                                                               │
+           │                                                                                                                            │
+           │     def inputs(self):                                                                                                      │
+           │         """(Optional) Defines the input variables and their types.                                                         │
+           │         For example, the following implementation defines an input variable x,                                             │
+           │         which is an array of 8-bit bitvectors indexed by 2-bit bitvectors:                                                 │
+           │         ```                                                                                                                │
+           │         def inputs(self):                                                                                                  │
+           │             self.x = Array(BitVector(2), BitVector(8))                                                                     │
+           │         ```                                                                                                                │
+           │         """                                                                                                                │
+           │         pass                                                                                                               │
+           │                                                                                                                            │
+           │     def outputs(self):                                                                                                     │
+           │         """(Optional) Defines the output variables and their types.                                                        │
+           │         For example, the following implementation defines an output variable y,                                            │
+           │         which is a real number:                                                                                            │
+           │         ```                                                                                                                │
+           │         def outputs(self):                                                                                                 │
+           │             self.y = Real()                                                                                                │
+           │         ```                                                                                                                │
+           │         """                                                                                                                │
+           │         pass                                                                                                               │
+           │                                                                                                                            │
+           │     def shared_vars(self):                                                                                                 │
+           │         """(Optional) Defines the shared variables and their types.                                                        │
+           │         For example, the following implementation defines a shared variable z,                                             │
+           │         which is an array of booleans indexed by integers:                                                                 │
+           │         ```                                                                                                                │
+           │         def shared_vars(self):                                                                                             │
+           │             self.z = Array(Integer(), Boolean())                                                                           │
+           │         ```                                                                                                                │
+           │         """                                                                                                                │
+           │         pass                                                                                                               │
+           │                                                                                                                            │
+           │     def instances(self):                                                                                                   │
+           │         """(Optional) Defines the instances of other modules and relates their                                             │
+           │         input, output, and shared variables to local variables. Every instance                                             │
+           │         variable must be related to a local variable. For example, let M be                                                │
+           │         another module with inputs x and y, and output z. The following                                                    │
+           │         implementation defines an instance of M called m, and connects M's                                                 │
+           │         input variable x to the local variable self.a, M's input variable y to                                             │
+           │         the local variable self.b, and M's output variable z to the local                                                  │
+           │         variable self.c:                                                                                                   │
+           │         ```                                                                                                                │
+           │         def instances(self):                                                                                               │
+           │             self.m = M(x=self.a, y=self.b, z=self.c)                                                                       │
+           │         ```                                                                                                                │
+           │         """                                                                                                                │
+           │         pass                                                                                                               │
+           │                                                                                                                            │
+           │     def init(self):                                                                                                        │
+           │         """(Optional) Defines how variables are initialized.                                                               │
+           │         For example, the following implementation initializes x to 0 if y is                                               │
+           │         greater than or equal to 20:                                                                                       │
+           │         ```                                                                                                                │
+           │         def init(self):                                                                                                    │
+           │             if self.y >= 20:                                                                                               │
+           │                 self.x = 0                                                                                                 │
+           │         ```                                                                                                                │
+           │         """                                                                                                                │
+           │         pass                                                                                                               │
+           │                                                                                                                            │
+           │     def next(self):                                                                                                        │
+           │         """(Optional) Defines the transition relation.                                                                     │
+           │         For example, the following implementation increments x or decrements y                                             │
+           │         depending on z:                                                                                                    │
+           │         ```                                                                                                                │
+           │         def next(self):                                                                                                    │
+           │             if self.z:                                                                                                     │
+           │                 self.x = self.x + 1                                                                                        │
+           │             else:                                                                                                          │
+           │                 self.y = self.y - 1                                                                                        │
+           │         ```                                                                                                                │
+           │         """                                                                                                                │
+           │         pass                                                                                                               │
+           │                                                                                                                            │
+           │     def specification(self):                                                                                               │
+           │         """(Required) Defines the specification in terms of invariant properties.                                          │
+           │                                                                                                                            │
+           │         Returns:                                                                                                           │
+           │             bool: True if the specification is satisfied, False otherwise.                                                 │
+           │                                                                                                                            │
+           │         For example, the following implementation defines two invariants:                                                  │
+           │         ```                                                                                                                │
+           │         def specification(self):                                                                                           │
+           │             return self.x < 10 and self.y > 0                                                                              │
+           │                                                                                                                            │
+           │         DO NOT JUST RETURN THE VARIABLE TYPES!                                                                             │
+           │         """                                                                                                                │
+           │         raise NotImplementedError                                                                                          │
+           │ ```                                                                                                                        │
+           │                                                                                                                            │
+           │ I can definitely do that! Here is the fixed Python code:                                                                   │
+           │ ```python                                                                                                                  │
+           │                                                                                                                            │
+           ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+[00:09:29] ╭────────────────────────────────────────────────── 🧠 Original Response: ───────────────────────────────────────────────────╮ utils.py:47
+           │ ```python                                                                                                                  │
+           │ class TrafficLights(Module):                                                                                               │
+           │   def types(self):                                                                                                         │
+           │     self.color = BitVector(3)                                                                                              │
+           │     self.time = BitVector(18)                                                                                              │
+           │                                                                                                                            │
+           │   def locals(self):                                                                                                        │
+           │     self.main_state = self.color                                                                                           │
+           │     self.sec_state = self.color                                                                                            │
+           │                                                                                                                            │
+           │   def inputs(self):                                                                                                        │
+           │     self.secondary_vehicle = bool                                                                                          │
+           │                                                                                                                            │
+           │   def outputs(self):                                                                                                       │
+           │     self.mG = bool                                                                                                         │
+           │     self.mY = bool                                                                                                         │
+           │     self.mR = bool                                                                                                         │
+           │     self.sG = bool                                                                                                         │
+           │     self.sY = bool                                                                                                         │
+           │     self.sR = bool                                                                                                         │
+           │                                                                                                                            │
+           │   def next(self):                                                                                                          │
+           │     if not self.secondary_vehicle:                                                                                         │
+           │       if (self.time < BitVectorVal(180, 18)):                                                                              │
+           │         self.mG = True                                                                                                     │
+           │         self.mY = False                                                                                                    │
+           │         self.mR = False                                                                                                    │
+           │         self.sG = False                                                                                                    │
+           │         self.sY = False                                                                                                    │
+           │         self.sR = True                                                                                                     │
+           │       else:                                                                                                                │
+           │         if (self.time < BitVectorVal(185, 18)):                                                                            │
+           │           self.mG = False                                                                                                  │
+           │           self.mY = True                                                                                                   │
+           │           self.mR = False                                                                                                  │
+           │           self.sG = False                                                                                                  │
+           │           self.sY = False                                                                                                  │
+           │           self.sR = True                                                                                                   │
+           │       if (self.time < BitVectorVal(180, 18)):                                                                              │
+           │         self.mG = True                                                                                                     │
+           │         self.mY = False                                                                                                    │
+           │         self.mR = False                                                                                                    │
+           │         self.sG = False                                                                                                    │
+           │         self.sY = False                                                                                                    │
+           │         self.sR = True                                                                                                     │
+           │       else:                                                                                                                │
+           │         if (self.time < BitVectorVal(295, 18)):                                                                            │
+           │           self.mG = False                                                                                                  │
+           │           self.mY = False                                                                                                  │
+           │           self.mR = True                                                                                                   │
+           │           self.sG = False                                                                                                  │
+           │           self.sY = False                                                                                                  │
+           │           self.sR = True                                                                                                   │
+           │       self.time = ((self.time + BitVectorVal(1, 18)) % BitVectorVal(7200, 18))                                             │
+           │     else:                                                                                                                  │
+           │       if (self.time < BitVectorVal(355, 18)):                                                                              │
+           │         self.mG = False                                                                                                    │
+           │         self.mY = False                                                                                                    │
+           │         self.mR = True                                                                                                     │
+           │         self.sG = False                                                                                                    │
+           │         self.sY = False                                                                                                    │
+           │         self.sR = True                                                                                                     │
+           │       else:                                                                                                                │
+           │         if (self.time < BitVectorVal(405, 18)):                                                                            │
+           │           self.mG = False                                                                                                  │
+           │           self.mY = True                                                                                                   │
+           │           self.mR = False                                                                                                  │
+           │           self.sG = True                                                                                                   │
+           │           self.sY = False                                                                                                  │
+           │           self.sR = False                                                                                                  │
+           │       self.time = ((self.time + BitVectorVal(1, 18)) % BitVectorVal(7200, 18))                                             │
+           │                                                                                                                            │
+           │   def specification(self):                                                                                                 │
+           │                                                                                                                            │
+           │     self.mG_inv = ((self.time < BitVectorVal(180, 18)) and not self.secondary_vehicle)                                     │
+           │     self.mY_inv = ((((BitVectorVal(180, 18) <= self.time) and (self.time < BitVectorVal(185, 18))) or ((BitVectorVal(350,  │
+           │ 18) <= self.time) and (self.time < BitVectorVal(355, 18)))) and not self.secondary_vehicle)                                │
+           │     self.mR_inv = (((((BitVectorVal(185, 18) <= self.time) and (self.time < BitVectorVal(295, 18))) or ((BitVectorVal(355, │
+           │ 18) <= self.time) and (self.time < BitVectorVal(3550, 18)))) or self.secondary_vehicle) or ((BitVectorVal(355, 18) <=      │
+           │ self.time) and (self.time < BitVectorVal(405, 18)))                                                                        │
+           │     self.sG_inv = (((BitVectorVal(295, 18) <= self.time) and (self.time < BitVectorVal(345, 18))) and not                  │
+           │ self.secondary_vehicle)                                                                                                    │
+           │     self.sY_inv = (((BitVectorVal(345, 18) <= self.time) and (self.time < BitVectorVal(350, 18))) and not                  │
+           │ self.secondary_vehicle)                                                                                                    │
+           │     self.sR_inv = ((((self.time < BitVectorVal(295, 18)) or ((BitVectorVal(350, 18) <= self.time) and (self.time <         │
+           │ BitVectorVal(7200, 18)))) or self.secondary_vehicle) or ((BitVectorVal(405, 18) <= self.time) and (self.time <             │
+           │ BitVectorVal(7200, 18))))                                                                                                  │
+           │     return self.mG_inv and self.mR_inv and self.mY_inv and self.sG_inv and self.sR_inv and self.sY_inv                     │
+           │                                                                                                                            │
+           │ ```                                                                                                                        │
+           ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+           ╭────────────────────────────────────────────────────── 🤖 Extracted: ───────────────────────────────────────────────────────╮ utils.py:29
+           │                                                                                                                            │
+           │ class TrafficLights(Module):                                                                                               │
+           │   def types(self):                                                                                                         │
+           │     self.color = BitVector(3)                                                                                              │
+           │     self.time = BitVector(18)                                                                                              │
+           │                                                                                                                            │
+           │   def locals(self):                                                                                                        │
+           │     self.main_state = self.color                                                                                           │
+           │     self.sec_state = self.color                                                                                            │
+           │                                                                                                                            │
+           │   def inputs(self):                                                                                                        │
+           │     self.secondary_vehicle = bool                                                                                          │
+           │                                                                                                                            │
+           │   def outputs(self):                                                                                                       │
+           │     self.mG = bool                                                                                                         │
+           │     self.mY = bool                                                                                                         │
+           │     self.mR = bool                                                                                                         │
+           │     self.sG = bool                                                                                                         │
+           │     self.sY = bool                                                                                                         │
+           │     self.sR = bool                                                                                                         │
+           │                                                                                                                            │
+           │   def next(self):                                                                                                          │
+           │     if not self.secondary_vehicle:                                                                                         │
+           │       if (self.time < BitVectorVal(180, 18)):                                                                              │
+           │         self.mG = True                                                                                                     │
+           │         self.mY = False                                                                                                    │
+           │         self.mR = False                                                                                                    │
+           │         self.sG = False                                                                                                    │
+           │         self.sY = False                                                                                                    │
+           │         self.sR = True                                                                                                     │
+           │       else:                                                                                                                │
+           │         if (self.time < BitVectorVal(185, 18)):                                                                            │
+           │           self.mG = False                                                                                                  │
+           │           self.mY = True                                                                                                   │
+           │           self.mR = False                                                                                                  │
+           │           self.sG = False                                                                                                  │
+           │           self.sY = False                                                                                                  │
+           │           self.sR = True                                                                                                   │
+           │       if (self.time < BitVectorVal(180, 18)):                                                                              │
+           │         self.mG = True                                                                                                     │
+           │         self.mY = False                                                                                                    │
+           │         self.mR = False                                                                                                    │
+           │         self.sG = False                                                                                                    │
+           │         self.sY = False                                                                                                    │
+           │         self.sR = True                                                                                                     │
+           │       else:                                                                                                                │
+           │         if (self.time < BitVectorVal(295, 18)):                                                                            │
+           │           self.mG = False                                                                                                  │
+           │           self.mY = False                                                                                                  │
+           │           self.mR = True                                                                                                   │
+           │           self.sG = False                                                                                                  │
+           │           self.sY = False                                                                                                  │
+           │           self.sR = True                                                                                                   │
+           │       self.time = ((self.time + BitVectorVal(1, 18)) % BitVectorVal(7200, 18))                                             │
+           │     else:                                                                                                                  │
+           │       if (self.time < BitVectorVal(355, 18)):                                                                              │
+           │         self.mG = False                                                                                                    │
+           │         self.mY = False                                                                                                    │
+           │         self.mR = True                                                                                                     │
+           │         self.sG = False                                                                                                    │
+           │         self.sY = False                                                                                                    │
+           │         self.sR = True                                                                                                     │
+           │       else:                                                                                                                │
+           │         if (self.time < BitVectorVal(405, 18)):                                                                            │
+           │           self.mG = False                                                                                                  │
+           │           self.mY = True                                                                                                   │
+           │           self.mR = False                                                                                                  │
+           │           self.sG = True                                                                                                   │
+           │           self.sY = False                                                                                                  │
+           │           self.sR = False                                                                                                  │
+           │       self.time = ((self.time + BitVectorVal(1, 18)) % BitVectorVal(7200, 18))                                             │
+           │                                                                                                                            │
+           │   def specification(self):                                                                                                 │
+           │                                                                                                                            │
+           │     self.mG_inv = ((self.time < BitVectorVal(180, 18)) and not self.secondary_vehicle)                                     │
+           │     self.mY_inv = ((((BitVectorVal(180, 18) <= self.time) and (self.time < BitVectorVal(185, 18))) or ((BitVectorVal(350,  │
+           │ 18) <= self.time) and (self.time < BitVectorVal(355, 18)))) and not self.secondary_vehicle)                                │
+           │     self.mR_inv = (((((BitVectorVal(185, 18) <= self.time) and (self.time < BitVectorVal(295, 18))) or ((BitVectorVal(355, │
+           │ 18) <= self.time) and (self.time < BitVectorVal(3550, 18)))) or self.secondary_vehicle) or ((BitVectorVal(355, 18) <=      │
+           │ self.time) and (self.time < BitVectorVal(405, 18)))                                                                        │
+           │     self.sG_inv = (((BitVectorVal(295, 18) <= self.time) and (self.time < BitVectorVal(345, 18))) and not                  │
+           │ self.secondary_vehicle)                                                                                                    │
+           │     self.sY_inv = (((BitVectorVal(345, 18) <= self.time) and (self.time < BitVectorVal(350, 18))) and not                  │
+           │ self.secondary_vehicle)                                                                                                    │
+           │     self.sR_inv = ((((self.time < BitVectorVal(295, 18)) or ((BitVectorVal(350, 18) <= self.time) and (self.time <         │
+           │ BitVectorVal(7200, 18)))) or self.secondary_vehicle) or ((BitVectorVal(405, 18) <= self.time) and (self.time <             │
+           │ BitVectorVal(7200, 18))))                                                                                                  │
+           │     return self.mG_inv and self.mR_inv and self.mY_inv and self.sG_inv and self.sR_inv and self.sY_inv                     │
+           ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+should have added a paren
+[00:09:31] ╭─────────────────────────────────────────────────────── 🤖 Repaired: ───────────────────────────────────────────────────────╮ utils.py:29
+           │ class TrafficLights(Module):                                                                                               │
+           │   def types(self):                                                                                                         │
+           │     self.color = BitVector(3)                                                                                              │
+           │                                                                                                                            │
+           │   def locals(self):                                                                                                        │
+           │     self.time = BitVector(18)                                                                                              │
+           │     self.main_state = self.color                                                                                           │
+           │     self.sec_state = self.color                                                                                            │
+           │                                                                                                                            │
+           │   def inputs(self):                                                                                                        │
+           │     self.secondary_vehicle = bool                                                                                          │
+           │                                                                                                                            │
+           │   def outputs(self):                                                                                                       │
+           │     self.mG = bool                                                                                                         │
+           │     self.mY = bool                                                                                                         │
+           │     self.mR = bool                                                                                                         │
+           │     self.sG = bool                                                                                                         │
+           │     self.sY = bool                                                                                                         │
+           │     self.sR = bool                                                                                                         │
+           │                                                                                                                            │
+           │   def next(self):                                                                                                          │
+           │     if not self.secondary_vehicle:                                                                                         │
+           │       if (self.time < BitVectorVal(180, 18)):                                                                              │
+           │         self.mG = True #77                                                                                                 │
+           │         self.mY = False #81                                                                                                │
+           │         self.mR = False #85                                                                                                │
+           │         self.sG = False #89                                                                                                │
+           │         self.sY = False #93                                                                                                │
+           │         self.sR = True #97                                                                                                 │
+           │       else:                                                                                                                │
+           │         if (self.time < BitVectorVal(185, 18)):                                                                            │
+           │           self.mG = False #111                                                                                             │
+           │           self.mY = True #115                                                                                              │
+           │           self.mR = False #119                                                                                             │
+           │           self.sG = False #123                                                                                             │
+           │           self.sY = False #127                                                                                             │
+           │           self.sR = True #131                                                                                              │
+           │       if (self.time < BitVectorVal(180, 18)):                                                                              │
+           │         self.mG = True #147                                                                                                │
+           │         self.mY = False #151                                                                                               │
+           │         self.mR = False #155                                                                                               │
+           │         self.sG = False #159                                                                                               │
+           │         self.sY = False #163                                                                                               │
+           │         self.sR = True #167                                                                                                │
+           │       else:                                                                                                                │
+           │         if (self.time < BitVectorVal(295, 18)):                                                                            │
+           │           self.mG = False #181                                                                                             │
+           │           self.mY = False #185                                                                                             │
+           │           self.mR = True #189                                                                                              │
+           │           self.sG = False #193                                                                                             │
+           │           self.sY = False #197                                                                                             │
+           │           self.sR = True #201                                                                                              │
+           │       self.time = ((self.time + BitVectorVal(1, 18)) % BitVectorVal(7200, 18)) #219                                        │
+           │     else:                                                                                                                  │
+           │       if (self.time < BitVectorVal(355, 18)):                                                                              │
+           │         self.mG = False #233                                                                                               │
+           │         self.mY = False #237                                                                                               │
+           │         self.mR = True #241                                                                                                │
+           │         self.sG = False #245                                                                                               │
+           │         self.sY = False #249                                                                                               │
+           │         self.sR = True #253                                                                                                │
+           │       else:                                                                                                                │
+           │         if (self.time < BitVectorVal(405, 18)):                                                                            │
+           │           self.mG = False #267                                                                                             │
+           │           self.mY = True #271                                                                                              │
+           │           self.mR = False #275                                                                                             │
+           │           self.sG = True #279                                                                                              │
+           │           self.sY = False #283                                                                                             │
+           │           self.sR = False #287                                                                                             │
+           │       self.time = ((self.time + BitVectorVal(1, 18)) % BitVectorVal(7200, 18)) #305                                        │
+           │                                                                                                                            │
+           │   def specification(self):                                                                                                 │
+           │     self.mG_inv = ((self.time < BitVectorVal(180, 18)) and not self.secondary_vehicle)                                     │
+           │     self.mY_inv = ((((BitVectorVal(180, 18) <= self.time) and (self.time < BitVectorVal(185, 18))) or ((BitVectorVal(350,  │
+           │ 18) <= self.time) and (self.time < BitVectorVal(355, 18)))) and not self.secondary_vehicle)                                │
+           │     self.mR_inv = (((((BitVectorVal(185, 18) <= self.time) and (self.time < BitVectorVal(295, 18))) or ((BitVectorVal(355, │
+           │ 18) <= self.time) and (self.time < BitVectorVal(3550, 18)))) or self.secondary_vehicle) or ((BitVectorVal(355, 18) <=      │
+           │ self.time) and (self.time < BitVectorVal(405, 18))))                                                                       │
+           │     self.sG_inv = (((BitVectorVal(295, 18) <= self.time) and (self.time < BitVectorVal(345, 18))) and not                  │
+           │ self.secondary_vehicle)                                                                                                    │
+           │     self.sY_inv = (((BitVectorVal(345, 18) <= self.time) and (self.time < BitVectorVal(350, 18))) and not                  │
+           │ self.secondary_vehicle)                                                                                                    │
+           │     self.sR_inv = ((((self.time < BitVectorVal(295, 18)) or ((BitVectorVal(350, 18) <= self.time) and (self.time <         │
+           │ BitVectorVal(7200, 18)))) or self.secondary_vehicle) or ((BitVectorVal(405, 18) <= self.time) and (self.time <             │
+           │ BitVectorVal(7200, 18))))                                                                                                  │
+           │     return (((((self.mG_inv and self.mR_inv) and self.mY_inv) and self.sG_inv) and self.sR_inv) and self.sY_inv)           │
+           │                                                                                                                            │
+           │                                                                                                                            │
+           ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+           ╭────── 🤖 Stats: ───────╮                                                                                                     utils.py:29
+           │ Original Lines: 72     │
+           │ Final Lines:    80     │
+           │ LLM Calls:      3      │
+           │ LLM Time:       24.68s │
+           │ Repair Time:    6.16s  │
+           │                        │
+           ╰────────────────────────╯
+           ╭─ 🤖 Stats: ─╮                                                                                                                utils.py:29
+           │             │
+           ╰─────────────╯

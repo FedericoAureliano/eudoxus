@@ -1,0 +1,99 @@
+module Module {
+  var max: integer;
+  var nbeer_sget_guard: boolean;
+  var bget: boolean;
+  var coin: boolean;
+  var coin_guard: boolean;
+  var sget: boolean;
+  var nbeer_bget_guard: boolean;
+  var nsoda_bget_guard: boolean;
+  var nsoda_sget_guard: boolean;
+  var sget_guard: boolean;
+  var refill: boolean;
+  var refill_guard: boolean;
+  var ret_coin_guard: boolean;
+  var nsoda: integer;
+  var nbeer: integer;
+
+  init {
+    max = 100; //74
+    nsoda = max; //79
+    nbeer = max; //84
+    coin = false; //88
+    sget = false; //92
+    bget = false; //96
+    refill = false; //100
+
+  }
+  procedure step()
+    modifies refill;
+    modifies refill_guard;
+    modifies coin;
+    modifies nbeer;
+    modifies nbeer_bget_guard;
+    modifies nsoda;
+    modifies coin_guard;
+    modifies ret_coin_guard;
+    modifies nsoda_sget_guard;
+    modifies bget;
+    modifies sget;
+  {
+    coin_guard = true; //106
+    refill_guard = true; //110
+    nsoda_sget_guard = (nsoda > 0); //118
+    nbeer_bget_guard = (nbeer > 0); //126
+    ret_coin_guard = ((nsoda == 0) && (nbeer == 0)); //140
+    if (coin_guard) {
+      coin = true; //147
+      sget = false; //151
+      bget = false; //155
+      refill = false; //159
+    }
+    if (refill_guard) {
+      nsoda = max; //169
+      nbeer = max; //174
+      coin = false; //178
+      sget = false; //182
+      bget = false; //186
+      refill = true; //190
+    }
+    if (nsoda_sget_guard) {
+      nsoda = (nsoda - 1); //202
+      coin = false; //206
+      sget = true; //210
+      bget = false; //214
+      refill = false; //218
+    }
+    if (nbeer_bget_guard) {
+      nbeer = (nbeer - 1); //230
+      coin = false; //234
+      sget = false; //238
+      bget = true; //242
+      refill = false; //246
+    }
+    if (ret_coin_guard) {
+      coin = false; //255
+      sget = false; //259
+      bget = false; //263
+      refill = false; //267
+    }
+  }
+
+  next {
+    call step();
+  }
+  invariant coin_inv : (nsoda_bget_guard || nbeer_sget_guard);
+  invariant sget_inv : (nsoda > 0);
+  invariant bget_inv : (nbeer > 0);
+  invariant refill_inv : false;
+  invariant nsoda_inv : ((nsoda >= 0) && (nsoda <= max));
+  invariant nbeer_inv : ((nbeer >= 0) && (nbeer <= max));
+  invariant ret_coin_guard_inv : (ret_coin_guard == ((nsoda == 0) && (nbeer == 0)));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

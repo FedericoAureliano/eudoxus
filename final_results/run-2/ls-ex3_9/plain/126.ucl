@@ -1,0 +1,80 @@
+module TrafficLight {
+  var count: integer;
+  var sigG: boolean;
+  var sigR: boolean;
+  var sigY: boolean;
+  var state: integer;
+  var pedestrian: boolean;
+
+  init {
+    state = 0; //38
+    count = 0; //42
+    sigG = false; //46
+    sigY = false; //50
+    sigR = true; //54
+
+  }
+  procedure step()
+    modifies sigG;
+    modifies state;
+    modifies sigR;
+    modifies count;
+    modifies sigY;
+  {
+    if (state == 0) {
+      sigG = false; //66
+      sigY = false; //70
+      sigR = true; //74
+      count = (count + 1); //81
+      if (count == 60) {
+        state = 1; //91
+        count = 0; //95
+      }
+    } else {
+      if (state == 1) {
+        sigG = true; //108
+        sigY = false; //112
+        sigR = false; //116
+        if (pedestrian && (count >= 60)) {
+          state = 2; //129
+          count = 0; //133
+        } else {
+          count = (count + 1); //141
+        }
+      } else {
+        if (state == 2) {
+          sigG = false; //153
+          sigY = false; //157
+          sigR = false; //161
+          count = (count + 1); //168
+          if (count == 60) {
+            state = 3; //178
+            count = 0; //182
+          }
+        } else {
+          if (state == 3) {
+            sigG = false; //195
+            sigY = true; //199
+            sigR = false; //203
+            count = (count + 1); //210
+            if (count == 5) {
+              state = 0; //220
+              count = 0; //224
+            }
+          }
+        }
+      }
+    }
+  }
+
+  next {
+    call step();
+  }
+  invariant spec: true;
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

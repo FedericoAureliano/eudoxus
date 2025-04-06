@@ -1,0 +1,29 @@
+module TrafficLights {
+  var A: boolean;
+  var B: boolean;
+  var traffic_light1: enum { green1, green2, red1, red2 };
+  var traffic_light2: enum { green1, green2, red1, red2 };
+
+  next {
+    traffic_light1' = (if (A) then green1 else red1); //43
+    traffic_light2' = (if (B) then green2 else red2); //51
+    if ((traffic_light1 == green1) && (traffic_light2 == green2)) {
+      assert false; //65
+    }
+    if ((traffic_light1 == red1) && (traffic_light2 == red2)) {
+      assert false; //81
+    }
+
+  }
+  invariant a_inv : (A ==> ((traffic_light1 == red1) && (traffic_light2 == green2)));
+  invariant b_inv : (B ==> ((traffic_light1 == green2) && (traffic_light2 == red1)));
+  invariant traffic_light1_inv : ((traffic_light1 == green1) && (traffic_light1 == red1));
+  invariant traffic_light2_inv : ((traffic_light2 == green2) && (traffic_light2 == red2));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

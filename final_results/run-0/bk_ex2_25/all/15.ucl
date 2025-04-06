@@ -1,0 +1,32 @@
+module Module {
+  var b2: boolean;
+  var b1: boolean;
+  var x: bv2;
+
+  procedure step()
+    modifies x;
+    modifies b1;
+  {
+    b1 = true; //28
+    x = 2bv2; //35
+    if ((x == 1bv2) && !b2) {
+      b1 = true; //52
+    } else {
+      b1 = false; //57
+    }
+  }
+
+  next {
+    call step();
+  }
+  invariant b1_inv : (b1 || !b1);
+  invariant b2_inv : (b2 || !b2);
+  invariant x_inv : (((x == 1bv2) ==> b1) && ((x == 2bv2) ==> b2));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

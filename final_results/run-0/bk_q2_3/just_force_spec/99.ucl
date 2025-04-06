@@ -1,0 +1,60 @@
+module Module {
+  type traffic_light = enum { amber, green, red, yellow };
+
+  var L1: traffic_light;
+  var L2: traffic_light;
+  var L3: traffic_light;
+  var L4: traffic_light;
+
+  init {
+    L1 = green; //39
+    L2 = red; //43
+    L3 = green; //47
+    L4 = red; //51
+
+  }
+  next {
+    if ((L1 == green) && (L3 == green)) {
+      L1' = yellow; //69
+      L3' = yellow; //73
+    } else {
+      if ((L1 == yellow) && (L3 == yellow)) {
+        L1' = red; //90
+        L3' = red; //94
+        L2' = green; //98
+      } else {
+        if ((L1 == red) && (L2 == green)) {
+          L2' = yellow; //115
+        } else {
+          if (L2 == yellow) {
+            L2' = red; //126
+            L4' = green; //130
+          } else {
+            if (L4 == green) {
+              L4' = yellow; //141
+            } else {
+              if (L4 == yellow) {
+                L1' = green; //152
+                L3' = green; //156
+              }
+            }
+          }
+        }
+      }
+    }
+
+  }
+  invariant L1_inv : (((L1 == red) || (L1 == yellow)) || (L1 == green));
+  invariant L2_inv : (((L2 == red) || (L2 == yellow)) || (L2 == green));
+  invariant L3_inv : (((L3 == red) || (L3 == yellow)) || (L3 == green));
+  invariant L4_inv : (((L4 == red) || (L4 == yellow)) || (L4 == green));
+  invariant L1_and_L3_inv : !(((((L1 == green) && (L2 == green)) || ((L1 == green) && (L4 == green))) || ((L2 == green) && (L3 == green))) || ((L3 == green) && (L4 == green)));
+  invariant C_inv : (((L1 == green) && (L3 == green)) || ((L2 == red) && (L4 == red)));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

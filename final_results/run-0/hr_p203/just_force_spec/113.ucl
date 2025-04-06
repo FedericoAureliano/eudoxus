@@ -1,0 +1,46 @@
+module AlternatingBitProtocol {
+  var st: bv1;
+  var message1: bv8;
+  var message2: bv8;
+  var ack: bv1;
+
+  input input_channel: [integer]bv8;
+  input ack_channel: [bv1]bv1;
+
+  output output_channel: [integer]bv8;
+  output output_ack_channel: [bv1]bv1;
+
+  init {
+    st = 0bv1; //77
+    message1 = 0bv8; //84
+    message2 = 0bv8; //91
+    ack = 0bv1; //98
+
+  }
+  next {
+    if (st == 0bv1) {
+      if (ack_channel[st] == st) {
+        st' = 1bv1; //126
+      }
+    } else {
+      if (st == 1bv1) {
+        if (ack_channel[st] == st) {
+          st' = 0bv1; //155
+        }
+      }
+    }
+    output_ack_channel' = output_ack_channel[st -> st]; //169
+
+  }
+  invariant st_inv : ((st == 0bv1) && (st == 1bv1));
+  invariant message1_inv : ((message1 >= 0bv8) && (message1 < 256bv8));
+  invariant message2_inv : ((message2 >= 0bv8) && (message2 < 256bv8));
+  invariant ack_inv : ((ack == 0bv1) && (ack == 1bv1));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

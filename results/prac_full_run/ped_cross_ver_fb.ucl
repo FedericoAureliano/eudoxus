@@ -1,0 +1,80 @@
+module TrafficLight {
+  var count: integer;
+  var pedestrian: boolean;
+  var sigG: bv6;
+  var sigR: bv8;
+  var sigY: bv7;
+  var state: bv2;
+
+  init {
+    state = 0bv2; //45
+    count = 0; //49
+
+  }
+  procedure step()
+    modifies state;
+    modifies sigY;
+    modifies count;
+    modifies sigG;
+    modifies sigR;
+  {
+    count = (count + 1); //58
+    if (state == 0bv2) {
+      sigG = 1bv6; //74
+      sigY = 0bv7; //81
+      sigR = 0bv8; //88
+      if (count == 60) {
+        count = 0; //98
+        state = 1bv2; //105
+      }
+    } else {
+      if (state == 1bv2) {
+        sigG = 0bv6; //124
+        sigY = 1bv7; //131
+        sigR = 0bv8; //138
+        if (pedestrian) {
+          state = 2bv2; //148
+        } else {
+          if (count == 60) {
+            count = 0; //159
+            state = 3bv2; //166
+          }
+        }
+      } else {
+        if (state == 2bv2) {
+          sigG = 0bv6; //186
+          sigY = 0bv7; //193
+          sigR = 1bv8; //200
+          if (count == 60) {
+            count = 0; //210
+            state = 3bv2; //217
+          }
+        } else {
+          if (state == 3bv2) {
+            sigG = 0bv6; //236
+            sigY = 1bv7; //243
+            sigR = 0bv8; //250
+            if (count == 5) {
+              count = 0; //260
+              state = 0bv2; //267
+            }
+          } else {
+            if (state == 5bv2) {
+              sigG = 0bv6; //286
+              sigY = 0bv7; //293
+              sigR = 1bv8; //300
+              if (count == 5) {
+                count = 0; //310
+                state = 0bv2; //317
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  next {
+    call step();
+  }
+}

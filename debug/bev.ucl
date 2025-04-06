@@ -1,0 +1,67 @@
+module VendingMachine {
+    var max: integer;
+    var nsoda: integer;
+    var nbeer: integer;
+    var sget: boolean;
+    var bget: boolean;
+    var refill: boolean;
+    var coin: boolean;
+
+    init {
+        coin = true;
+        bget = (nbeer > 0);
+        sget = (nsoda > 0);
+        max = 10;
+        nsoda = max;
+        nbeer = max;
+        refill = false;
+        coin = false;
+
+    }
+    procedure step()
+        modifies bget;
+        modifies nbeer;
+        modifies refill;
+        modifies nsoda;
+        modifies coin;
+        modifies sget;
+    {
+        coin = true;
+        sget = (nsoda > 0);
+        bget = (nbeer > 0);
+        if (!refill) {
+        } else {
+            nsoda = max;
+            nbeer = max;
+        }
+        if (sget) {
+            nsoda = (nsoda - 1);
+        }
+        if (bget) {
+            nbeer = (nbeer - 1);
+        }
+        if ((nsoda == 0) && (nbeer == 0)) {
+            coin = false;
+            refill = false;
+            sget = false;
+            bget = false;
+        }
+    }
+
+    next {
+        call step();
+    }
+    invariant nsoda_inv : ((nsoda >= 0) && (nsoda <= max));
+    invariant nbeer_inv : ((nbeer >= 0) && (nbeer <= max));
+    invariant sget_inv : (sget == (nsoda > 0));
+    invariant bget_inv : (bget == (nbeer > 0));
+    invariant refill_inv : (refill ==> ((nsoda == max) && (nbeer == max)));
+    invariant coin_inv : (coin == ((nsoda > 0) || (nbeer > 0)));
+
+    control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+    }
+}

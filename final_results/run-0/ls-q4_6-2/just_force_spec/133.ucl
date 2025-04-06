@@ -1,0 +1,69 @@
+module Module {
+  var ignition: boolean;
+  var nowarn: boolean;
+  var time: integer;
+  var warn: boolean;
+
+  input ignition_on: boolean;
+  input passenger_in_seat: boolean;
+  input buckle_status: boolean;
+
+  init {
+    time = 0; //43
+    warn = false; //47
+    nowarn = false; //51
+    ignition = false; //55
+
+  }
+  procedure step()
+    modifies time;
+    modifies nowarn;
+    modifies warn;
+  {
+    if ((ignition_on && passenger_in_seat) && !buckle_status) {
+      warn = true; //71
+      nowarn = false; //75
+    } else {
+      if ((ignition_on && passenger_in_seat) && buckle_status) {
+        warn = false; //89
+        nowarn = true; //93
+      } else {
+        if (ignition_on && !passenger_in_seat) {
+          warn = false; //105
+          nowarn = true; //109
+        } else {
+          if (!ignition_on) {
+            warn = false; //118
+            nowarn = true; //122
+          }
+        }
+      }
+    }
+    if (warn && (time < 30)) {
+      time = (time + 1); //143
+    } else {
+      if (warn && (time >= 30)) {
+        warn = false; //157
+        nowarn = true; //161
+      }
+    }
+    if (ignition_on) {
+      time = 0; //171
+    }
+  }
+
+  next {
+    call step();
+  }
+  invariant warn_inv : (((ignition_on && passenger_in_seat) && !buckle_status) && !((time >= 30) || nowarn));
+  invariant nowarn_inv : ((((!warn || !ignition_on) || !passenger_in_seat) || buckle_status) || (time >= 30));
+  invariant time_inv : (((time >= 0) && (time <= 30)) && ((!warn || (time == 0)) || (time <= 30)));
+  invariant ignition_inv : (ignition == ignition_on);
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

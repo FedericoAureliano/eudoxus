@@ -1,0 +1,61 @@
+module Sender {
+  type ControlBit = boolean;
+
+  input c: boolean;
+
+  output b: ControlBit;
+
+  next {
+    if (c) {
+      b' = !b; //34
+    }
+
+  }
+}
+module Receiver {
+  type ControlBit = boolean;
+
+  input d: boolean;
+
+  output b: ControlBit;
+
+  next {
+    if (d) {
+      b' = !b; //73
+    }
+
+  }
+}
+module System {
+  var bool: boolean;
+  var ControlBit: boolean;
+  var R_inv: boolean;
+  var S_inv: boolean;
+  var b_inv: boolean;
+  var c_inv: boolean;
+  var d_inv: boolean;
+  var m_inv: boolean;
+  var c: boolean;
+  var d: boolean;
+
+  instance S: Sender(b:(ControlBit), c:(c));
+  instance R: Receiver(b:(ControlBit), d:(d));
+
+  invariant controlbit_inv : bool;
+  invariant c : R.b;
+  invariant d : S.b;
+  invariant m : (S.b == R.b);
+  invariant c_inv : !c;
+  invariant d_inv : true;
+  invariant m_inv : true;
+  invariant S_inv : !S.b;
+  invariant R_inv : !R.b;
+  invariant b_inv : (S.b == R.b);
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

@@ -1,0 +1,42 @@
+module Thermostat {
+  var cooling: boolean;
+  var heating: boolean;
+
+  input temp: real;
+
+  output heatOn: boolean;
+  output heatOff: boolean;
+
+  init {
+    heating = false; //36
+    cooling = false; //40
+
+  }
+  next {
+    if (temp > 22.0) {
+      heating' = false; //52
+    } else {
+      if (temp < 18.0) {
+        heating' = true; //63
+      }
+    }
+    if (heating) {
+      heatOff' = true; //73
+    } else {
+      heatOff' = false; //78
+    }
+    if (!heating) {
+      heatOn' = true; //87
+    } else {
+      heatOn' = false; //92
+    }
+
+  }
+  invariant spec: (heatOn || heatOff);
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

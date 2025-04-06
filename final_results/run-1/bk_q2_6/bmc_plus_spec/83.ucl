@@ -1,0 +1,43 @@
+module Stack {
+  var s: [integer]bv8;
+  var top: integer;
+  var pop: boolean;
+  var push: boolean;
+  var n: integer;
+
+  init {
+    s = 0; //39
+    pop = false; //43
+    push = false; //47
+    n = 0; //51
+
+  }
+  next {
+    if (pop && (n > 0)) {
+      n' = (n - 1); //69
+      top' = (top - 1); //76
+    } else {
+      if (push && (n < 10)) {
+        n' = (n + 1); //93
+        top' = (top + 1); //100
+      }
+    }
+
+  }
+  invariant s_inv : (forall (n0:integer) :: ((n0 >= 0) ==> (n0 < 10)));
+  invariant top_inv : ((top >= 0) && (top <= n));
+  invariant pop_inv : ((n > 0) ==> pop);
+  invariant push_inv : ((n < 10) ==> push);
+  invariant n_inv : ((n >= 0) && (n <= 10));
+  invariant stack : (top_inv && (s_inv && (pop_inv && (n_inv && push_inv))));
+  invariant top_op : ((n > 0) ==> top);
+  invariant pop_op : ((n > 0) ==> pop);
+  invariant push_op : ((n < 10) ==> push);
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

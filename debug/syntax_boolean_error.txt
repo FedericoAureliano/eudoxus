@@ -1,0 +1,69 @@
+╭──────────────────────────────────────────────── ❎ UCLID MODULE:  ────────────────────────────────────────────────╮                                     utils.py:65
+           │ module VendingMachine {                                                                                           │
+           │   var max: integer;                                                                                               │
+           │   var bget: boolean;                                                                                              │
+           │   var coin: boolean;                                                                                              │
+           │   var nbeer: integer;                                                                                             │
+           │   var nsoda: integer;                                                                                             │
+           │   var refill: boolean;                                                                                            │
+           │   var sget: boolean;                                                                                              │
+           │                                                                                                                   │
+           │   init {                                                                                                          │
+           │     nsoda = 5;                                                                                                    │
+           │     nbeer = 3;                                                                                                    │
+           │                                                                                                                   │
+           │   }                                                                                                               │
+           │   procedure step()                                                                                                │
+           │     modifies nsoda;                                                                                               │
+           │     modifies refill_inv;                                                                                          │
+           │     modifies coin_inv;                                                                                            │
+           │     modifies nbeer;                                                                                               │
+           │   {                                                                                                               │
+           │     if (coin) {                                                                                                   │
+           │       coin_inv = true;                                                                                            │
+           │     }                                                                                                             │
+           │     if (refill) {                                                                                                 │
+           │       nsoda = 8;                                                                                                  │
+           │       nbeer = 8;                                                                                                  │
+           │     }                                                                                                             │
+           │     if (sget) {                                                                                                   │
+           │       nsoda = (nsoda - 1);                                                                                        │
+           │     }                                                                                                             │
+           │     if (bget) {                                                                                                   │
+           │       nbeer = (nbeer - 1);                                                                                        │
+           │     }                                                                                                             │
+           │     if ((nsoda == 0) && (nbeer == 0)) {                                                                           │
+           │       refill_inv = true;                                                                                          │
+           │     }                                                                                                             │
+           │   }                                                                                                               │
+           │                                                                                                                   │
+           │   next {                                                                                                          │
+           │     call step();                                                                                                  │
+           │   }                                                                                                               │
+           │   define nsoda_inv() : boolean = ((nsoda >= 0) && (nsoda <= max));                                                │
+           │   define nbeer_inv() : boolean = ((nbeer >= 0) && (nbeer <= max));                                                │
+           │   define sget_inv() : boolean = ((nsoda > 0) ==> sget);                                                           │
+           │   define bget_inv() : boolean = ((nbeer > 0) ==> bget);                                                           │
+           │   define coin_inv() : boolean = coin;                                                                             │
+           │   define refill_inv() : boolean = ((nsoda == max) && (nbeer == max));                                             │
+           │   invariant spec: (refill_inv() && (coin_inv() && (bget_inv() && (sget_inv() && (nsoda_inv() && nbeer_inv()))))); │
+           │                                                                                                                   │
+           │   control  {                                                                                                      │
+           │     v = bmc(3);                                                                                                   │
+           │     check;                                                                                                        │
+           │     print_results;                                                                                                │
+           │     v.print_cex();                                                                                                │
+           │   }                                                                                                               │
+           │ }                                                                                                                 │
+           │                                                                                                                   │
+           ╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+           ╭───────────────────────────────── ❎ Running UCLID Terminal Output:  ─────────────────────────────────╮                                                  utils.py:65
+           │ Error at testing.ucl, line 22: 'coin_inv' expected type ' -> boolean' but received type 'boolean'.   │
+           │       coin_inv = true;                                                                               │
+           │       ^                                                                                              │
+           │ Error at testing.ucl, line 35: 'refill_inv' expected type ' -> boolean' but received type 'boolean'. │
+           │       refill_inv = true;                                                                             │
+           │       ^                                                                                              │
+           │ Parsing failed. 2 errors found.                                                                      │
+           │                                                                                                      │
+           ╰──────────────────────────────────────────────────────────────────────────────────────────────────────╯

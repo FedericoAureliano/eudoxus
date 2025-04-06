@@ -1,0 +1,81 @@
+module TrafficLight {
+  var Zero: integer;
+  var count: integer;
+  var next_state: integer;
+  var pedestrian: boolean;
+  var sigG: boolean;
+  var sigR: boolean;
+  var sigY: boolean;
+  var state: integer;
+
+  init {
+    state = 0; //46
+    sigG = (state == 1); //54
+    sigY = (state == 2); //62
+    sigR = (state == 0); //70
+    pedestrian = false; //74
+    count = 0; //78
+
+  }
+  procedure step()
+    modifies sigY;
+    modifies count;
+    modifies sigR;
+    modifies next_state;
+    modifies sigG;
+    modifies state;
+  {
+    if (true) {
+      count = (count + 1); //89
+      next_state = state; //94
+      if ((state == 0) && (count >= 60)) {
+        next_state = 1; //110
+        count = 0; //114
+      } else {
+        if (state == 1) {
+          if (pedestrian && (count >= 60)) {
+            next_state = 2; //134
+            count = 0; //138
+          } else {
+            if (!pedestrian && (count >= 60)) {
+              next_state = 3; //153
+              count = 0; //157
+            }
+          }
+        } else {
+          if ((state == 2) && (count >= 5)) {
+            next_state = 0; //177
+            count = 0; //181
+          } else {
+            if ((state == 3) && (count >= 55)) {
+              next_state = 2; //198
+              count = 0; //202
+            }
+          }
+        }
+      }
+      sigG = (next_state == 1); //215
+      sigY = (next_state == 2); //223
+      sigR = (next_state == 0); //231
+      state = next_state; //236
+    }
+  }
+
+  next {
+    call step();
+  }
+  invariant next_state_inv : ((next_state >= 0) && (next_state <= 3));
+  invariant state_inv : ((state >= 0) && (state <= 3));
+  invariant count_inv : ((Zero <= count) && (count <= 60));
+  invariant pedestrian_inv : (pedestrian ==> true);
+  invariant sigG_inv : (sigG ==> (state == 1));
+  invariant sigR_inv : (sigR ==> (state == 0));
+  invariant sigY_inv : (sigY ==> (state == 2));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

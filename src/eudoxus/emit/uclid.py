@@ -49,7 +49,7 @@ def module2ucl(output, module: Module, indent):
     name = id2str(module.name)
     output.write(f"module {name} {{\n")
     indent += 1
-
+    # print("types: ", module.types)
     types2ucl(output, module.types, indent)
     state2ucl(output, module.locals, indent)
     state2ucl(output, module.inputs, indent)
@@ -131,30 +131,48 @@ def specs2ucl(output, spec: SpecBlock, indent):
             return
 
     space = "  " * indent
+
     for lhs, rhs in spec.bindings:
         output.write(f"{space}")
-        output.write("define ")
-        ids.append(lhs.name)
+        output.write("invariant ")
         expr2ucl(output, lhs)
         output.write(" : ")
-        output.write("boolean = ")
         expr2ucl(output, rhs)
         output.write(";")
         output.write("\n")
 
+    if len(spec.bindings) == 0:
+        output.write(f"{space}invariant spec: ")
+        if len(spec.specs) == 0:
+            output.write("\n??\n")
+        else:
+            expr2ucl(output, spec.specs[0])
+        output.write(";")
+
+    output.write("\n")
+
+    # for lhs, rhs in spec.bindings:
+    #     output.write(f"{space}")
+    #     output.write("define ")
+    #     ids.append(lhs.name)
+    #     expr2ucl(output, lhs)
+    #     output.write(" : ")
+    #     output.write("boolean = ")
+    #     expr2ucl(output, rhs)
+    #     output.write(";")
+    #     output.write("\n")
+
     # print("ids: ", ids)
-    output.write(f"{space}invariant spec: ")
-    if len(spec.specs) == 0:
-        print("weird: ", spec)
-        output.write("??")
-    else:
-        expr2ucl(output, spec.specs[0])
+    # output.write(f"{space}invariant spec: ")
+    # if len(spec.specs) == 0:
+    #     print("weird: ", spec)
+    #     output.write("??")
+    # else:
+    #     expr2ucl(output, spec.specs[0])
 
-    match spec:
-        case e.BooleanValue(_, True):
-            return
-
-    output.write(";\n\n")
+    # match spec:
+    #     case e.BooleanValue(_, True):
+    #         return
 
     output.write(space + "control")
     output.write(space + "{\n")
@@ -486,15 +504,16 @@ def id2str(id):
 def stmt2ucl(output, stmt: s.Statement, indent, prime_assignments):
     space = "  " * indent
     match stmt:
-        case s.Assignment(_, target, value):
+        case s.Assignment(pos, target, value):
             output.write(space)
             expr2ucl(output, target)
             if prime_assignments:
                 output.write("'")
             output.write(" = ")
             expr2ucl(output, value)
-            output.write(";\n")
-        case s.If(_, cond, body, orelse):
+            output.write(";")
+            output.write(f" //{pos.unique}\n")
+        case s.If(pos, cond, body, orelse):
             output.write(space)
             output.write("if ")
             close = False
@@ -519,19 +538,23 @@ def stmt2ucl(output, stmt: s.Statement, indent, prime_assignments):
                     stmt2ucl(output, stmt, indent, prime_assignments)
             else:
                 pass
-        case s.Havoc(_, target):
+        case s.Havoc(pos, target):
             name = id2str(target)
-            output.write(space + "havoc " + name + ";\n")
-        case s.Assume(_, cond):
+            output.write(space + "havoc " + name + ";")
+            output.write(f" //{pos.unique}\n")
+        case s.Assume(pos, cond):
             output.write(space + "assume ")
             expr2ucl(output, cond)
-            output.write(";\n")
-        case s.Assert(_, cond):
+            output.write(";")
+            output.write(f" //{pos.unique}\n")
+        case s.Assert(pos, cond):
             output.write(space + "assert ")
             expr2ucl(output, cond)
-            output.write(";\n")
-        case s.Next(_, inst):
-            output.write(space + f"next({inst.name});\n")
+            output.write(";")
+            output.write(f" //{pos.unique}\n")
+        case s.Next(pos, inst):
+            output.write(space + f"next({inst.name});")
+            output.write(f" //{pos.unique}\n")
         case s.HoleStmt(_):
             output.write(space + "??;\n")
         case _:

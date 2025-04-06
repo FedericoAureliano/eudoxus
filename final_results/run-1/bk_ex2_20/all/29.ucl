@@ -1,0 +1,38 @@
+module ParallelProgram {
+  var x_1: integer;
+  var x_2: integer;
+  var x: integer;
+
+  init {
+    x = 3; //26
+
+  }
+  procedure step()
+    modifies x_2;
+    modifies x_1;
+    modifies x;
+  {
+    x = x; //33
+    x_1 = (2 * x); //40
+    x_2 = (x + 1); //47
+    if (x_1 == x_2) {
+      x = x_1; //59
+    } else {
+      x = x_2; //65
+    }
+  }
+
+  next {
+    call step();
+  }
+  invariant x_1_inv : ((x_1 == 6) || (x_1 == 12));
+  invariant x_2_inv : ((x_2 == 4) || (x_2 == 7));
+  invariant x_inv : ((x == 4) || (x == 7));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

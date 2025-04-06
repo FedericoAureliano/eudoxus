@@ -1,0 +1,49 @@
+module MutualExclusion {
+  type BitVecVar = bv1;
+
+  var local_var_y0_1: bv1;
+  var local_var_y1_1: bv1;
+  var shared_var_s: bv1;
+  var shared_var_s_1: bv1;
+  var shared_var_s_2: bv1;
+  var local_var_y0: BitVecVar;
+  var local_var_y1: BitVecVar;
+
+  init {
+    shared_var_s = 1bv1; //56
+    local_var_y0 = 0bv1; //63
+    local_var_y1 = 0bv1; //70
+
+  }
+  procedure step()
+    modifies local_var_y1_1;
+    modifies shared_var_s;
+    modifies local_var_y0_1;
+  {
+    local_var_y0_1 = (if (shared_var_s == 1bv1) then 1bv1 else local_var_y0); //90
+    local_var_y1_1 = (if (shared_var_s == 0bv1) then 1bv1 else local_var_y1); //108
+    shared_var_s = (if (local_var_y1_1 == 0bv1) then shared_var_s_2 else shared_var_s_1); //124
+    shared_var_s = (if (local_var_y0_1 == 0bv1) then shared_var_s else 0bv1); //142
+    shared_var_s = (if (local_var_y0_1 == 1bv1) then shared_var_s_1 else shared_var_s); //158
+    shared_var_s = (if (local_var_y1_1 == 1bv1) then shared_var_s_1 else shared_var_s); //174
+  }
+
+  next {
+    call step();
+  }
+  invariant shared_var_s_inv : ((shared_var_s == 0bv1) || (shared_var_s == 1bv1));
+  invariant local_var_y0_inv : ((local_var_y0 == 0bv1) || (local_var_y0 == 1bv1));
+  invariant local_var_y1_inv : ((local_var_y1 == 0bv1) || (local_var_y1 == 1bv1));
+  invariant shared_var_s_inv : ((shared_var_s == 0bv1) ==> (local_var_y1 == 1bv1));
+  invariant shared_var_s_inv : ((shared_var_s == 0bv1) ==> (local_var_y0 == 0bv1));
+  invariant shared_var_s_inv : ((shared_var_s == 1bv1) ==> (local_var_y1 == 0bv1));
+  invariant local_var_y0_inv : ((local_var_y0 == 1bv1) ==> (shared_var_s == 0bv1));
+  invariant local_var_y1_inv : ((local_var_y1 == 1bv1) ==> (shared_var_s == 1bv1));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

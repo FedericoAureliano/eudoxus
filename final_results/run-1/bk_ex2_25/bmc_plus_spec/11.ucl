@@ -1,0 +1,39 @@
+module Module {
+  var b1: boolean;
+  var b1_next: boolean;
+  var b2: boolean;
+  var b2_next: boolean;
+  var wait1: boolean;
+  var wait2: boolean;
+  var x: bv2;
+  var x_next: bv2;
+
+  init {
+    b1 = false; //48
+    b2 = false; //52
+    x = 1bv2; //59
+
+  }
+  next {
+    if (b1) {
+      x_next' = (if (wait1) then 2bv2 else x); //76
+    } else {
+      if (b2) {
+        x_next' = (if (wait2) then 1bv2 else x); //92
+      }
+    }
+    b1_next' = (wait1 && (x == 1bv2)); //109
+    b2_next' = (wait2 && (x == 2bv2)); //123
+
+  }
+  invariant b1_inv : (b1 ==> (x == 2bv2));
+  invariant b2_inv : (b2 ==> (x == 1bv2));
+  invariant x_inv : ((x == 1bv2) ==> (!b2 || !b1));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

@@ -1,0 +1,50 @@
+module Module {
+  var warn: boolean;
+  var nowarn: boolean;
+  var time: integer;
+  var ignition: boolean;
+  var buckled: boolean;
+
+  init {
+    warn = false; //34
+    nowarn = false; //38
+    time = 0; //42
+    ignition = false; //46
+    buckled = false; //50
+
+  }
+  procedure step()
+    modifies nowarn;
+    modifies time;
+    modifies warn;
+  {
+    if (warn) {
+      time = (time + 1); //62
+    }
+    if (!ignition) {
+      warn = false; //72
+      nowarn = false; //76
+      time = 0; //80
+    } else {
+      if ((ignition && !buckled) && !nowarn) {
+        warn = true; //96
+      } else {
+        if (ignition && buckled) {
+          warn = false; //107
+          nowarn = true; //111
+        }
+      }
+    }
+  }
+
+  next {
+    call step();
+  }
+  invariant spec: ((warn || nowarn) && (time <= 30));
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

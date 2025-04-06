@@ -1,0 +1,57 @@
+module Module {
+  var passenger_seat: boolean;
+  var seatbelt_buckled: boolean;
+  var warn: boolean;
+  var nowarn: boolean;
+  var ignition: boolean;
+  var time: integer;
+  var engine_started: boolean;
+  var beep: boolean;
+  var warning_light: boolean;
+
+  init {
+    ignition = false; //50
+    time = 0; //54
+
+  }
+  procedure step()
+    modifies warning_light;
+    modifies beep;
+    modifies time;
+  {
+    if (((time < 30) && passenger_seat) && !seatbelt_buckled) {
+      beep = true; //73
+      warning_light = true; //77
+      time = (time + 1); //84
+    } else {
+      beep = false; //89
+      time = 0; //93
+    }
+    if (engine_started && !seatbelt_buckled) {
+      warning_light = true; //105
+    } else {
+      warning_light = false; //110
+    }
+  }
+
+  next {
+    call step();
+  }
+  invariant bucked_inv : seatbelt_buckled;
+  invariant warn : ((ignition && passenger_seat) && !seatbelt_buckled);
+  invariant nowarn : ((!ignition || !passenger_seat) || seatbelt_buckled);
+  invariant ignition_inv : ignition;
+  invariant time_inv : ((time >= 0) && (time <= 30));
+  invariant engine_started_inv : (ignition ==> engine_started);
+  invariant beep_inv : (beep == (!seatbelt_buckled && ((time < 30) && passenger_seat)));
+  invariant warning_light_inv : (warning_light == (!seatbelt_buckled && (engine_started || passenger_seat)));
+  invariant passenger_seat_inv : passenger_seat;
+  invariant seatbelt_buckled_inv : seatbelt_buckled;
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

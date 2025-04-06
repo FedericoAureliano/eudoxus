@@ -1,20 +1,33 @@
-Model a single traffic light as a simple transition system with two states, one state modeling a red light, the other one modeling a green light.
+Model a design of a beverage vending machine. The machine can either deliver beer or soda. It counts the number of soda and beer bottles and returns inserted coins if the vending machine is empty.
 
-Use the variable names red and green
+The vending machine is represented by the two locations start and select, and has variables that store the number of soda bottles (nsoda), and the number of beer bottles (nbeer).
 
-1. Clarify that the traffic light should only be in one state at a time:
-   Add to the task description: "Ensure that the traffic light can only be in one of the two states, either red or green, but not both at the same time."
+The following conditional transitions model the insertion of a coin and refilling the vending machine:
 
-2. Specify the expected transitions between states clearly:
-   Include in the description: "The transition system should alternate between red and green states, where a red state must always transition to a green state and vice versa."
+start --(true:coin)-> select
+start --(true:refill)-> start
 
-3. Define what should happen in the initial state:
-   Amend the task to state clearly: "The initial state of the traffic light should start with red."
+ Labels of conditional transitions are of the form (g : a ) where g is a Boolean condition (called guard), and a is an action that is possible once g holds. As the condition for both conditional transitions above always holds, the action coin is always enabled in the starting location. To keep things simple, we assume that by refill both storages are entirely refilled.
 
-4. Outline the properties to be maintained throughout the transitions:
-   Update the task with: "Each state, whether red or green, should exclusively imply that the traffic light is not simultaneously showing the other color."
+The following transitions model that soda (or beer) can be obtained if there is some soda (or beer) left in the vending machine:
 
-5. Confirm the behavior after multiple transitions:
-   Add a point: "Confirm the model maintains correct behavior through multiple transitions to validate its robustness over continuous operation cycles."
+select --(nsoda > 0:sget)-> start
+select --(nbeer > 0:bget)-> start
 
-These additions will help ensure the model’s semantic accuracy and ensure its operation aligns perfectly with the original system description given for a single traffic light.
+Finally, the vending machine automatically switches to the initial start location while returning the inserted coin once there are no bottles left:
+
+select --(nsoda=0 & nbeer=0: ret_coin) -> start
+
+Let the maximum capacity of both bottle repositories be max. The insertion of a coin (by action coin) leaves the number of bottles unchanged. The same applies when a coin is returned (by action ret coin). The effect of the other actions is as follows:
+
+refill : nsoda:=max & nbeer:=max
+sget: nsoda:=nsoda-1
+bget: nbeer:=nbeer-1
+
+You may use boolean variables to indicate when an action is enabled.
+
+Use the variable names nsoda, nbeer, sget, bget, refill, coin.
+
+[Fix 1] The current UCLID5 model lacks proper initialization of the `max` variable, leading to potential negative values or zero that cause verification failures. Set `max` to a positive constant value which represents the maximum capacity of the vending machine. This is crucial for valid `refill` operations, which fill `nsoda` and `nbeer` up to `max`.
+[Fix 2] The current `next` state logic does not clearly reset the `coin` to `False` after it is set to `True` when bottles are empty. This can result in incorrect behavior such as the machine staying in a state suggesting a coin is required. Include a condition in the `next` method that ensures `coin` returns to `False` after any actions or transitions that should reset its state.
+[Fix 3] The boolean guards for `sget`, `bget`, and `refill` should be explicitly managed to avoid any logical inconsistency in their state transitions. State transitions depend on these actions, and any incorrect management could lead to unexpected behavior and verification failure. Ensure logical conditions set these guards correctly in all `next` statements.

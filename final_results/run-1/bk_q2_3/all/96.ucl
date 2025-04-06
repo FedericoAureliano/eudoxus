@@ -1,0 +1,60 @@
+module Junction {
+  type State = bv2;
+
+  var C: bv5;
+  var green: bv2;
+  var red: bv2;
+  var yellow: bv2;
+  var L1: State;
+  var L2: State;
+  var L3: State;
+  var L4: State;
+
+  init {
+    L1 = green; //57
+    L2 = red; //62
+    L3 = green; //67
+    L4 = red; //72
+
+  }
+  next {
+    C' = ((C + 1bv5) % 4bv5); //89
+    if (C == 1bv5) {
+      L1' = yellow; //103
+      L3' = yellow; //108
+      L2' = green; //113
+    } else {
+      if (C == 2bv5) {
+        L1' = red; //128
+        L3' = red; //133
+        L2' = yellow; //138
+      } else {
+        if (C == 3bv5) {
+          L2' = red; //153
+          L4' = green; //158
+        } else {
+          if (C == 0bv5) {
+            L4' = yellow; //173
+          }
+        }
+      }
+    }
+
+  }
+  invariant L1_inv : ((L1 == green) && (L2 == red));
+  invariant L2_inv : ((L2 == green) && (L3 == red));
+  invariant L3_inv : ((L3 == green) && (L4 == red));
+  invariant L4_inv : ((L4 == green) && (L1 == red));
+  invariant C_inv : ((C >= 0bv5) && (C <= 4bv5));
+  invariant green_inv : (green == 0bv2);
+  invariant yellow_inv : (yellow == 1bv2);
+  invariant red_inv : (red == 2bv2);
+  invariant amber_inv : false;
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

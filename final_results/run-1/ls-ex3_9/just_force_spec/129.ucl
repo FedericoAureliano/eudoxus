@@ -1,0 +1,50 @@
+module TrafficLight {
+  var count: integer;
+  var pedestrian: boolean;
+  var sigG: boolean;
+  var sigR: boolean;
+  var sigY: boolean;
+
+  next {
+    if (count == 60) {
+      sigR' = false; //41
+      sigG' = true; //45
+    } else {
+      if (sigG && pedestrian) {
+        if (count >= 60) {
+          sigG' = false; //62
+          sigY' = true; //66
+        } else {
+          sigG' = true; //71
+          sigR' = false; //75
+        }
+      } else {
+        if (sigY) {
+          if (count == 5) {
+            sigY' = false; //90
+            sigR' = true; //94
+          }
+        } else {
+          if (sigY && (count < 5)) {
+            sigY' = true; //110
+            sigR' = false; //114
+          }
+        }
+      }
+    }
+    count' = (count + 1); //126
+
+  }
+  invariant count_inv : ((count >= 0) && (count <= 60));
+  invariant sigG_inv : (sigG == (count >= 60));
+  invariant sigY_inv : (sigY == (count == 5));
+  invariant sigR_inv : (sigR == ((count != 5) && (count != 60)));
+  invariant pedestrian_inv : (pedestrian == false);
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

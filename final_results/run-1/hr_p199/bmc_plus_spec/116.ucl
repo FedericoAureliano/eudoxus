@@ -1,0 +1,72 @@
+module FerryPuzzle {
+  var cabbage: boolean;
+  var carry: boolean;
+  var ferryman: boolean;
+  var goat: boolean;
+  var move: boolean;
+  var wolf: boolean;
+
+  init {
+    ferryman = true; //38
+    goat = true; //42
+    cabbage = true; //46
+    wolf = true; //50
+    carry = false; //54
+
+  }
+  procedure step()
+    modifies move;
+    modifies ferryman;
+    modifies goat;
+    modifies carry;
+  {
+    if (carry == true) {
+      if (ferryman == true) {
+        carry = goat; //73
+        goat = !goat; //79
+      } else {
+        move = false; //84
+        if ((goat == cabbage) && (goat != ferryman)) {
+          move = true; //102
+        }
+        if ((goat == wolf) && (goat != ferryman)) {
+          move = true; //122
+        }
+        if (move) {
+          carry = goat; //132
+          goat = !goat; //138
+        }
+      }
+    } else {
+      if (ferryman == true) {
+        carry = !carry; //154
+      }
+    }
+    ferryman = !ferryman; //163
+  }
+
+  next {
+    call step();
+  }
+  invariant conflict_free_inv : ((ferryman == goat) ==> !((goat == cabbage) && (goat == wolf)));
+  invariant move_inv : ((move == false) || (move == true));
+  invariant goal_state_inv : ((wolf == true) && ((cabbage == true) && ((ferryman == false) && (goat == false))));
+  invariant conflict_free_transport_inv : !(((ferryman == goat) && (goat == cabbage)) || ((ferryman == goat) && (goat == wolf)));
+  invariant ferryman_inv : ((ferryman == false) && (ferryman == true));
+  invariant goat_inv : ((goat == false) && (goat == true));
+  invariant cabbage_inv : ((cabbage == false) && (cabbage == true));
+  invariant wolf_inv : ((wolf == false) && (wolf == true));
+  invariant carry_inv : ((carry == false) && (carry == true));
+  invariant _inv1 : (((carry == goat) || (carry == cabbage)) || (carry == wolf));
+  invariant _inv2 : ((ferryman == false) ==> ((goat == carry) || ((cabbage == carry) || (wolf == carry))));
+  invariant _inv3 : ((ferryman == false) ==> (ferryman == carry));
+  invariant _inv4 : !conflict_free_inv;
+  invariant _inv5 : !conflict_free_transport_inv;
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

@@ -1,0 +1,45 @@
+module AlternatingBitProtocol {
+  type Tuple = [bv8]boolean;
+
+  var ack: boolean;
+  var message1: bv8;
+  var message2: bv8;
+  var st: boolean;
+  var control_bit: boolean;
+  var sender_state: bv8;
+  var receiver_state: bv8;
+
+  input sender_to_channel: Tuple;
+  input receiver_to_channel: Tuple;
+  input channel_to_sender: Tuple;
+  input channel_to_receiver: Tuple;
+
+  next {
+    if (control_bit) {
+      st' = ((sender_state == message1) && (channel_to_sender[1bv8] == ack)); //94
+      control_bit' = !st; //100
+      sender_state' = message2; //105
+    } else {
+      st' = ((receiver_state == message2) && (channel_to_receiver[1bv8] == control_bit)); //127
+      control_bit' = !st; //133
+      receiver_state' = message1; //138
+    }
+
+  }
+  invariant message1_inv : ((message1 == sender_state) || (message1 == receiver_state));
+  invariant message2_inv : ((message2 == sender_state) || (message2 == receiver_state));
+  invariant channel_to_sender_inv : ((channel_to_sender[1bv8] == ack) || (channel_to_sender[1bv8] == control_bit));
+  invariant channel_to_receiver_inv : (channel_to_receiver[1bv8] == control_bit);
+  invariant st_inv : ((message1_inv ==> st) || (message2_inv ==> st));
+  invariant ack_inv : ((ack == true) || (ack == false));
+  invariant sender_state_inv : ((sender_state == message1) || (sender_state == message2));
+  invariant receiver_state_inv : ((receiver_state == message1) || (receiver_state == message2));
+  invariant control_bit_inv : ((control_bit == true) || (control_bit == false));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

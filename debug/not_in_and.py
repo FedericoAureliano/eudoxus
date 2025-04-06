@@ -1,4 +1,4 @@
-"""class TrafficLight(Module):
+class TrafficLight(Module):
     def locals(self):
         self.previous_state = Enum("yellow")
         self.green = bool()
@@ -18,6 +18,5 @@
 
     def specification(self):
         return And(
-            Not(self.red) & Not(self.green), self.yellow
+            Not(self.red), Not(self.green), self.yellow
         )  # maybe this can be looked at if it continues being an issue
-"""

@@ -1,0 +1,66 @@
+module Sender {
+  type BitVec = bv8;
+
+  var c: bv8;
+  var m: bv8;
+  var b: BitVec;
+
+  output d: BitVec;
+
+  init {
+    m = 0bv8; //42
+    b = 0bv8; //49
+
+  }
+  next {
+    if (c == b) {
+      c' = c; //63
+    } else {
+      c' = c; //69
+    }
+
+  }
+}
+module Receiver {
+  var bool: boolean;
+  var bool_0: boolean;
+  var d: boolean;
+  var bool_1: boolean;
+  var bool_2: boolean;
+  var R: record { b: boolean, b_inv: boolean, m_inv: self, d_inv: BitVec, c_inv: BitVec, c_retransmission: boolean, d: BitVec };
+  var S: record { d: BitVec, c_inv: BitVec, d_inv: BitVec, m_inv: BitVec, c: BitVec, b: boolean, b_inv: BitVec };
+  var m: bv8;
+  var bool_3: boolean;
+  var bool_4: boolean;
+
+  output BitVec: bv8;
+
+  next {
+    if (d == b) {
+      b' = !b; //186
+      d' = b; //191
+    } else {
+      d' = d; //197
+    }
+
+  }
+  invariant s_inv : bool;
+  invariant r_inv : bool;
+  invariant b_inv : bool;
+  invariant bool_0 : bool;
+  invariant bool_1 : bool;
+  invariant bool_2 : !S.b;
+  invariant bool_3 : bool;
+  invariant bool_4 : ((S.c == S.b) || (!(S.c == S.b) && c_retransmission));
+  invariant c_inv : bool_1;
+  invariant d_inv : bool_1;
+  invariant c_retransmission : bool_1;
+  invariant m_inv : bool_1;
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

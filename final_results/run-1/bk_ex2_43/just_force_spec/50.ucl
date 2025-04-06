@@ -1,0 +1,64 @@
+module C2 {
+  var x2: boolean;
+  var r2: boolean;
+  var y2: boolean;
+
+  init {
+    r2 = false; //26
+
+  }
+  next {
+    y2' = (x2 || r2); //36
+    r2' = (x2 || r2); //44
+
+  }
+}
+module C1 {
+  var r1: boolean;
+  var y1: boolean;
+
+  init {
+    r1 = false; //69
+
+  }
+  next {
+    y1' = r1; //76
+    r1' = !r1; //82
+
+  }
+}
+module Module {
+  var r1: boolean;
+  var r2: boolean;
+  var x2: boolean;
+  var y1: boolean;
+  var y2: boolean;
+
+  instance c1: C1();
+  instance c2: C2();
+
+  init {
+    r1 = false; //126
+    r2 = false; //130
+
+  }
+  next {
+    y1' = r1; //137
+    y2' = (x2 || r2); //145
+    r1' = !r1; //151
+    r2' = (x2 || r2); //159
+
+  }
+  invariant y1_inv : r1;
+  invariant r1_inv : !r1;
+  invariant x2_inv : x2;
+  invariant y2_inv : (x2 || r2);
+  invariant r2_inv : (x2 || r2);
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

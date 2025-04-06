@@ -1,0 +1,67 @@
+module TrafficLights {
+  var main_green: boolean;
+  var main_yellow: boolean;
+  var main_red: boolean;
+  var sec_green: boolean;
+  var sec_yellow: boolean;
+  var sec_red: boolean;
+  var vehicle_detected: boolean;
+
+  init {
+    main_green = false; //42
+    main_yellow = false; //46
+    main_red = false; //50
+    sec_green = false; //54
+    sec_yellow = false; //58
+    sec_red = false; //62
+    vehicle_detected = false; //66
+
+  }
+  next {
+    if (sec_green) {
+      main_yellow' = true; //75
+      main_red' = false; //79
+      sec_yellow' = true; //83
+      sec_green' = false; //87
+    } else {
+      if (sec_yellow) {
+        main_yellow' = true; //95
+        main_red' = false; //99
+        sec_yellow' = false; //103
+        sec_red' = true; //107
+      } else {
+        if (vehicle_detected) {
+          main_yellow' = true; //115
+          main_green' = false; //119
+          vehicle_detected' = false; //123
+        } else {
+          if (main_green && !vehicle_detected) {
+            main_green' = false; //135
+            main_yellow' = true; //139
+          } else {
+            if (main_yellow && !vehicle_detected) {
+              main_yellow' = false; //151
+              main_red' = true; //155
+              sec_red' = false; //159
+              sec_green' = true; //163
+            }
+          }
+        }
+      }
+    }
+
+  }
+  invariant main_green_inv : ((sec_red && (!main_yellow && !main_red)) ==> main_green);
+  invariant main_yellow_inv : ((sec_red && (!main_green && !main_red)) ==> main_yellow);
+  invariant main_red_inv : (((sec_green || sec_yellow) && (!main_green && !main_yellow)) ==> main_red);
+  invariant sec_green_inv : ((main_red && (!sec_yellow && !sec_red)) ==> sec_green);
+  invariant sec_yellow_inv : ((main_red && (!sec_green && !sec_red)) ==> sec_yellow);
+  invariant sec_red_inv : (((main_green || main_yellow) && (!sec_green && !sec_yellow)) ==> sec_red);
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

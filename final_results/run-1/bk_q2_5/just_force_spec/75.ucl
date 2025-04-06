@@ -1,0 +1,51 @@
+module MutualExclusion {
+  type Bit = integer;
+
+  var s_next: integer;
+  var y0_next: integer;
+  var y1_next: integer;
+  var y0: Bit;
+  var y1: Bit;
+  var s: Bit;
+
+  init {
+    y0 = 0; //43
+    y1 = 0; //47
+    s = 1; //51
+
+  }
+  procedure step()
+    modifies y0_next;
+    modifies y1_next;
+    modifies y1;
+    modifies s;
+    modifies s_next;
+    modifies y0;
+  {
+    y0_next = y0; //58
+    y1_next = y1; //63
+    s_next = s; //68
+    s_next = (if ((y1 == 0) != (s != 1)) then 1 else 0); //86
+    y0_next = (if ((y1 == 0) != (s != 0)) then 1 else 0); //104
+    y1_next = (if ((y0 == 0) != (s != 1)) then 1 else 0); //122
+    y0 = y0_next; //127
+    y1 = y1_next; //132
+    s = s_next; //137
+  }
+
+  next {
+    call step();
+  }
+  invariant y0_inv : ((y0 == 0) && (y0 == 1));
+  invariant y1_inv : ((y1 == 0) && (y1 == 1));
+  invariant s_inv : ((s == 0) && (s == 1));
+  invariant mutual_exclusion_inv : !((y0 == 1) && (y1 == 1));
+  invariant starvation_freedom_inv : (((s == 1) && (y0 == 0)) && (y1 == 0));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

@@ -1,0 +1,66 @@
+module Thermostat {
+  type Bit = boolean;
+
+  var temp: bv8;
+  var heatOn: Bit;
+  var heatOff: Bit;
+  var time: integer;
+
+  init {
+    if (temp <= 20bv8) {
+      heatOn = true; //45
+      time = 30; //49
+    } else {
+      heatOff = true; //54
+      time = 120; //58
+    }
+    temp = 25bv8; //66
+    heatOn = false; //70
+    heatOff = false; //74
+    time = 0; //78
+
+  }
+  procedure step()
+    modifies heatOff;
+    modifies time;
+    modifies heatOn;
+  {
+    if (time > 0) {
+      time = (time - 1); //93
+    }
+    if (time == 0) {
+      if (temp <= 20bv8) {
+        heatOn = true; //114
+        heatOff = false; //118
+        time = 30; //122
+      } else {
+        heatOn = false; //127
+        heatOff = true; //131
+        time = 120; //135
+      }
+    }
+  }
+
+  next {
+    call step();
+  }
+  invariant time_inv : (heatOn && ((time >= 0) && (time <= 30)));
+  invariant temp_inv : (temp <= 255bv8);
+  invariant heatOn_and_heatOff_inv : ((heatOn && ((temp > 20bv8) && (time == 30))) || (heatOff && ((temp <= 20bv8) && (time == 120))));
+  invariant time_inv_heatOn : (heatOn ==> ((time >= 0) && (time <= 30)));
+  invariant time_inv_heatOff : (heatOff ==> ((time >= 0) && (time <= 120)));
+  invariant heatOn_and_heatOff_inv : !(heatOn && heatOff);
+  invariant time_and_temp_when_heaton : (heatOn ==> ((time == 30) && (temp <= 20bv8)));
+  invariant time_and_temp_when_heatoff : (heatOff ==> ((time == 120) && (temp > 20bv8)));
+  invariant heatOn_inv : (heatOn ==> (temp <= 20bv8));
+  invariant heatOff_inv : (heatOff ==> (temp > 20bv8));
+  invariant time_and_temp_inv_when_heatOn : (heatOn ==> ((time == 30) && (temp <= 20bv8)));
+  invariant time_and_temp_inv_when_heatOff : (heatOff ==> ((time == 120) && (temp > 20bv8)));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

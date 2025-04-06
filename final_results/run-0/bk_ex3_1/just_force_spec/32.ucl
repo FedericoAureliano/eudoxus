@@ -1,0 +1,53 @@
+module TrafficLights {
+  type Bit = boolean;
+
+  var deadlock: Bit;
+  var green1_next: Bit;
+  var green2_next: Bit;
+  var red1_next: Bit;
+  var red2_next: Bit;
+  var traffic_light1: integer;
+  var traffic_light2: integer;
+  var green1: Bit;
+  var red1: Bit;
+  var green2: Bit;
+  var red2: Bit;
+
+  init {
+    green1 = (traffic_light1 == 0); //67
+    red1 = (traffic_light1 == 1); //75
+    green2 = (traffic_light2 == 0); //83
+    red2 = (traffic_light2 == 1); //91
+
+  }
+  next {
+    green1_next' = (((traffic_light1 == 0) && red1_next) || ((traffic_light1 == 1) && !green1)); //114
+    green2_next' = (((traffic_light2 == 0) && red2_next) || ((traffic_light2 == 1) && !green2)); //135
+    red1_next' = (((traffic_light1 == 1) && green1_next) || ((traffic_light1 == 0) && !red1)); //156
+    red2_next' = (((traffic_light2 == 1) && green2_next) || ((traffic_light2 == 0) && !red2)); //177
+    deadlock' = (green1 == green2); //186
+    green1' = green1_next; //191
+    red1' = red1_next; //196
+    green2' = green2_next; //201
+    red2' = red2_next; //206
+
+  }
+  invariant traffic_light1_inv : ((traffic_light1 >= 0) && (traffic_light1 <= 1));
+  invariant traffic_light2_inv : ((traffic_light2 >= 0) && (traffic_light2 <= 1));
+  invariant green1_inv : (green1 == (traffic_light1 == 0));
+  invariant red1_inv : (red1 == (traffic_light1 == 1));
+  invariant green2_inv : (green2 == (traffic_light2 == 0));
+  invariant red2_inv : (red2 == (traffic_light2 == 1));
+  invariant green1_next_inv : ((traffic_light1 == 0) ==> red1_next);
+  invariant green2_next_inv : ((traffic_light2 == 0) ==> red2_next);
+  invariant red1_next_inv : ((traffic_light1 == 1) ==> green1_next);
+  invariant red2_next_inv : ((traffic_light2 == 1) ==> green2_next);
+  invariant deadlock_inv : (deadlock == (green1 == green2));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

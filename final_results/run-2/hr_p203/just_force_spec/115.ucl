@@ -1,0 +1,55 @@
+module AlternatingBitProtocol {
+  type Channel = [integer]bv1;
+
+  var channel_to_receiver: ??;
+  var channel_to_sender: [integer]bv1;
+  var st: bv1;
+
+  input sender_to_channel: Channel;
+  input receiver_to_channel: Channel;
+
+  next {
+    if (st == 0bv1) {
+      if ((receiver_to_channel[1] == 0bv1) && (channel_to_receiver[1] == 0bv1)) {
+        channel_to_receiver' = sender_to_channel; //84
+        st' = 1bv1; //91
+      }
+    } else {
+      if (st == 1bv1) {
+        if ((receiver_to_channel[1] == 1bv1) && (channel_to_sender[1] == 1bv1)) {
+          if ((sender_to_channel[0] == sender_to_channel[0]) && (channel_to_receiver[0] == sender_to_channel[0])) {
+            st' = 0bv1; //154
+          }
+        }
+      }
+    }
+    if (st == 0bv1) {
+      if ((sender_to_channel[1] == sender_to_channel[1]) && (channel_to_sender[1] == 0bv1)) {
+        if (sender_to_channel[0] == 0bv1) {
+          channel_to_receiver' = sender_to_channel; //208
+        }
+      }
+    } else {
+      if (st == 1bv1) {
+        if ((receiver_to_channel[1] == sender_to_channel[1]) && (channel_to_sender[1] == 1bv1)) {
+          if (receiver_to_channel[0] == 1bv1) {
+            st' = 0bv1; //262
+          }
+        }
+      }
+    }
+
+  }
+  invariant receiver_to_channel_inv : (forall (i0:integer) :: (?? && ??));
+  invariant channel_to_sender_inv : (channel_to_sender == channel_to_sender);
+  invariant st_inv : (st == st);
+  invariant sender_to_channel_inv : (sender_to_channel == sender_to_channel);
+  invariant channel_to_receiver_inv : (channel_to_receiver == channel_to_receiver);
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

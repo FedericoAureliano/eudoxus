@@ -1,0 +1,29 @@
+module Module {
+  type Or = boolean;
+
+  var r1: record {  };
+  var x2: boolean;
+  var r2: record { next_: Or };
+  var y1: record { next_: boolean };
+  var y2: record { next_: Or };
+
+  next {
+    y1.next_' = next_; //52
+    r1.next_' = !r1; //60
+    y2.next_' = (x2 || r2.next_); //72
+    r2.next_' = (x2 || r2.next_); //84
+
+  }
+  invariant y1_inv : r1;
+  invariant r1_inv : !r1;
+  invariant x2_inv : true;
+  invariant y2_inv : (x2 || r2.next_);
+  invariant r2_inv : (x2 || r2.next_);
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

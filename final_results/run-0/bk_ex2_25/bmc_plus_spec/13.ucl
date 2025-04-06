@@ -1,0 +1,59 @@
+module Process {
+  var b1: boolean;
+  var b2: boolean;
+  var crit1: boolean;
+  var crit2: boolean;
+  var wait1: boolean;
+  var wait2: boolean;
+  var x: record { value: bv2 };
+
+  init {
+    wait2 = false; //46
+    wait1 = false; //50
+    b1 = false; //54
+    b2 = false; //58
+
+  }
+  next {
+    b1' = (wait1 || crit1); //68
+    b2' = (wait2 || crit2); //76
+    if (b1 && b2) {
+      if (x.value == 1bv2) {
+        crit1' = true; //97
+        crit2' = false; //101
+      } else {
+        if (x.value == 2bv2) {
+          crit1' = false; //117
+          crit2' = true; //121
+        }
+      }
+    } else {
+      if (b1 && wait1) {
+        x.value' = 2bv2; //140
+        wait1' = false; //144
+      } else {
+        if (b2 && wait2) {
+          x.value' = 1bv2; //160
+          wait2' = false; //164
+        }
+      }
+    }
+
+  }
+  invariant crit1_inv : ((b1 && (x.value == 1bv2)) || !b2);
+  invariant crit2_inv : ((b2 && (x.value == 2bv2)) || !b1);
+  invariant x_update_wait1_inv : (!wait1 || (x.value == 2bv2));
+  invariant x_update_wait2_inv : (!wait2 || (x.value == 1bv2));
+  invariant wait1_inv : ((!wait1 || !b1) || crit1);
+  invariant wait2_inv : ((!wait2 || !b2) || crit2);
+  invariant b1_inv : (b1 == (wait1 || crit1));
+  invariant b2_inv : (b2 == (wait2 || crit2));
+  invariant x_inv : ((x.value == 1bv2) || (x.value == 2bv2));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

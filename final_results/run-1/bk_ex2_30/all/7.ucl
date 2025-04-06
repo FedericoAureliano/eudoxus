@@ -1,0 +1,76 @@
+module Controller {
+  var controller_state: integer;
+  var train_state: integer;
+
+  procedure step()
+    modifies controller_state;
+  {
+    if ((train_state == 1) && (controller_state == 0)) {
+      controller_state = 1; //35
+    }
+    if ((train_state == 2) && (controller_state == 1)) {
+      controller_state = 2; //53
+    }
+    if ((train_state == 2) && (controller_state == 2)) {
+      controller_state = 3; //71
+    }
+    if ((train_state == 2) && (controller_state == 3)) {
+      controller_state = 0; //89
+    }
+  }
+
+  next {
+    call step();
+  }
+}
+module Train {
+  var approaching: boolean;
+  var crossing: boolean;
+  var train_state: integer;
+
+  next {
+    if (approaching) {
+      train_state' = 1; //124
+    } else {
+      if (crossing) {
+        train_state' = 2; //132
+      } else {
+        train_state' = 3; //137
+      }
+    }
+
+  }
+}
+module Gate {
+  var controller_state: integer;
+  var gate_state: integer;
+  var train_state: integer;
+
+  init {
+    controller_state = 0; //168
+    gate_state = 0; //172
+    train_state = 0; //176
+
+  }
+  next {
+    if (controller_state == 2) {
+      gate_state' = 0; //188
+    } else {
+      if (controller_state == 3) {
+        gate_state' = 1; //199
+      }
+    }
+
+  }
+  invariant invariant_condition_inv : ((gate_state == 0) && (((train_state == 2) || (controller_state == 1)) || (controller_state == 2)));
+  invariant train_state_inv : (train_state != 0);
+  invariant controller_state_inv : (controller_state != 2);
+  invariant gate_state_inv : (gate_state != 0);
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

@@ -1,0 +1,102 @@
+module Module {
+  var train_state: bv2;
+  var controller_state: integer;
+  var gate_state: bv1;
+
+  instance train: Train();
+  instance gate: Gate();
+  instance controller: Controller();
+
+  next {
+    if ((controller_state == 0) && (train.train_state == 1)) {
+      controller_state' = 1; //53
+    } else {
+      if ((controller_state == 1) && (gate.gate_state == 1)) {
+        controller_state' = 2; //72
+      } else {
+        if ((controller_state == 2) && (train.train_state == 2)) {
+          controller_state' = 3; //91
+        } else {
+          if ((controller_state == 3) && (gate.gate_state == 0)) {
+            controller_state' = 0; //110
+          }
+        }
+      }
+    }
+
+  }
+  invariant train_state_inv : ((train.train_state == 2) || ((train.train_state == 0) || (train.train_state == 1)));
+  invariant controller_state_inv : ((controller_state == 3) || ((controller_state == 2) || ((controller_state == 0) || (controller_state == 1))));
+  invariant gate_state_inv : ((gate.gate_state == 0) || (gate.gate_state == 1));
+  invariant train_gate_state_inv : ((train.train_state == 2) ==> (gate.gate_state == 1));
+  invariant controller_train_gate_state_inv : (((controller_state == 2) && (train.train_state == 2)) ==> (gate.gate_state == 1));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}
+module Train {
+  var train_state: integer;
+
+  next {
+    if (train_state == 0) {
+      train_state' = 1; //261
+    } else {
+      if (train_state == 1) {
+        train_state' = 2; //272
+      } else {
+        if (train_state == 2) {
+          train_state' = 0; //283
+        }
+      }
+    }
+
+  }
+}
+module Gate {
+  var gate_state: bv1;
+  var train_state: bv2;
+
+  next {
+    if (train_state == 1bv2) {
+      gate_state' = 1bv1; //327
+    } else {
+      if (train_state == 2bv2) {
+        gate_state' = 0bv1; //344
+      }
+    }
+
+  }
+}
+module Controller {
+  var controller_state: bv2;
+  var gate_state: bv1;
+  var train_state: bv2;
+  var controller: record { controller_state: bv2 };
+  var gate: record { train_state: bv2, gate_state: bv1, controller_state: bv2 };
+  var train: record { gate_state: bv1, controller_state: bv2, train_state: bv2 };
+  var BitVector: real;
+  var BitVectorVal: bv4;
+
+  next {
+    if ((controller_state == 0bv2) && (train_state == 1bv2)) {
+      gate_state' = 1bv1; //450
+    } else {
+      if (controller_state == 1bv2) {
+        gate_state' = 0bv1; //467
+      } else {
+        if ((controller_state == 2bv2) && (train_state == 2bv2)) {
+          gate_state' = 1bv1; //493
+        } else {
+          if (controller_state == 3bv2) {
+            gate_state' = 0bv1; //510
+          }
+        }
+      }
+    }
+
+  }
+}

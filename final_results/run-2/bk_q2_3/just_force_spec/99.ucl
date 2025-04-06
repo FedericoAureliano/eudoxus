@@ -1,0 +1,56 @@
+module Junction {
+  type Bit = record {  };
+
+  var state: integer;
+  var L2: record {  };
+  var L3: record {  };
+  var L4: record {  };
+
+  init {
+    L3 = L3.red; //38
+    L4 = L4.red; //45
+    state = 0; //49
+
+  }
+  next {
+    if (state == 0) {
+      L1' = L1.green; //64
+      L3' = L3.green; //71
+      state' = 1; //75
+    } else {
+      if (state == 1) {
+        L1' = L1.amber; //89
+        L3' = L3.amber; //96
+        L2' = L2.green; //103
+        state' = 2; //107
+      } else {
+        if (state == 2) {
+          L2' = L2.amber; //121
+          L1' = L1.red; //128
+          L3' = L3.red; //135
+          L4' = L4.green; //142
+          state' = 3; //146
+        } else {
+          if (state == 3) {
+            L4' = L4.amber; //160
+            L2' = L2.red; //167
+            state' = 0; //171
+          }
+        }
+      }
+    }
+
+  }
+  invariant L1_inv : (L1.red && (L1.green && L1.amber));
+  invariant L2_inv : (L2.red && (L2.green && L2.amber));
+  invariant L3_inv : (L3.red && (L3.green && L3.amber));
+  invariant L4_inv : (L4.red && (L4.green && L4.amber));
+  invariant state_inv : ((((state == 3) && (state == 2)) && (state == 0)) && (state == 1));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

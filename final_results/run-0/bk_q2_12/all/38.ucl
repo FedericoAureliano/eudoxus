@@ -1,0 +1,43 @@
+module LeaderElection {
+  var receive_val: integer;
+  var send: integer;
+  var id: integer;
+  var m: integer;
+
+  input receive: [integer]integer;
+
+  init {
+    m = id; //40
+    send = id; //45
+
+  }
+  procedure step()
+    modifies send;
+    modifies receive_val;
+  {
+    send = id; //52
+    receive_val = receive[0]; //59
+    if (receive_val == id) {
+      send = id; //71
+    }
+    if (receive_val > id) {
+      send = receive_val; //85
+    }
+  }
+
+  next {
+    call step();
+  }
+  invariant receive_inv : ((receive_val == 1) && true);
+  invariant id_inv : (id == id);
+  invariant m_inv : (m == id);
+  invariant send_inv : ((send == id) || (send == receive_val));
+  invariant receive_val_inv : (receive_val == receive[0]);
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

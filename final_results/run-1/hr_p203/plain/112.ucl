@@ -1,0 +1,73 @@
+module ABP {
+  var receiver_send_ack: boolean;
+  var sender_ack_sent: boolean;
+  var sender_receive_ack: boolean;
+  var sender_st: boolean;
+  var receiver_st: boolean;
+  var sender_message_sent: boolean;
+  var receiver_message_received: boolean;
+  var sender_ack_received: boolean;
+  var receiver_ack_sent: boolean;
+
+  input sender_send_message: boolean;
+  input receiver_receive_message: boolean;
+  input receiver_receive_ack: boolean;
+
+  output sender_send_ack: boolean;
+  output receiver_send_message: boolean;
+
+  init {
+    sender_st = true; //72
+    sender_message_sent = false; //76
+    receiver_message_received = false; //80
+    sender_ack_received = false; //84
+    receiver_st = false; //88
+    sender_ack_sent = false; //92
+    receiver_ack_sent = false; //96
+
+  }
+  procedure step()
+    modifies sender_message_sent;
+    modifies receiver_send_ack;
+    modifies receiver_ack_sent;
+    modifies receiver_st;
+    modifies sender_ack_received;
+    modifies sender_send_ack;
+    modifies receiver_message_received;
+    modifies sender_receive_ack;
+    modifies sender_st;
+    modifies receiver_send_message;
+  {
+    if ((sender_st && sender_send_message) && !sender_message_sent) {
+      receiver_send_message = true; //112
+      sender_message_sent = true; //116
+      sender_st = false; //120
+    }
+    if ((!receiver_st && receiver_receive_message) && !receiver_message_received) {
+      sender_receive_ack = true; //137
+      receiver_message_received = true; //141
+      receiver_st = true; //145
+    }
+    if ((receiver_st && sender_receive_ack) && !sender_ack_received) {
+      sender_send_ack = true; //161
+      sender_ack_received = true; //165
+      sender_st = true; //169
+    }
+    if ((!receiver_st && receiver_receive_ack) && !receiver_ack_sent) {
+      receiver_send_ack = true; //186
+      receiver_ack_sent = true; //190
+      receiver_st = false; //194
+    }
+  }
+
+  next {
+    call step();
+  }
+  invariant spec: ??;
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

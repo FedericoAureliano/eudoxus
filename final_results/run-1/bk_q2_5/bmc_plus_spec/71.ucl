@@ -1,0 +1,72 @@
+module MutualExclusion {
+  type Bit = boolean;
+
+  var s: bv3;
+  var s_val: Bit;
+  var y0: bv3;
+  var y0_val: Bit;
+  var y1: bv3;
+  var y1_val: Bit;
+
+  procedure step()
+    modifies s;
+    modifies y1;
+    modifies y0;
+  {
+    s = ((s + 1bv3) % 2bv3); //58
+    if (s == 0bv3) {
+      if (y1_val) {
+        y0 = 1bv3; //77
+        s = y1; //82
+      }
+    }
+    if (s == 1bv3) {
+      if (y0_val) {
+        y1 = 1bv3; //105
+        s = y0; //110
+      }
+    }
+  }
+
+  next {
+    call step();
+  }
+  invariant y0_inv : ((y0 == 0bv3) || (y0 == 1bv3));
+  invariant y1_inv : ((y1 == 0bv3) || (y1 == 1bv3));
+  invariant y1_val_inv : ((y1 == 0bv3) || (y1 == 1bv3));
+  invariant y0_val_inv : ((y0 == 0bv3) || (y0 == 1bv3));
+  invariant y1_inv : (y0 == 0bv3);
+  invariant s_val_inv : (s_val == false);
+  invariant s_inv : ((s == 0bv3) || (s == 1bv3));
+  invariant y0_inv : (y0 == 0bv3);
+  invariant y1_inv : (y1 == 0bv3);
+  invariant y_val_inv : (s_val == false);
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}
+module ParallelComposition {
+  type Bit = boolean;
+
+  instance P0: MutualExclusion();
+  instance P1: MutualExclusion();
+
+  init {
+    P0.s = 1; //281
+    P1.s = 1; //287
+
+  }
+  invariant mutual_exclusion : ((P0.s != 1) || (P1.s != 1));
+  invariant starvation_freedom : ((P0.y1 == 0) || (P1.y1 == 0));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

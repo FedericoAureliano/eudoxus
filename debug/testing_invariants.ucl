@@ -1,0 +1,61 @@
+ module BeverageVendingMachine {
+    var max: integer;
+    var nsoda: integer;
+    var nbeer: integer;
+    var sget: boolean;
+    var bget: boolean;
+    var refill: boolean;
+    var coin: boolean;
+    var ret_coin: boolean;
+
+    init {
+    max = 10;
+    nsoda = max;
+    nbeer = max;
+    sget = false;
+    bget = false;
+    refill = false;
+    coin = true;
+    ret_coin = false;
+
+    }
+    next {
+    sget' = (nsoda > 0);
+    bget' = (nbeer > 0);
+    if (refill) {
+        nsoda' = max;
+        nbeer' = max;
+    } else {
+        if (sget) {
+        nsoda' = (nsoda - 1);
+        coin' = false;
+        } else {
+        if (bget) {
+            nbeer' = (nbeer - 1);
+            coin' = false;
+        } else {
+            if (ret_coin || ((nsoda == 0) && (nbeer == 0))) {
+            coin' = true;
+            ret_coin' = true;
+            }
+        }
+        }
+    }
+
+    }
+    define nsoda_inv() : boolean = ((nsoda >= 0) && (nsoda <= max));
+    define nbeer_inv() : boolean = ((nbeer >= 0) && (nbeer <= max));
+    define sget_inv() : boolean = (sget == (nsoda > 0));
+    define bget_inv() : boolean = (bget == (nbeer > 0));
+    define refill_inv() : boolean = (refill ==> ((nsoda == max) && (nbeer == max)));
+    define coin_inv() : boolean = (coin ==> (refill || ((nsoda > 0) || (nbeer > 0))));
+    invariant ret_coin_inv : (((nsoda == 0) && (nbeer == 0)) ==> coin);
+
+
+    control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+    }
+    }

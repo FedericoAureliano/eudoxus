@@ -1,0 +1,30 @@
+module LeaderElection {
+  var m: bv32;
+  var id: bv32;
+  var _: boolean;
+  var n: bv32;
+
+  output leader: bv32;
+
+  init {
+    n = 5bv32; //42
+    id = 40bv32; //49
+
+  }
+  next {
+    leader' = (if (m < id) then id else m); //65
+
+  }
+  invariant n_inv : (forall (n0:bv32) :: (exists (id0:bv32) :: ((id0 <= n0) && (m == id0))));
+  invariant m_inv : (forall (m0:bv32) :: ((m0 == id) && (m0 <= leader)));
+  invariant leader_inv : (leader == n);
+  invariant id_inv : _;
+  invariant id_i_inv : !id_inv;
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

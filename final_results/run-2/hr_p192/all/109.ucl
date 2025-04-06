@@ -1,0 +1,33 @@
+module Module {
+  var request: boolean;
+  var status: enum { busy, ready };
+  var next_request: boolean;
+  var next_status: enum { busy, ready };
+  var request_is_true: boolean;
+  var eventually_busy: boolean;
+
+  init {
+    status = ready; //42
+
+  }
+  next {
+    next_request' = request; //49
+    next_status' = status; //54
+    request_is_true' = request; //59
+    eventually_busy' = (request_is_true ==> (next_status == busy)); //71
+
+  }
+  invariant request_inv : (request || !request);
+  invariant status_inv : (request ==> eventually_busy);
+  invariant next_status_inv : (request ==> (next_status == busy));
+  invariant eventually_busy_inv : (request ==> eventually_busy);
+  invariant next_request_inv : (next_request == request);
+  invariant request_is_true_inv : (request_is_true == request);
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

@@ -1,0 +1,44 @@
+module TrafficLights {
+  var green1: boolean;
+  var green1_next: boolean;
+  var green2: boolean;
+  var green2_next: boolean;
+  var red1: boolean;
+  var red1_next: boolean;
+  var red2: boolean;
+  var red2_next: boolean;
+
+  init {
+    red1 = true; //46
+    green1 = false; //50
+    red2 = true; //54
+    green2 = false; //58
+
+  }
+  next {
+    red1_next' = ((red1 && !green1) || (green2 && !red1)); //76
+    green1_next' = ((red1 && !red2) || (green2 && !green1)); //92
+    red2_next' = ((red2 && !green2) || (green1 && !red2)); //108
+    green2_next' = ((red2 && !red1) || (green1 && !green2)); //124
+    red1' = red1_next; //129
+    green1' = green1_next; //134
+    red2' = red2_next; //139
+    green2' = green2_next; //144
+
+  }
+  invariant red1_inv : !green1;
+  invariant green1_inv : !red1;
+  invariant red2_inv : !green2;
+  invariant green2_inv : !red2;
+  invariant red1_next_inv : !green1_next;
+  invariant green1_next_inv : !red1_next;
+  invariant red2_next_inv : !green2_next;
+  invariant green2_next_inv : !red2_next;
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

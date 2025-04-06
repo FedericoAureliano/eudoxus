@@ -1,0 +1,90 @@
+module TrafficLightMachine {
+  var count: integer;
+  var pedestrian: boolean;
+  var sigG: boolean;
+  var sigR: boolean;
+  var sigY: boolean;
+  var state: integer;
+
+  init {
+    sigR = true; //38
+    sigY = false; //42
+    sigG = false; //46
+    count = 0; //50
+    state = 0; //54
+
+  }
+  procedure step()
+    modifies sigG;
+    modifies count;
+    modifies sigR;
+    modifies state;
+    modifies sigY;
+  {
+    if (state == 0) {
+      sigR = true; //66
+      sigY = false; //70
+      sigG = false; //74
+      count = (count + 1); //81
+      if (count == 60) {
+        state = 1; //91
+        count = 0; //95
+      }
+    } else {
+      if (state == 1) {
+        sigG = true; //108
+        sigY = false; //112
+        sigR = false; //116
+        count = (count + 1); //123
+        if (pedestrian && (count >= 60)) {
+          state = 2; //136
+          count = 0; //140
+        } else {
+          if (count == 60) {
+            state = 3; //151
+            count = 0; //155
+          }
+        }
+      } else {
+        if (state == 2) {
+          sigG = false; //169
+          sigR = false; //173
+          sigY = true; //177
+          count = (count + 1); //184
+          if (count == 60) {
+            state = 3; //194
+            count = 0; //198
+          }
+        } else {
+          if (state == 3) {
+            sigY = true; //211
+            sigG = false; //215
+            sigR = false; //219
+            count = (count + 1); //226
+            if (count == 5) {
+              state = 0; //236
+              count = 0; //240
+            }
+          }
+        }
+      }
+    }
+  }
+
+  next {
+    call step();
+  }
+  invariant state_inv : ((state >= 0) && (state <= 3));
+  invariant count_inv : ((count >= 0) && (count <= 60));
+  invariant pedestrian_inv : ((pedestrian == true) || (pedestrian == false));
+  invariant sigG_inv : (sigG == (state == 1));
+  invariant sigR_inv : (sigR == (state == 0));
+  invariant sigY_inv : (sigY == (state == 3));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

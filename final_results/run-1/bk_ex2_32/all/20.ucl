@@ -1,0 +1,58 @@
+module CommunicationProtocol {
+  type Bit = bv3;
+
+  var c: integer;
+  var d: real;
+
+  input m: bv8;
+  input b: Bit;
+
+  instance S: Sender(b:(b), m:(m));
+  instance R: Receiver(b:(b), m:(m));
+
+}
+module Sender {
+  type Bit = bv3;
+
+  var c: bv5;
+
+  input m: bv8;
+  input b: Bit;
+
+  next {
+    c' = 0bv5; //95
+
+  }
+}
+module Receiver {
+  type Bit = bv3;
+
+  var c: bv5;
+  var d: bv6;
+  var received_b: bv2;
+
+  input m: bv8;
+  input b: bv2;
+
+  next {
+    if (received_b == b) {
+      d' = 0bv6; //155
+    } else {
+      d' = 1bv6; //163
+    }
+
+  }
+  invariant c_inv : (c == 0bv5);
+  invariant d_inv : (d == 0bv6);
+  invariant S_inv : (m == m);
+  invariant R_inv : (m == m);
+  invariant m_inv : (m == m);
+  invariant b_inv : (b == b);
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

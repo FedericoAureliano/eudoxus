@@ -1,0 +1,63 @@
+module VendingMachine {
+  type coins = boolean;
+
+  var current_state: enum { beer, pay, select, soda };
+  var has_coin: coins;
+  var allowed_to_deliver: coins;
+
+  input insert_coin: coins;
+  input choice_flag: coins;
+
+  init {
+    has_coin = false; //44
+    allowed_to_deliver = false; //48
+
+  }
+  procedure step()
+    modifies has_coin;
+    modifies allowed_to_deliver;
+    modifies current_state;
+  {
+    if ((current_state == soda) || (current_state == beer)) {
+      allowed_to_deliver = false; //66
+    }
+    if (current_state == select) {
+      has_coin = false; //78
+    }
+    if ((current_state == pay) && insert_coin) {
+      current_state = select; //93
+      has_coin = true; //97
+    } else {
+      if ((current_state == select) && choice_flag) {
+        current_state = soda; //111
+        allowed_to_deliver = true; //115
+        has_coin = false; //119
+      } else {
+        if ((current_state == select) && !choice_flag) {
+          current_state = beer; //134
+          allowed_to_deliver = true; //138
+          has_coin = false; //142
+        }
+      }
+    }
+  }
+
+  next {
+    call step();
+  }
+  invariant pay_inv : ((current_state == pay) ==> !allowed_to_deliver);
+  invariant current_state_inv : current_state;
+  invariant insert_coin_inv : ((current_state == pay) ==> insert_coin);
+  invariant has_coin_inv : ((current_state == select) ==> has_coin);
+  invariant allowed_to_deliver_inv : (has_coin ==> allowed_to_deliver);
+  invariant select_inv : ((current_state == select) ==> !choice_flag);
+  invariant soda_inv : ((current_state == soda) ==> allowed_to_deliver);
+  invariant beer_inv : ((current_state == beer) ==> allowed_to_deliver);
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

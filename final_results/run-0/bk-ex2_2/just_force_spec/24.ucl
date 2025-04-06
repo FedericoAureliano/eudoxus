@@ -1,0 +1,27 @@
+module VendingMachine {
+  var coin_inserted: boolean;
+  var state: ??;
+  var current_state: bv2;
+  var drink_delivered: boolean;
+
+  init {
+    drink_delivered = false; //31
+
+  }
+  next {
+    drink_delivered' = ((current_state == state[soda]) || (current_state == state[beer])); //53
+    current_state' = (if (current_state == state[pay]) then (if (coin_inserted) then state[select] else state[pay]) else (if (drink_delivered) then state[pay] else current_state)); //85
+
+  }
+  invariant coin_inserted_inv : !coin_inserted;
+  invariant drink_delivered_inv : (!drink_delivered || coin_inserted);
+  invariant current_state_inv : (((current_state == state[beer]) || (current_state == state[soda])) ==> ((state[pay] <= current_state) && (current_state <= state[soda])));
+  invariant state_inv : ((state[pay] == state[pay]) && ((state[beer] == state[pay]) && ((state[select] == state[pay]) && (state[soda] == state[pay]))));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

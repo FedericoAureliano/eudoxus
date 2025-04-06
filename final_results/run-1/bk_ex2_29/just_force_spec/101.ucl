@@ -1,0 +1,48 @@
+module BookingSystem {
+  var BCR_state: bv1;
+  var BP_state: bv1;
+  var Printer_state: bv1;
+
+  next {
+    if (BCR_state == 0bv1) {
+      if (BP_state == 1bv1) {
+        BCR_state' = 1bv1; //51
+      }
+    } else {
+      if (BCR_state == 1bv1) {
+        BCR_state' = 0bv1; //70
+      }
+    }
+    if (BP_state == 0bv1) {
+      if (BCR_state == 1bv1) {
+        BP_state' = 1bv1; //98
+      }
+    } else {
+      if (BP_state == 1bv1) {
+        BP_state' = 0bv1; //117
+      }
+    }
+    if (Printer_state == 0bv1) {
+      if (BP_state == 1bv1) {
+        Printer_state' = 1bv1; //145
+      }
+    } else {
+      if (Printer_state == 1bv1) {
+        if (Printer_state == 1bv1) {
+          Printer_state' = 0bv1; //173
+        }
+      }
+    }
+
+  }
+  invariant BCR_state_inv : ((BCR_state == 0bv1) || (BCR_state == 1bv1));
+  invariant BP_state_inv : ((BP_state == 0bv1) || (BP_state == 1bv1));
+  invariant Printer_state_inv : ((Printer_state == 0bv1) || (Printer_state == 1bv1));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

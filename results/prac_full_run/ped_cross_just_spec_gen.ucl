@@ -1,0 +1,73 @@
+module TrafficLight {
+  var count: integer;
+  var pedestrian: boolean;
+  var sigG: bv2;
+  var sigR: bv4;
+  var sigY: bv3;
+  var state: record { RED: bv2, ??: bv2, ??: bv2, ??: bv2, GREEN: bv2, YELLOW: bv2, PENDING: bv2, RED: record {  }, GREEN: bv2, YELLOW: bv2, PENDING: bv2, RED: record { RED: record {  }, GREEN: bv2, YELLOW: bv2, PENDING: bv2 } };
+
+  init {
+    state = state.RED; //105
+    sigG = 0bv2; //112
+    sigY = 0bv3; //119
+    sigR = 1bv4; //126
+    pedestrian = false; //130
+    count = 0; //134
+
+  }
+  next {
+    if (count == 60) {
+      if (state == state.RED) {
+        state' = state.GREEN; //158
+        sigG' = 1bv2; //165
+        sigY' = 0bv3; //172
+        sigR' = 0bv4; //179
+        count' = 0; //183
+      } else {
+        if ((state == state.GREEN) && pedestrian) {
+          count' = 0; //200
+        } else {
+          if (state == state.GREEN) {
+            state' = state.PENDING; //217
+          } else {
+            if ((state == state.PENDING) && pedestrian) {
+              state' = state.YELLOW; //237
+              sigG' = 0bv2; //244
+              sigY' = 1bv3; //251
+              sigR' = 0bv4; //258
+              count' = 0; //262
+            } else {
+              if (state == state.PENDING) {
+                count' = 0; //276
+              } else {
+                if (state == state.YELLOW) {
+                  state' = state.RED; //293
+                  sigG' = 0bv2; //300
+                  sigY' = 0bv3; //307
+                  sigR' = 1bv4; //314
+                  count' = 0; //318
+                }
+              }
+            }
+          }
+        }
+      }
+    } else {
+      count' = (count + 1); //333
+    }
+
+  }
+  invariant count_inv : ((0 <= count) && (count <= 60));
+  invariant pedestrian_inv : pedestrian;
+  invariant sigG_inv : ((state == state.GREEN) ==> (sigG == 1bv2));
+  invariant sigY_inv : ((state == state.YELLOW) ==> (sigY == 1bv3));
+  invariant sigR_inv : ((state == state.RED) ==> (sigR == 1bv4));
+  invariant state_inv : ((state == state.PENDING) || ((state == state.YELLOW) || ((state == state.RED) || (state == state.GREEN))));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

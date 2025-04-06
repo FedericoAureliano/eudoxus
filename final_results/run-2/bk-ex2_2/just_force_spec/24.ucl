@@ -1,0 +1,57 @@
+module VendingMachine {
+  type Input = record { value: boolean, pay: boolean };
+  type Output = record { pay: boolean, value: boolean };
+  type Variable = record { value: boolean, pay: boolean };
+
+  var assumenotcoin_inserted: boolean;
+  var assumecoin_inserted: Variable;
+  var state: record { pay: boolean };
+  var current_state: Variable;
+  var coin_inserted: Variable;
+
+  input insert_coin: Input;
+
+  output get_soda: Output;
+  output get_beer: Output;
+
+  init {
+    current_state.value = state.pay; //87
+    assumenotcoin_inserted = false; //91
+    get_soda.value = false; //97
+    get_beer.value = false; //103
+
+  }
+  procedure step()
+    modifies assumenotcoin_inserted;
+    modifies coin_inserted;
+    modifies current_state;
+  {
+    coin_inserted = insert_coin; //110
+    current_state = current_state; //115
+    assumecoin_inserted.value = coin_inserted.value; //124
+    assumenotcoin_inserted = !coin_inserted.value; //132
+    get_soda.value = (current_state.value && assumecoin_inserted.value); //146
+    get_beer.value = (current_state.value && assumecoin_inserted.value); //160
+    current_state.value = (get_soda.value || get_beer.value); //174
+    assumenotcoin_inserted = !coin_inserted.value; //182
+    assumecoin_inserted.value = coin_inserted.value; //191
+    coin_inserted.value = assumecoin_inserted.value; //200
+    get_soda.value = (current_state.value && assumecoin_inserted.value); //214
+    get_beer.value = (current_state.value && assumecoin_inserted.value); //228
+  }
+
+  next {
+    call step();
+  }
+  invariant pay_inv : (current_state.value ==> !(get_soda.value || get_beer.value));
+  invariant select_inv : (insert_coin.pay ==> (get_soda.value || get_beer.value));
+  invariant soda_inv : (insert_coin.value ==> !get_soda.value);
+  invariant beer_inv : (insert_coin.pay ==> !get_beer.value);
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

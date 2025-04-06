@@ -1,0 +1,61 @@
+module Module {
+  var buckled: [integer]boolean;
+  var ignition: boolean;
+  var nowarn: integer;
+  var time: integer;
+  var warn: integer;
+  var sound_beeper: boolean;
+  var red_light: boolean;
+
+  input passenger_seated: [integer]boolean;
+  input seat_belt_buckled: [integer]boolean;
+  input warn_event: boolean;
+  input nowarn_event: boolean;
+
+  init {
+    sound_beeper = false; //71
+    red_light = false; //75
+
+  }
+  procedure step()
+    modifies sound_beeper;
+    modifies red_light;
+    modifies time;
+  {
+    if ((warn_event && passenger_seated[warn]) && !seat_belt_buckled[warn]) {
+      sound_beeper = true; //97
+      red_light = true; //101
+      time = 0; //105
+    }
+    if (ignition && !buckled[nowarn]) {
+      if (time < 30) {
+        time = (time + 1); //130
+      } else {
+        sound_beeper = false; //135
+      }
+      if (!seat_belt_buckled[nowarn]) {
+        red_light = true; //147
+      }
+    }
+    if (nowarn_event) {
+      if (buckled[nowarn]) {
+        sound_beeper = false; //164
+        red_light = false; //168
+      }
+      if (!passenger_seated[nowarn]) {
+        red_light = false; //181
+      }
+    }
+  }
+
+  next {
+    call step();
+  }
+  invariant spec: true;
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

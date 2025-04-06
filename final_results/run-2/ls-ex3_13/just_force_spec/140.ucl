@@ -1,0 +1,97 @@
+module TrafficLight {
+  var count: integer;
+  var green_time: integer;
+  var pedestrian: boolean;
+  var pending: boolean;
+  var sigG: boolean;
+  var sigR: boolean;
+  var sigY: boolean;
+  var state: integer;
+  var yellow_time: integer;
+
+  init {
+    state = 0; //50
+    count = 0; //54
+    pending = false; //58
+    green_time = 0; //62
+    yellow_time = 0; //66
+
+  }
+  next {
+    if (state == 0) {
+      green_time' = 0; //78
+      yellow_time' = 0; //82
+      sigG' = false; //86
+      sigY' = false; //90
+      sigR' = true; //94
+      if (count < 60) {
+        count' = (count + 1); //107
+      } else {
+        count' = 0; //112
+        state' = 1; //116
+      }
+    } else {
+      if (state == 1) {
+        count' = 0; //128
+        yellow_time' = 0; //132
+        sigG' = true; //136
+        sigY' = false; //140
+        sigR' = false; //144
+        if (green_time < 60) {
+          green_time' = (green_time + 1); //157
+        } else {
+          green_time' = 0; //162
+          if (pedestrian) {
+            if (green_time >= 60) {
+              state' = 2; //175
+            } else {
+              state' = 3; //180
+            }
+          }
+        }
+      } else {
+        if (state == 2) {
+          count' = 0; //195
+          green_time' = 0; //199
+          sigG' = false; //203
+          sigY' = true; //207
+          sigR' = false; //211
+          if (yellow_time < 5) {
+            yellow_time' = (yellow_time + 1); //224
+          } else {
+            yellow_time' = 0; //229
+            state' = 0; //233
+          }
+        } else {
+          if (state == 3) {
+            count' = 0; //245
+            green_time' = 0; //249
+            sigG' = false; //253
+            sigY' = false; //257
+            sigR' = false; //261
+            if (pedestrian) {
+              state' = 2; //268
+            }
+          }
+        }
+      }
+    }
+
+  }
+  invariant count_inv : ((count >= 0) && (count <= 60));
+  invariant pedestrian_inv : ((pedestrian == true) || (pedestrian == false));
+  invariant sigG_inv : (sigG == (state == 1));
+  invariant sigY_inv : (sigY == (state == 2));
+  invariant sigR_inv : (sigR == (state == 0));
+  invariant state_inv : ((state == 3) || ((state == 2) || ((state == 0) || (state == 1))));
+  invariant pending_inv : !pending;
+  invariant green_time_inv : ((green_time >= 0) && (green_time <= 60));
+  invariant yellow_time_inv : ((yellow_time >= 0) && (yellow_time <= 5));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

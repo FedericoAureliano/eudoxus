@@ -1,0 +1,69 @@
+module Communication {
+  type Message = bv8;
+  type ControlBit = boolean;
+
+  var m: Message;
+  var b: ControlBit;
+
+  input c: Message;
+  input d: Message;
+
+  output c_ack: ControlBit;
+  output d_ack: ControlBit;
+
+  next {
+    if ((d == m) && (d_ack == b)) {
+      d_ack' = b; //66
+    } else {
+      if ((c == m) && (c_ack == b)) {
+        c_ack' = b; //86
+      } else {
+        if ((c == m) && !(c_ack == b)) {
+          m' = m; //107
+          b' = b; //112
+        } else {
+          m' = m; //118
+          b' = b; //123
+        }
+      }
+    }
+
+  }
+}
+module S {
+  var Message: boolean;
+  var d_ack: boolean;
+  var ControlBit: boolean;
+  var S: boolean;
+  var Real: boolean;
+  var d: boolean;
+  var c_ack: boolean;
+  var comm: record { Data: real };
+  var m: boolean;
+  var b: boolean;
+
+  output c: boolean;
+
+  next {
+    if (b == true) {
+      c' = m; //199
+      c_ack' = false; //203
+    }
+
+  }
+  invariant s_inv : ((b == true) == true);
+  invariant r_inv : ((b == true) == true);
+  invariant c_ack_inv : (c_ack == b);
+  invariant d_ack_inv : (d_ack == b);
+  invariant m_inv : Message;
+  invariant b_inv : ControlBit;
+  invariant c_inv : Real;
+  invariant d_inv : Message;
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

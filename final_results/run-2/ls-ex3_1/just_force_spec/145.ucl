@@ -1,0 +1,39 @@
+module Module {
+  var counter_prime: integer;
+  var counter: integer;
+  var arrival: boolean;
+  var departure: boolean;
+  var display: integer;
+
+  init {
+    counter = 0; //34
+    display = counter; //39
+
+  }
+  procedure step()
+    modifies display;
+    modifies counter;
+  {
+    if (arrival) {
+      counter = (counter + 1); //51
+    }
+    if (departure) {
+      counter = (counter - 1); //63
+    }
+    display = counter; //70
+  }
+
+  next {
+    call step();
+  }
+  invariant arrival_inv : (arrival ==> (counter == (counter_prime + 1)));
+  invariant departure_inv : (departure ==> (counter == (counter_prime - 1)));
+  invariant counter_inv : (counter >= 0);
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

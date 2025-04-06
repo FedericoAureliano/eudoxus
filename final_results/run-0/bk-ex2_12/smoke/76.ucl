@@ -1,0 +1,44 @@
+module VendingMachine {
+  var bget: boolean;
+  var coin: boolean;
+  var nbeer: integer;
+  var nsoda: integer;
+  var refill: boolean;
+  var sget: boolean;
+
+  init {
+    nsoda = 5; //38
+    nbeer = 5; //42
+    coin = false; //46
+
+  }
+  next {
+    if (refill) {
+      nsoda' = 5; //55
+      nbeer' = 5; //59
+    } else {
+      if (coin) {
+        coin' = false; //67
+      } else {
+        if (sget) {
+          nsoda' = (nsoda - 1); //78
+        } else {
+          if (bget) {
+            nbeer' = (nbeer - 1); //89
+          }
+        }
+      }
+    }
+    if ((nsoda == 0) && (nbeer == 0)) {
+      coin' = true; //110
+    }
+
+  }
+  invariant spec: ((nsoda <= 5) && (nbeer <= 5));
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

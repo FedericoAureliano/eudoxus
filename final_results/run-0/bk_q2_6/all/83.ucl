@@ -1,0 +1,40 @@
+module Stack {
+  var pop: boolean;
+  var push: boolean;
+  var stack: bv32;
+  var top_value: bv32;
+
+  init {
+    top_value = 0bv32; //35
+    stack = 31bv32; //42
+
+  }
+  procedure step()
+    modifies top_value;
+    modifies stack;
+  {
+    if (push && (stack < 31bv32)) {
+      stack = (stack + 1bv32); //66
+    }
+    if (pop) {
+      stack = (stack - 1bv32); //81
+    }
+    top_value = (if (stack > 0bv32) then top_value else 0bv32); //101
+  }
+
+  next {
+    call step();
+  }
+  invariant stack_inv : ((stack >= 0bv32) && (stack <= 31bv32));
+  invariant top_value_inv : ((top_value >= 0bv32) && (top_value <= 31bv32));
+  invariant s_inv : (stack_inv && top_value_inv);
+  invariant pop_inv : (pop ==> (stack > 0bv32));
+  invariant push_inv : (push ==> (stack < 31bv32));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

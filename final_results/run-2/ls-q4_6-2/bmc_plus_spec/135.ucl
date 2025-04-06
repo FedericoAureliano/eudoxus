@@ -1,0 +1,72 @@
+module Automobile {
+  var buckled: boolean;
+  var ignition: boolean;
+  var nowarn: boolean;
+  var time: integer;
+  var sound_beeper: boolean;
+  var warning_light: boolean;
+  var passenger: boolean;
+
+  input warn_event: boolean;
+  input nowarn_event: boolean;
+
+  init {
+    sound_beeper = false; //51
+    warning_light = false; //55
+    passenger = false; //59
+    time = 0; //63
+    ignition = false; //67
+    buckled = false; //71
+
+  }
+  procedure step()
+    modifies passenger;
+    modifies time;
+    modifies warning_light;
+    modifies sound_beeper;
+  {
+    if (warn_event && !nowarn) {
+      passenger = true; //84
+    }
+    if (nowarn_event || (warn_event && buckled)) {
+      passenger = false; //99
+    }
+    if (warn_event && !buckled) {
+      warning_light = true; //112
+    } else {
+      if (nowarn_event || buckled) {
+        warning_light = false; //123
+      }
+    }
+    if (warn_event) {
+      time = 30; //133
+      sound_beeper = true; //137
+    }
+    if (time == 0) {
+      sound_beeper = false; //149
+    } else {
+      time = (time - 1); //157
+    }
+  }
+
+  next {
+    call step();
+  }
+  invariant warn_event_inv : (warn_event ==> (!buckled && passenger));
+  invariant nowarn_event_inv : (nowarn_event ==> (buckled || !passenger));
+  invariant buckled_inv : (!warning_light && !sound_beeper);
+  invariant ignition_inv : (!sound_beeper ==> (time == 0));
+  invariant nowarn_inv : ((!warn_event || buckled) ==> nowarn);
+  invariant time_inv : (sound_beeper == (time > 0));
+  invariant warn_inv : (warn_event ==> (!buckled && passenger));
+  invariant nowarn_inv : (nowarn_event ==> (buckled || !passenger));
+  invariant sound_beeper_inv : (sound_beeper == ((time > 0) && (warn_event && !buckled)));
+  invariant warning_light_inv : (warning_light == (warn_event && !buckled));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

@@ -1,0 +1,100 @@
+module TrafficLights {
+  type color = bv3;
+
+  var time: bv18;
+  var main_state: color;
+  var sec_state: color;
+
+  input secondary_vehicle: boolean;
+
+  output mG: boolean;
+  output mY: boolean;
+  output mR: boolean;
+  output sG: boolean;
+  output sY: boolean;
+  output sR: boolean;
+
+  procedure step()
+    modifies mG;
+    modifies sG;
+    modifies sY;
+    modifies mR;
+    modifies time;
+    modifies sR;
+    modifies mY;
+  {
+    if (!secondary_vehicle) {
+      if (time < 180bv18) {
+        mG = true; //77
+        mY = false; //81
+        mR = false; //85
+        sG = false; //89
+        sY = false; //93
+        sR = true; //97
+      } else {
+        if (time < 185bv18) {
+          mG = false; //111
+          mY = true; //115
+          mR = false; //119
+          sG = false; //123
+          sY = false; //127
+          sR = true; //131
+        }
+      }
+      if (time < 180bv18) {
+        mG = true; //147
+        mY = false; //151
+        mR = false; //155
+        sG = false; //159
+        sY = false; //163
+        sR = true; //167
+      } else {
+        if (time < 295bv18) {
+          mG = false; //181
+          mY = false; //185
+          mR = true; //189
+          sG = false; //193
+          sY = false; //197
+          sR = true; //201
+        }
+      }
+      time = ((time + 1bv18) % 7200bv18); //219
+    } else {
+      if (time < 355bv18) {
+        mG = false; //233
+        mY = false; //237
+        mR = true; //241
+        sG = false; //245
+        sY = false; //249
+        sR = true; //253
+      } else {
+        if (time < 405bv18) {
+          mG = false; //267
+          mY = true; //271
+          mR = false; //275
+          sG = true; //279
+          sY = false; //283
+          sR = false; //287
+        }
+      }
+      time = ((time + 1bv18) % 7200bv18); //305
+    }
+  }
+
+  next {
+    call step();
+  }
+  invariant mG_inv : ((time < 180bv18) && !secondary_vehicle);
+  invariant mY_inv : ((((180bv18 <= time) && (time < 185bv18)) || ((350bv18 <= time) && (time < 355bv18))) && !secondary_vehicle);
+  invariant mR_inv : (((((185bv18 <= time) && (time < 295bv18)) || ((355bv18 <= time) && (time < 3550bv18))) || secondary_vehicle) || ((355bv18 <= time) && (time < 405bv18)));
+  invariant sG_inv : (((295bv18 <= time) && (time < 345bv18)) && !secondary_vehicle);
+  invariant sY_inv : (((345bv18 <= time) && (time < 350bv18)) && !secondary_vehicle);
+  invariant sR_inv : ((((time < 295bv18) || ((350bv18 <= time) && (time < 7200bv18))) || secondary_vehicle) || ((405bv18 <= time) && (time < 7200bv18)));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

@@ -1,0 +1,55 @@
+module AlternatingBitProtocol {
+  type Bit = integer;
+
+  var dontcare: integer;
+  var st: Bit;
+  var message1: Bit;
+  var message2: Bit;
+  var ack: Bit;
+
+  procedure step()
+    modifies message1;
+    modifies message2;
+    modifies st;
+    modifies ack;
+  {
+    st = (1 - st); //43
+    if (st == 0) {
+      message1 = 0; //53
+      message2 = dontcare; //58
+      ack = dontcare; //63
+    } else {
+      message1 = dontcare; //69
+      message2 = 1; //73
+      ack = dontcare; //78
+    }
+    if (st == 0) {
+      if (message1 == 0) {
+        ack = 0; //95
+      } else {
+        ack = 1; //100
+      }
+    } else {
+      if (message2 == 1) {
+        ack = 1; //112
+      } else {
+        ack = 0; //117
+      }
+    }
+  }
+
+  next {
+    call step();
+  }
+  invariant st_inv : ((st == 0) && (st == 1));
+  invariant message1_inv : ((st == 0) ==> (message1 == 0));
+  invariant message2_inv : ((st == 1) ==> (message2 == 1));
+  invariant ack_inv : ((((st == 0) && (message1 == 0)) ==> (ack == 0)) && (((st == 1) && (message2 == 1)) ==> (ack == 1)));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

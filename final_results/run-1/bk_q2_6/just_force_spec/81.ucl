@@ -1,0 +1,46 @@
+module StackModule {
+  type Implies = boolean;
+  type Or = boolean;
+
+  var Stack: record { size: integer };
+  var pop: boolean;
+  var push: boolean;
+  var s_inv: boolean;
+  var temp_s: record { size: integer };
+  var s: record { size: integer };
+  var pop_inv: Implies;
+  var push_inv: Implies;
+  var temp_s_inv: Or;
+
+  init {
+    s.size = 0; //70
+
+  }
+  next {
+    temp_s' = s; //77
+    pop_inv' = (pop ==> (s.size > 0)); //91
+    push_inv' = (push ==> (s.size < Stack.size)); //108
+    if (push) {
+      temp_s.size' = (s.size + 1); //122
+    } else {
+      if (pop) {
+        temp_s.size' = (s.size - 1); //137
+      }
+    }
+    s.size' = temp_s.size; //149
+
+  }
+  invariant s_inv : ((s.size >= 0) && (s.size <= Stack.size));
+  invariant temp_s_inv : ((temp_s.size >= 0) && (temp_s.size <= Stack.size));
+  invariant pop_inv : (pop ==> (s.size > 0));
+  invariant push_inv : (push ==> (s.size < Stack.size));
+  invariant s_in_range : ((s.size >= 0) && (s.size <= Stack.size));
+  invariant temp_s_in_range : ((temp_s.size >= 0) && (temp_s.size <= Stack.size));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

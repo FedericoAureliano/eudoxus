@@ -1,0 +1,84 @@
+module TrafficLight {
+  var state: integer;
+  var count: integer;
+  var sigG: boolean;
+  var sigY: boolean;
+  var sigR: boolean;
+  var pedestrian: boolean;
+
+  init {
+    state = 0; //38
+    count = 0; //42
+    sigG = false; //46
+    sigY = false; //50
+    sigR = true; //54
+    pedestrian = false; //58
+
+  }
+  next {
+    if (state == 0) {
+      if (count == 60) {
+        state' = 1; //76
+        sigG' = true; //80
+        sigY' = false; //84
+        sigR' = false; //88
+        count' = 0; //92
+      } else {
+        count' = (count + 1); //100
+      }
+    } else {
+      if (state == 1) {
+        if (pedestrian) {
+          state' = 2; //115
+          sigG' = false; //119
+          sigY' = true; //123
+          sigR' = false; //127
+        } else {
+          if (count >= 60) {
+            state' = 3; //138
+            sigG' = false; //142
+            sigY' = false; //146
+            sigR' = true; //150
+            count' = 0; //154
+          } else {
+            count' = (count + 1); //162
+          }
+        }
+      } else {
+        if (state == 2) {
+          state' = 3; //175
+          sigG' = false; //179
+          sigY' = false; //183
+          sigR' = true; //187
+          count' = 0; //191
+        } else {
+          if (state == 3) {
+            if (count == 5) {
+              state' = 0; //208
+              sigG' = false; //212
+              sigY' = false; //216
+              sigR' = true; //220
+              count' = 0; //224
+            } else {
+              count' = (count + 1); //232
+            }
+          }
+        }
+      }
+    }
+
+  }
+  invariant count_inv : ((count >= 0) && (count <= 60));
+  invariant state_inv : ((state >= 0) && (state <= 3));
+  invariant sigG_inv : (sigG ==> (state == 1));
+  invariant sigY_inv : (sigY ==> (state == 2));
+  invariant sigR_inv : (sigR ==> (state == 0));
+  invariant pedestrian_inv : (pedestrian ==> (state == 2));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

@@ -1,0 +1,26 @@
+module Module {
+  var process_dec: boolean;
+  var process_inc: boolean;
+  var process_reset: boolean;
+  var x: integer;
+
+  init {
+    x = 26; //30
+
+  }
+  next {
+    process_inc' = ((x < 200) && (x == (x + 1))); //49
+    process_dec' = ((x > 0) && (x == (x - 1))); //66
+    process_reset' = ((x == 200) && (x == 0)); //80
+    x' = (if (process_inc) then (x + 1) else (if (process_dec) then (x - 1) else (if (process_reset) then 0 else x))); //103
+
+  }
+  invariant x_inv : ((x >= 0) && (x <= 200));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

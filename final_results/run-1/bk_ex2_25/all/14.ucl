@@ -1,0 +1,64 @@
+module Module {
+  var crit1: boolean;
+  var crit2: boolean;
+  var wait1: boolean;
+  var wait2: boolean;
+  var b1_next: boolean;
+  var b2_next: boolean;
+  var x_next: bv2;
+  var b1: boolean;
+  var b2: boolean;
+  var x: bv2;
+
+  init {
+    b1 = false; //56
+    b2 = false; //60
+    x = 1bv2; //67
+
+  }
+  procedure step()
+    modifies b1_next;
+    modifies b2_next;
+    modifies b1;
+    modifies x_next;
+    modifies b2;
+    modifies x;
+  {
+    b1_next = b1; //74
+    b2_next = b2; //79
+    x_next = x; //84
+    if (b1 && (x == 2bv2)) {
+      b1_next = false; //100
+    } else {
+      if (!b2 && (x == 1bv2)) {
+        b1_next = true; //118
+        x_next = 2bv2; //125
+      }
+    }
+    if (b2 && (x == 1bv2)) {
+      b2_next = false; //144
+    } else {
+      if (!b1 && (x == 2bv2)) {
+        b2_next = true; //162
+        x_next = 1bv2; //169
+      }
+    }
+    b1 = b1_next; //177
+    b2 = b2_next; //182
+    x = x_next; //187
+  }
+
+  next {
+    call step();
+  }
+  invariant b1_inv : (b1 == (wait1 || crit1));
+  invariant b2_inv : (b2 == (wait2 || crit2));
+  invariant x_inv : ((x == 1bv2) || (x == 2bv2));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

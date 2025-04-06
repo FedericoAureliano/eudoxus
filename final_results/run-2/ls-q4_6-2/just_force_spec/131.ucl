@@ -1,0 +1,50 @@
+module Automobile {
+  var warn: boolean;
+  var nowarn: boolean;
+  var time: integer;
+  var ignition: boolean;
+  var buckled: [integer]boolean;
+
+  init {
+    warn = false; //38
+    nowarn = true; //42
+    time = 0; //46
+    ignition = false; //50
+
+  }
+  procedure step()
+    modifies time;
+    modifies warn;
+  {
+    if (ignition) {
+      if (exists (p0:integer) :: (buckled[p0] && !buckled[p0])) {
+        warn = true; //77
+      } else {
+        warn = false; //82
+      }
+      if ((time < 30) && (exists (p1:integer) :: !buckled[p1])) {
+        time = (time + 1); //108
+      } else {
+        if (exists (p2:integer) :: !buckled[p2]) {
+          warn = false; //125
+        }
+      }
+    }
+  }
+
+  next {
+    call step();
+  }
+  invariant warn_inv : (((time < 30) || (exists (p3:integer) :: !buckled[p3])) && (ignition && (exists (p4:integer) :: !buckled[p4])));
+  invariant nowarn_inv : !warn_inv;
+  invariant time_inv : ((time >= 0) && (forall (p5:integer) :: (!buckled[p5] ==> (time <= 30))));
+  invariant ignition_inv : ignition;
+  invariant buckled_inv : (forall (p6:integer) :: (buckled[p6] ==> (buckled[p6] || !buckled[p6])));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

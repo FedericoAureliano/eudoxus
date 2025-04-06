@@ -1,0 +1,55 @@
+module BeverageVendingMachine {
+  type Range = enum { beer, pay, select, soda };
+
+  var bool: boolean;
+  var no_response: boolean;
+  var current_state: Range;
+  var coin_inserted: boolean;
+  var drink_delivered: boolean;
+
+  input insert_coin: boolean;
+  input get_soda: boolean;
+  input get_beer: boolean;
+
+  init {
+    current_state = pay; //56
+    coin_inserted = false; //60
+
+  }
+  procedure step()
+    modifies no_response;
+    modifies current_state;
+    modifies coin_inserted;
+  {
+    coin_inserted = (coin_inserted || insert_coin); //70
+    if ((current_state == pay) && !coin_inserted) {
+      no_response = true; //84
+      assert no_response; //87
+    }
+    if (insert_coin) {
+      current_state = select; //96
+    }
+    if (get_soda && coin_inserted) {
+      current_state = soda; //108
+    }
+    if (get_beer && coin_inserted) {
+      current_state = beer; //120
+    }
+  }
+
+  next {
+    call step();
+  }
+  invariant current_state_inv : ((current_state == beer) || (current_state == soda));
+  invariant coin_inserted_inv : (coin_inserted == true);
+  invariant no_response_inv : (no_response == ((current_state == pay) && !coin_inserted));
+  invariant next_inv : (insert_coin ==> ((current_state == select) && (coin_inserted == true)));
+  invariant drink_delivered : ((current_state == soda) || (current_state == beer));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

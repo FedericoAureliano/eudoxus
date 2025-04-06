@@ -1,0 +1,48 @@
+module RailroadCrossing {
+  var train_state: enum { far, in_, near };
+  var controller_state: enum {far, near, up };
+  var gate_state: enum { down, up };
+
+  input train_approach: boolean;
+  input train_exit: boolean;
+
+  output gate_raise: boolean;
+
+  procedure step()
+    modifies gate_raise;
+    modifies controller_state;
+  {
+    if ((train_state == far) && train_approach) {
+      controller_state = 1;
+    }
+    if ((train_state == near) && (controller_state == 1)) {
+      controller_state = 2;
+    }
+    if ((train_state == in_) && train_exit) {
+      controller_state = 3;
+    }
+    if (controller_state == 2) {
+      controller_state = 3;
+    }
+    if (controller_state == 3) {
+      controller_state = 0;
+    }
+    gate_raise = (gate_state == up);
+  }
+
+  next {
+    call step();
+  }
+  invariant invariant1 : ((train_state == in_) == (gate_state == down));
+  invariant invariant2 : ((train_state == far) == (gate_state == up));
+  invariant invariant3 : ((controller_state == 0) == (train_state == near));
+  invariant invariant4 : ((controller_state == 2) == (train_state == far));
+;
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

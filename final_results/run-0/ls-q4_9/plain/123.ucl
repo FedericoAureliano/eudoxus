@@ -1,0 +1,70 @@
+module TrafficLightControl {
+  type light_phase = enum { GREEN, RED, YELLOW };
+
+  var main_light: light_phase;
+  var secondary_light: light_phase;
+  var vehicle_detected: boolean;
+
+  output mG: boolean;
+  output mY: boolean;
+  output mR: boolean;
+  output sG: boolean;
+  output sY: boolean;
+  output sR: boolean;
+
+  init {
+    main_light = GREEN; //59
+    secondary_light = RED; //63
+    vehicle_detected = false; //67
+    mG = true; //71
+    mY = false; //75
+    mR = false; //79
+    sG = false; //83
+    sY = false; //87
+    sR = true; //91
+
+  }
+  next {
+    if (!vehicle_detected) {
+      if (main_light == GREEN) {
+        secondary_light' = RED; //107
+        if (mG && !mY) {
+          main_light' = YELLOW; //118
+        }
+      } else {
+        if (main_light == YELLOW) {
+          if (sR) {
+            main_light' = RED; //134
+          }
+        } else {
+          if (main_light == RED) {
+            if (sG && !sY) {
+              main_light' = GREEN; //154
+              secondary_light' = GREEN; //158
+            }
+          }
+        }
+      }
+    } else {
+      vehicle_detected' = false; //169
+      if (main_light == GREEN) {
+        main_light' = YELLOW; //179
+      } else {
+        if ((main_light == YELLOW) || (main_light == RED)) {
+          if (sR) {
+            main_light' = GREEN; //199
+            secondary_light' = GREEN; //203
+          }
+        }
+      }
+    }
+
+  }
+  invariant spec: true;
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

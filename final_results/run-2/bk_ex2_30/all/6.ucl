@@ -1,0 +1,66 @@
+module RailroadCrossing {
+  type TrainState = bv2;
+  type GateState = bv1;
+  type ControllerState = bv2;
+
+  var train_state: TrainState;
+  var gate_state: GateState;
+  var controller_state: ControllerState;
+
+  init {
+    train_state = 0bv2; //45
+    gate_state = 0bv1; //52
+    controller_state = 0bv2; //59
+
+  }
+  next {
+    if (controller_state == 0bv2) {
+      if (train_state == 0bv2) {
+        train_state' = 1bv2; //86
+      }
+    } else {
+      if (controller_state == 1bv2) {
+        if (train_state == 1bv2) {
+          train_state' = 2bv2; //114
+        }
+      } else {
+        if (controller_state == 2bv2) {
+          if (train_state == 2bv2) {
+            train_state' = 0bv2; //142
+          }
+        }
+      }
+    }
+    if (controller_state == 0bv2) {
+      if (train_state == 1bv2) {
+        controller_state' = 1bv2; //173
+      }
+    } else {
+      if (controller_state == 1bv2) {
+        gate_state' = 1bv1; //192
+        controller_state' = 2bv2; //199
+      } else {
+        if ((controller_state == 2bv2) && (train_state == 0bv2)) {
+          controller_state' = 3bv2; //225
+        } else {
+          if (controller_state == 3bv2) {
+            gate_state' = 0bv1; //242
+            controller_state' = 0bv2; //249
+          }
+        }
+      }
+    }
+
+  }
+  invariant train_state_inv : ((train_state == 2bv2) ==> (gate_state == 1bv1));
+  invariant controller_state_inv : ((controller_state == 0bv2) || ((controller_state == 1bv2) || ((controller_state == 2bv2) || (controller_state == 3bv2))));
+  invariant gate_state_inv : ((gate_state == 1bv1) ==> ((train_state == 1bv2) || (train_state == 2bv2)));
+  invariant invariant_inv : (train_state_inv && (controller_state_inv && gate_state_inv));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

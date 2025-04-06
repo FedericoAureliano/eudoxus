@@ -1,0 +1,35 @@
+module Module {
+  var next_status: real;
+  var nondet_1: real;
+  var prev_status: integer;
+  var status: integer;
+  var request: boolean;
+  var prev_request: boolean;
+  var pred: boolean;
+
+  init {
+    status = 0; //42
+
+  }
+  next {
+    if (request) {
+      status' = 1; //51
+    }
+    havoc nondet_1; //56
+    prev_request' = request; //61
+    prev_status' = status; //66
+    next_status' = nondet_1; //71
+    pred' = (prev_request && (prev_status == 0)); //82
+
+  }
+  invariant request_inv : !request;
+  invariant status_inv : (request ==> ((status == 1) && pred));
+  invariant pred_inv : (request ==> pred);
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

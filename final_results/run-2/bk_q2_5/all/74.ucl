@@ -1,0 +1,43 @@
+module MutualExclusion {
+  var s_n: bv1;
+  var s_o: bv1;
+  var s_tmp: bv1;
+  var s: bv1;
+  var y0: bv1;
+  var y1: bv1;
+
+  init {
+    s = 1bv1; //47
+    y0 = 0bv1; //54
+    y1 = 0bv1; //61
+
+  }
+  next {
+    s_tmp' = s; //68
+    if (s_tmp == 0bv1) {
+      s_o' = 1bv1; //84
+      s_n' = 0bv1; //91
+    } else {
+      if (s_tmp == 1bv1) {
+        s_o' = 0bv1; //108
+        s_n' = 1bv1; //115
+      }
+    }
+    s' = s_n; //123
+    y0' = 0bv1; //130
+    y1' = 0bv1; //137
+
+  }
+  invariant s_inv : ((s == 0bv1) || (s == 1bv1));
+  invariant y0_inv : ((y0 == 0bv1) || (y0 == 1bv1));
+  invariant y1_inv : ((y1 == 0bv1) || (y1 == 1bv1));
+  invariant mutual_exclusion_inv : (((y0 == 1bv1) ==> (y1 == 0bv1)) && ((y1 == 1bv1) ==> (y0 == 0bv1)));
+  invariant starvation_freedom_inv : (((y0 == 1bv1) ==> (y1 == 0bv1)) || ((y1 == 1bv1) ==> (y0 == 0bv1)));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

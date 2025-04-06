@@ -1,0 +1,43 @@
+module FerryProblem {
+  type Bit = boolean;
+  type side = Bit;
+  type goods = Bit;
+
+  var ferryman_inv: Bit;
+  var move: [side]side;
+  var ferryman: side;
+  var goat: goods;
+  var cabbage: goods;
+  var wolf: goods;
+  var carry: goods;
+
+  init {
+    ferryman = false; //59
+    goat = false; //63
+    cabbage = false; //67
+    wolf = false; //71
+    carry = false; //75
+
+  }
+  next {
+    move' = move; //82
+    ferryman' = move[false]; //89
+    goat' = move[true]; //96
+    cabbage' = move[true]; //103
+    wolf' = move[true]; //110
+    carry' = move[true]; //117
+
+  }
+  invariant ferryman_inv : ferryman;
+  invariant cabbage_inv : ((ferryman == cabbage) || (goat != cabbage));
+  invariant goat_inv : (((goat == wolf) || (goat == cabbage)) || (ferryman == goat));
+  invariant wolf_inv : (((wolf != goat) && (wolf != cabbage)) || (ferryman == wolf));
+  invariant carry_inv : ((((carry == wolf) || (carry == goat)) || (carry == cabbage)) || (carry == false));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

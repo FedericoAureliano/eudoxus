@@ -1,0 +1,55 @@
+module Automobile {
+  var buckled: boolean;
+  var ignition: boolean;
+  var nowarn: boolean;
+  var time: integer;
+  var warn: boolean;
+  var beeper_sounding: boolean;
+  var warning_light: boolean;
+
+  init {
+    warn = ((ignition && !buckled) && !nowarn); //51
+    beeper_sounding = false; //55
+    warning_light = false; //59
+    time = 0; //63
+
+  }
+  next {
+    if (((ignition && !buckled) && !warn) && !nowarn) {
+      warn' = true; //84
+      time' = 0; //88
+      beeper_sounding' = true; //92
+      warning_light' = true; //96
+    } else {
+      if (((ignition && !buckled) && warn) && !nowarn) {
+        if (time < 30) {
+          time' = (time + 1); //124
+        } else {
+          beeper_sounding' = false; //129
+        }
+      } else {
+        if (!ignition) {
+          warn' = false; //139
+          beeper_sounding' = false; //143
+          time' = 0; //147
+          warning_light' = true; //151
+        }
+      }
+    }
+
+  }
+  invariant nowarn_inv : ((!ignition || buckled) || (!ignition && !warn));
+  invariant ignition_inv : ((warn || nowarn) || (!buckled && warning_light));
+  invariant buckled_inv : (!warning_light || nowarn);
+  invariant warn_inv : (warn == ((ignition && !buckled) && !nowarn));
+  invariant time_inv : (((((warn && ignition) && !buckled) && !nowarn) && (time <= 30)) || (time == 0));
+  invariant beeper_sounding_inv : (beeper_sounding == (((warn && ignition) && !nowarn) && (time < 30)));
+  invariant warning_light_inv : (warning_light == (ignition && !buckled));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

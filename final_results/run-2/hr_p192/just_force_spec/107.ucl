@@ -1,0 +1,35 @@
+module Module {
+  var aux: boolean;
+  var request: boolean;
+  var status: enum { busy, ready };
+
+  init {
+    status = ready; //28
+
+  }
+  procedure step()
+    modifies aux;
+    modifies status;
+  {
+    aux = aux_inv; //35
+    aux = ((status == ready) && request); //46
+    if (aux) {
+      status = busy; //53
+    }
+  }
+
+  next {
+    call step();
+  }
+  invariant request_inv : !request;
+  invariant status_inv : (!request || (request && (status == busy)));
+  invariant aux_inv : (aux == ((status == ready) && request));
+  invariant prop : (request ==> (status == busy));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

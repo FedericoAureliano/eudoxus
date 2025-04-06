@@ -1,0 +1,46 @@
+module AlternatingBitProtocol {
+  var ack: integer;
+  var sender_st: integer;
+  var receiver_st: integer;
+
+  input sender_message1: bv8;
+  input sender_message2: bv8;
+  input receiver_message1: bv8;
+  input receiver_message2: bv8;
+
+  init {
+    sender_st = 0; //47
+    receiver_st = 0; //51
+
+  }
+  next {
+    if (sender_st == 0) {
+      sender_st' = 1; //63
+    } else {
+      if ((sender_st == 1) && (ack == 0)) {
+        ack' = 0; //80
+      } else {
+        if ((sender_st == 1) && (ack == 1)) {
+          sender_st' = 0; //97
+        }
+      }
+    }
+    if ((receiver_st == 0) && (ack == 0)) {
+      ack' = 0; //117
+      receiver_st' = 1; //121
+    } else {
+      if ((receiver_st == 1) && (ack == 1)) {
+        ack' = 1; //138
+        receiver_st' = 0; //142
+      }
+    }
+
+  }
+  invariant spec: (((sender_st == 0) && (receiver_st == 0)) && (ack == 0));
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

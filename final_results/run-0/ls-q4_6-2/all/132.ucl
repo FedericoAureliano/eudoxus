@@ -1,0 +1,41 @@
+module Automobile {
+  var warn: boolean;
+  var nowarn: boolean;
+  var time: integer;
+  var ignition: boolean;
+  var buckled: boolean;
+
+  next {
+    if ((ignition && !buckled) && !warn) {
+      time' = 0; //46
+    } else {
+      if ((ignition && !buckled) && warn) {
+        time' = (time + 1); //64
+        if (time >= 30) {
+          warn' = false; //74
+        } else {
+          if (buckled) {
+            warn' = false; //82
+          }
+        }
+      } else {
+        if (!ignition || nowarn) {
+          warn' = false; //97
+        }
+      }
+    }
+
+  }
+  invariant warn_inv : ((ignition && !buckled) && (time < 30));
+  invariant nowarn_inv : !(ignition && !buckled);
+  invariant time_inv : ((time >= 0) && (time <= 30));
+  invariant ignition_inv : (warn || nowarn);
+  invariant buckled_inv : (buckled ==> !warn);
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

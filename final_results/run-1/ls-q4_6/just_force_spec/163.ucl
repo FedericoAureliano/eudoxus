@@ -1,0 +1,36 @@
+module Module {
+  var door_open: boolean;
+  var light_on: boolean;
+  var door_timer: integer;
+  var all_doors_closed: boolean;
+
+  init {
+    light_on = false; //30
+    door_timer = 0; //34
+    all_doors_closed = true; //38
+
+  }
+  next {
+    if (door_open) {
+      light_on' = true; //47
+      door_timer' = 30; //51
+    } else {
+      if (door_timer > 0) {
+        door_timer' = (door_timer - 1); //65
+      } else {
+        light_on' = false; //70
+      }
+    }
+
+  }
+  invariant light_on_inv : (door_open || (door_timer > 0));
+  invariant door_timer_inv : ((door_timer >= 0) && (door_timer <= 30));
+  invariant all_doors_closed_inv : (!door_open || ((door_open == false) && (door_timer == 0)));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

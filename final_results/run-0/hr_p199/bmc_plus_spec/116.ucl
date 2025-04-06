@@ -1,0 +1,80 @@
+module FerryPuzzle {
+  type Bit = record {  };
+  type Location = record {  };
+
+  var ferryman: Location;
+  var goat: Location;
+  var cabbage: Location;
+  var wolf: Location;
+  var carry: record {  };
+
+  init {
+    ferryman = ferryman.left; //46
+    goat = goat.left; //53
+    cabbage = cabbage.left; //60
+    wolf = wolf.left; //67
+    carry = carry.left; //74
+
+  }
+  procedure step()
+    modifies wolf;
+    modifies carry;
+    modifies goat;
+    modifies ferryman;
+    modifies cabbage;
+  {
+    if (carry == carry.left) {
+      if (ferryman == ferryman.left) {
+        ferryman = ferryman.right; //101
+      } else {
+        if (ferryman == ferryman.right) {
+          ferryman = ferryman.left; //118
+        }
+      }
+    }
+    goat = goat.right; //130
+    cabbage = cabbage.right; //137
+    wolf = wolf.right; //144
+    if (ferryman == ferryman.left) {
+      if (goat == goat.left) {
+        goat = goat.right; //169
+      }
+      if (cabbage == cabbage.left) {
+        cabbage = cabbage.right; //187
+      }
+      if (wolf == wolf.left) {
+        wolf = wolf.right; //205
+      }
+    } else {
+      if (goat == goat.left) {
+        goat = goat.right; //224
+      }
+      if (cabbage == cabbage.left) {
+        cabbage = cabbage.right; //242
+      }
+      if (wolf == wolf.left) {
+        wolf = wolf.right; //260
+      }
+    }
+    carry = carry.right; //270
+  }
+
+  next {
+    call step();
+  }
+  invariant ferryman_inv : ((ferryman == ferryman.left) || (ferryman == ferryman.right));
+  invariant no_conflict_inv : !((goat == cabbage) && (ferryman == goat));
+  invariant goal_state_inv : (ferryman == ferryman.right);
+  invariant goat_inv : ((goat == goat.left) || (goat == goat.right));
+  invariant cabbage_inv : ((cabbage == cabbage.left) || (cabbage == cabbage.right));
+  invariant wolf_inv : ((wolf == wolf.left) || (wolf == wolf.right));
+  invariant carry_inv : ((carry == carry.left) || (carry == carry.right));
+  invariant specification_inv : !((goat == cabbage) && (ferryman == goat));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

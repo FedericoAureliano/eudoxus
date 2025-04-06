@@ -1,0 +1,48 @@
+module TrafficLights {
+  type state = integer;
+
+  var red1: state;
+  var green1: state;
+  var red2: state;
+  var green2: state;
+
+  init {
+    if ((red1 == 1) && (red2 == 1)) {
+      green1 = 1; //47
+    } else {
+      if ((green1 == 1) && (red2 == 1)) {
+        green2 = 1; //64
+      } else {
+        if ((red1 == 1) && (green2 == 1)) {
+          green1 = 1; //81
+        }
+      }
+    }
+
+  }
+  next {
+    if (green1 == 1) {
+      green1' = 0; //97
+      red1' = 1; //101
+      if (red2 == 1) {
+        green2' = 1; //111
+      }
+    } else {
+      if (green2 == 1) {
+        green2' = 0; //124
+        red2' = 1; //128
+        if (red1 == 1) {
+          green1' = 1; //138
+        }
+      }
+    }
+
+  }
+  invariant spec: ((red1 != 1) || (red2 != 1));
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

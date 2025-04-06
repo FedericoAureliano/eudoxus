@@ -1,0 +1,67 @@
+module TrafficLight {
+  var State: integer;
+  var mG: boolean;
+  var mY: boolean;
+  var mR: boolean;
+  var sG: boolean;
+  var sY: boolean;
+  var sR: boolean;
+  var sec_detected: boolean;
+
+  init {
+    State = 50; //46
+    mG = true; //50
+    mY = false; //54
+    mR = false; //58
+    sG = false; //62
+    sY = false; //66
+    sR = true; //70
+    sec_detected = false; //74
+
+  }
+  next {
+    if (sR) {
+      sR' = true; //83
+      sG' = false; //87
+    } else {
+      if (sG) {
+        sG' = true; //95
+        sY' = false; //99
+      } else {
+        if (sY) {
+          sY' = true; //107
+          sR' = false; //111
+        }
+      }
+    }
+    if (State == 0) {
+      mR' = true; //125
+      mG' = false; //129
+      mY' = false; //133
+      if (sec_detected) {
+        State' = 1; //140
+      }
+    } else {
+      if (State == 3) {
+        mR' = false; //153
+        mG' = false; //157
+        mY' = true; //161
+        State' = 0; //165
+      }
+    }
+
+  }
+  invariant mG_inv : ((mG && sR) || (!mG && !sR));
+  invariant mY_inv : ((mY && sR) || (!mY && !sR));
+  invariant mR_inv : (((mR || sG) || sY) && !sR);
+  invariant sG_inv : ((sG && mR) || (!sG && !mR));
+  invariant sY_inv : ((sY && mR) || (!sY && !mR));
+  invariant sR_inv : (!sR || (mG || mY));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

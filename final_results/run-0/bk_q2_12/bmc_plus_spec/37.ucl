@@ -1,0 +1,34 @@
+module LeaderElection {
+  var recv_flag: boolean;
+  var id: bv8;
+  var m: bv8;
+
+  input send_id: bv8;
+  input receive_m: bv8;
+
+  output leader: bv8;
+
+  init {
+    id = send_id; //46
+    m = receive_m; //51
+    leader = id; //56
+
+  }
+  next {
+    recv_flag' = (m > id); //67
+    leader' = (if (recv_flag) then m else leader); //77
+    m' = (if !recv_flag then m else id); //88
+
+  }
+  invariant m_inv : (m >= id);
+  invariant id_inv : (id == send_id);
+  invariant leader_inv : (leader == m);
+  invariant recv_flag_inv : (recv_flag == (m > id));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

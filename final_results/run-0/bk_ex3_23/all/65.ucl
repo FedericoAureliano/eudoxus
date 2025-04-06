@@ -1,0 +1,32 @@
+module TrafficLight {
+  var safety_assertion: boolean;
+  var safety_property: boolean;
+  var red: boolean;
+  var green: boolean;
+  var yellow: boolean;
+
+  init {
+    red = false; //34
+    green = false; //38
+    yellow = false; //42
+
+  }
+  next {
+    safety_property' = ((!green && red) ==> safety_assertion); //57
+    green' = (if (red) then red else (if (yellow) then yellow else green)); //72
+    red' = (if (yellow) then yellow else (if (green) then green else red)); //87
+    yellow' = (if (red) then red else (if (green) then green else yellow)); //102
+
+  }
+  invariant red_inv : (red ==> (yellow || !green));
+  invariant yellow_inv : (yellow ==> (!red && !green));
+  invariant green_inv : (green ==> (!red && !yellow));
+  invariant safety_assertion_inv : (red ==> yellow);
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

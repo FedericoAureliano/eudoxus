@@ -1,0 +1,42 @@
+module AlternatingBitProtocol {
+  var ack: bv1;
+  var message1: bv2;
+  var message2: bv2;
+  var st: boolean;
+
+  init {
+    message1 = 0bv2; //36
+    st = false; //40
+    message2 = 0bv2; //47
+    ack = 0bv1; //54
+
+  }
+  next {
+    if (st) {
+      if (ack == 0bv1) {
+        message1' = ((message1 + 1bv2) % 2bv2); //83
+      } else {
+        st' = false; //88
+      }
+    } else {
+      if (message1 != message2) {
+        message2' = message1; //102
+      }
+      if (ack == 1bv1) {
+        st' = true; //117
+      }
+    }
+
+  }
+  invariant message1_inv : ((message1 == 0bv2) || (message1 == 1bv2));
+  invariant ack_inv : (st ==> (ack == 0bv1));
+  invariant message2_inv : ((ack == 1bv1) ==> (message2 == message1));
+  invariant st_inv : !st;
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

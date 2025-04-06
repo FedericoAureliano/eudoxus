@@ -1,0 +1,31 @@
+module Module {
+  var crit1: boolean;
+  var crit2: boolean;
+  var wait1: boolean;
+  var wait2: boolean;
+  var b1: boolean;
+  var x: integer;
+
+  procedure step()
+    modifies b1;
+    modifies x;
+  {
+    b1 = true; //39
+    x = 2; //43
+    b1 = false; //47
+  }
+
+  next {
+    call step();
+  }
+  invariant b1_inv : (wait1 || crit1);
+  invariant b2_inv : (wait2 || crit2);
+  invariant x_inv : ((x == 1) || (x == 2));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

@@ -1,0 +1,31 @@
+module SequentialCircuit {
+  var next_r: boolean;
+  var x: boolean;
+  var y: boolean;
+  var r: boolean;
+  var y_infinitely_often: boolean;
+
+  init {
+    r = false; //34
+    y_infinitely_often = false; //38
+
+  }
+  next {
+    next_r' = (x || r); //48
+    y' = !next_r; //54
+    r' = next_r; //59
+    y_infinitely_often' = (y || (r && y_infinitely_often)); //70
+
+  }
+  invariant y_inv : !(x != r);
+  invariant x_inv : ((x == false) || (x == true));
+  invariant r_inv : (!r || (r == true));
+  invariant y_infinitely_often_inv : (y || (r && y_infinitely_often));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

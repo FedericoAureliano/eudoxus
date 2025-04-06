@@ -1,0 +1,41 @@
+module TrafficLights {
+  var green1: boolean;
+  var green2: boolean;
+  var next_state: enum { GREEN1, GREEN2, RED1, RED2 };
+  var nondet_1: enum { GREEN1, GREEN2, RED1, RED2 };
+  var red1: boolean;
+  var red2: boolean;
+
+  init {
+    havoc nondet_1; //45
+    if (red1 && red2) {
+      next_state = nondet_1; //56
+    }
+
+  }
+  next {
+    if (next_state == GREEN1) {
+      green1' = true; //70
+      red1' = false; //74
+      green2' = false; //78
+      red2' = true; //82
+    } else {
+      green1' = false; //87
+      red1' = true; //91
+      green2' = true; //95
+      red2' = false; //99
+    }
+
+  }
+  invariant green1_inv : !green1;
+  invariant green2_inv : !green2;
+  invariant red1_inv : !red1;
+  invariant red2_inv : !red2;
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

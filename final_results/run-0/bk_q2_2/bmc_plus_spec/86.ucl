@@ -1,0 +1,65 @@
+module Module {
+  var inc_x: integer;
+  var load_x: integer;
+  var store_x: integer;
+  var p1: integer;
+  var p2: real;
+  var p3: bv2;
+  var x: integer;
+
+  procedure step()
+    modifies inc_x;
+    modifies store_x;
+    modifies p1;
+    modifies p3;
+    modifies p2;
+    modifies x;
+    modifies load_x;
+  {
+    p1 = 20; //44
+    p2 = 25.0; //48
+    p3 = 30bv2; //55
+    x = x; //60
+    load_x = x; //65
+    inc_x = (x + 1); //72
+    store_x = inc_x; //77
+    x = store_x; //82
+  }
+
+  next {
+    call step();
+  }
+  invariant x_inv : ((x >= 0) && (x <= 30));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}
+module Module {
+  var p1: integer;
+  var p2: real;
+  var p3: bv2;
+  var x: integer;
+
+  init {
+    x = 0; //133
+
+  }
+  next {
+    p1' = x; //140
+    p2' = 0.0; //144
+    p3' = 0bv2; //151
+    x' = 2; //155
+
+  }
+  invariant spec: (x == 2);
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

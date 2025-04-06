@@ -1,0 +1,36 @@
+module ParkingCounter {
+  var arrival: boolean;
+  var counter: integer;
+  var departure: boolean;
+
+  init {
+    counter = 0; //26
+
+  }
+  procedure step()
+    modifies counter;
+  {
+    if (arrival) {
+      counter = (counter + 1); //38
+    }
+    if (departure) {
+      if (counter > 0) {
+        counter = (counter - 1); //56
+      }
+    }
+  }
+
+  next {
+    call step();
+  }
+  invariant counter_inv : (counter >= 0);
+  invariant arrival_inv : true;
+  invariant departure_inv : (!departure || (counter > 0));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

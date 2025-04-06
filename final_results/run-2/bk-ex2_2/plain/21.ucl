@@ -1,0 +1,31 @@
+module VendingMachine {
+  type Bit = boolean;
+  type Declare = enum { get_beer, get_soda, insert_coin, pay, select };
+
+  var action_insert_coin: boolean;
+  var drink_delivered: boolean;
+  var current_state: Declare;
+  var current_action: Declare;
+  var coin_inserted: Bit;
+
+  init {
+    assume (current_state == pay); //51
+    coin_inserted = false; //55
+
+  }
+  next {
+    action_insert_coin' = (current_action == insert_coin); //65
+    drink_delivered' = ((current_action == get_soda) || (current_action == get_beer)); //79
+    current_action' = (if (coin_inserted) then select else current_action); //88
+    current_state' = select; //92
+    coin_inserted' = false; //96
+
+  }
+  invariant spec: (((current_action == get_soda) || (current_action == get_beer)) == coin_inserted);
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

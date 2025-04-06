@@ -1,0 +1,49 @@
+module AutomobileModule {
+  var buckled: boolean;
+  var ignition: boolean;
+  var nowarn: boolean;
+  var time: integer;
+  var sound_beeper: boolean;
+  var red_light: boolean;
+
+  init {
+    sound_beeper = false; //38
+    red_light = false; //42
+
+  }
+  next {
+    if (ignition && nowarn) {
+      sound_beeper' = true; //54
+      red_light' = true; //58
+      time' = 30; //62
+    } else {
+      if (sound_beeper && !buckled) {
+        if (time == 0) {
+          sound_beeper' = false; //80
+        } else {
+          time' = (time - 1); //88
+        }
+      } else {
+        if (!buckled) {
+          red_light' = true; //98
+        } else {
+          red_light' = false; //103
+        }
+      }
+    }
+
+  }
+  invariant sound_beeper_inv : (((ignition && !nowarn) && !buckled) && (time > 0));
+  invariant red_light_inv : (ignition && !buckled);
+  invariant time_inv : ((time >= 0) && (time <= 30));
+  invariant ignition_inv : (ignition ==> (!nowarn || (sound_beeper || red_light)));
+  invariant nowarn_inv : (nowarn ==> (!ignition || buckled));
+  invariant buckled_inv : (buckled ==> (!sound_beeper && !red_light));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

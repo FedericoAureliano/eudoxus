@@ -381,7 +381,7 @@ def stmt2py(output, stmt: s.Statement, indent, spec=False):
     space = "  " * indent
     match stmt:
         case s.Assignment(
-            _, target, e.ArrayStore(_, array, index, value)
+            pos, target, e.ArrayStore(_, array, index, value)
         ) if array == target:
             output.write(space)
             expr2py(output, target)
@@ -390,20 +390,23 @@ def stmt2py(output, stmt: s.Statement, indent, spec=False):
             output.write("]")
             output.write(" = ")
             expr2py(output, value)
+            output.write(f" #{pos.unique}")
             output.write("\n")
-        case s.Assignment(_, target, value):
+        case s.Assignment(pos, target, value):
             output.write(space)
             expr2py(output, target)
             output.write(" = ")
             expr2py(output, value)
+            output.write(f" #{pos.unique}")
             output.write("\n")
-        case s.If(_, cond, body, orelse):
+        case s.If(pos, cond, body, orelse):
             output.write(space)
             output.write("if ")
             expr2py(output, cond)
             output.write(":")
             output.write("\n")
             stmt2py(output, body, indent + 1)
+
             if orelse.statements != []:
                 output.write(f"{space}else:\n")
                 stmt2py(output, orelse, indent + 1)
@@ -420,19 +423,22 @@ def stmt2py(output, stmt: s.Statement, indent, spec=False):
                         stmt2py(output, stmt, indent, spec)
             else:
                 output.write(f"{space}??\n")
-        case s.Havoc(_, target):
+        case s.Havoc(pos, target):
             name = target.name
-            output.write(f"{space}Havoc(self.{name})\n")
-        case s.Assume(_, cond):
+            output.write(f"{space}Havoc(self.{name})")
+            output.write(f" #{pos.unique}\n")
+        case s.Assume(pos, cond):
             output.write(f"{space}Assume(")
             expr2py(output, cond)
-            output.write(")\n")
-        case s.Assert(_, cond):
+            output.write(")")
+            output.write(f" #{pos.unique}\n")
+        case s.Assert(pos, cond):
             output.write(f"{space}assert ")
             expr2py(output, cond)
-            output.write("\n")
-        case s.Next(_, inst):
-            output.write(f"{space}self.{inst.name}.next()\n")
+            output.write(f" #{pos.unique}\n")
+        case s.Next(pos, inst):
+            output.write(f"{space}self.{inst.name}.next()")
+            output.write(f" #{pos.unique}\n")
         case s.HoleStmt(_):
             output.write(f"{space}??\n")
         case _:

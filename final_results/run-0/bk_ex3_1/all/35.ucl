@@ -1,0 +1,50 @@
+module TrafficLights {
+  var green1: boolean;
+  var green2: boolean;
+  var red1: boolean;
+  var red2: boolean;
+  var traffic_light1: boolean;
+  var traffic_light2: boolean;
+
+  init {
+    traffic_light1 = false; //38
+    traffic_light2 = false; //42
+    green1 = false; //46
+    red1 = true; //50
+    green2 = true; //54
+    red2 = false; //58
+
+  }
+  next {
+    if (traffic_light1 && traffic_light2) {
+      green1' = !green1; //72
+      red1' = !red1; //78
+      green2' = !green2; //84
+      red2' = !red2; //90
+    } else {
+      if (traffic_light1) {
+        green1' = !green1; //100
+        red1' = !red1; //106
+      } else {
+        if (traffic_light2) {
+          green2' = !green2; //116
+          red2' = !red2; //122
+        }
+      }
+    }
+
+  }
+  invariant traffic_light1_inv : (traffic_light1 == (green1 != red1));
+  invariant traffic_light2_inv : (traffic_light2 == (green2 != red2));
+  invariant green1_inv : (green1 != red1);
+  invariant red1_inv : (green1 != red1);
+  invariant green2_inv : (green2 != red2);
+  invariant red2_inv : (green2 != red2);
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

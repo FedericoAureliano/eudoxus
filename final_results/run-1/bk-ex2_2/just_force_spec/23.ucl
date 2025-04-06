@@ -1,0 +1,58 @@
+module BeverageVendingMachine {
+  var state: enum { beer, pay, select, soda };
+  var coin_inserted: boolean;
+  var drink_delivered: boolean;
+
+  init {
+    state = pay; //30
+    coin_inserted = false; //34
+    drink_delivered = false; //38
+
+  }
+  next {
+    if (state == pay) {
+      if (coin_inserted) {
+        state' = select; //53
+      }
+    } else {
+      if (state == select) {
+        if (coin_inserted) {
+          if (drink_delivered) {
+            drink_delivered' = false; //72
+          } else {
+            state' = soda; //77
+          }
+        } else {
+          state' = pay; //83
+        }
+      } else {
+        if (state == soda) {
+          if (drink_delivered) {
+            drink_delivered' = false; //98
+          } else {
+            state' = beer; //103
+          }
+        } else {
+          if (state == beer) {
+            if (drink_delivered) {
+              drink_delivered' = false; //118
+            } else {
+              state' = beer; //123
+            }
+          }
+        }
+      }
+    }
+
+  }
+  invariant state_inv : ((state == soda) ==> coin_inserted);
+  invariant coin_inserted_inv : (coin_inserted ==> (state == select));
+  invariant drink_delivered_inv : (drink_delivered ==> ((state == soda) || (state == beer)));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

@@ -1,0 +1,55 @@
+module Module {
+  var bool: boolean;
+  var buckled: boolean;
+  var ignition: boolean;
+  var time: integer;
+  var beep: boolean;
+  var light: boolean;
+
+  input situation: boolean;
+
+  init {
+    time = 0; //43
+    ignition = false; //47
+    buckled = false; //51
+    beep = false; //55
+    light = false; //59
+
+  }
+  next {
+    if (situation) {
+      ignition' = true; //68
+      buckled' = false; //72
+      time' = 0; //76
+    } else {
+      if (ignition && !light) {
+        time' = (time + 1); //91
+        if ((time >= 30) || buckled) {
+          beep' = false; //104
+        } else {
+          if (!buckled) {
+            beep' = true; //113
+          }
+        }
+      } else {
+        if (ignition && light) {
+          buckled' = false; //127
+          light' = false; //131
+        }
+      }
+    }
+
+  }
+  invariant buckled_inv : (forall (x0:boolean) :: ((buckled == x0) ==> x0));
+  invariant ignition_inv : bool;
+  invariant time_inv : bool;
+  invariant beep_inv : bool;
+  invariant light_inv : (ignition && buckled);
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

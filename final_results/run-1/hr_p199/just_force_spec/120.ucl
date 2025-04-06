@@ -1,0 +1,107 @@
+module FerryPuzzle {
+  type Location = integer;
+  type Goods = integer;
+  type Carried = integer;
+
+  var else_: integer;
+  var cabbage_inv: boolean;
+  var ferryman_inv: boolean;
+  var goal_cabbage_inv: boolean;
+  var goal_carry_inv: boolean;
+  var goal_ferryman_inv: boolean;
+  var goal_goat_inv: boolean;
+  var goal_wolf_inv: boolean;
+  var goat_inv: boolean;
+  var wolf_inv: boolean;
+  var ferryman: Location;
+  var goat: Goods;
+  var cabbage: Goods;
+  var wolf: Goods;
+  var carry: Carried;
+  var goal_ferryman: Location;
+  var goal_goat: Goods;
+  var goal_cabbage: Goods;
+  var goal_wolf: Goods;
+  var goal_carry: Carried;
+
+  init {
+    ferryman = 0; //107
+    goat = 0; //111
+    cabbage = 0; //115
+    wolf = 0; //119
+    carry = 0; //123
+    goal_ferryman = 1; //127
+    goal_goat = 1; //131
+    goal_cabbage = 1; //135
+    goal_wolf = 1; //139
+    goal_carry = 0; //143
+
+  }
+  next {
+    if (carry == 0) {
+      if (ferryman == 0) {
+        if (((goat == 0) && (cabbage == 0)) || ((goat == 0) && (wolf == 0))) {
+          ferryman' = 1; //185
+          carry' = 1; //189
+        }
+      } else {
+        if ((goat == 0) && (wolf == 0)) {
+          ferryman' = 1; //208
+          goat' = 1; //212
+          wolf' = 1; //216
+          carry' = 1; //220
+        } else {
+          if ((goat == 0) && (cabbage == 0)) {
+            ferryman' = 1; //237
+            cabbage' = 1; //241
+            carry' = 1; //245
+          }
+        }
+      }
+      else_' = 0; //253
+      carry' = 0; //257
+    } else {
+      if (carry == 0) {
+        if (ferryman == 0) {
+          ferryman' = 1; //274
+          wolf' = 1; //278
+          carry' = 1; //282
+        }
+      } else {
+        if (carry == 0) {
+          if (ferryman == 0) {
+            ferryman' = 1; //301
+            goat' = 1; //305
+            carry' = 1; //309
+          }
+        } else {
+          if (carry == 0) {
+            if (ferryman == 0) {
+              ferryman' = 1; //328
+              cabbage' = 1; //332
+              carry' = 1; //336
+            }
+          }
+        }
+      }
+    }
+
+  }
+  invariant ferryman_inv : ((ferryman == 0) && (ferryman == 1));
+  invariant goat_inv : ((goat == ferryman) || ((goat != ferryman) && ((goat == cabbage) && (goat == wolf))));
+  invariant cabbage_inv : ((cabbage == ferryman) || ((cabbage != ferryman) && (goat == cabbage)));
+  invariant wolf_inv : ((wolf == ferryman) || ((wolf != ferryman) && (goat == wolf)));
+  invariant carry_inv : (carry <= 1);
+  invariant goal_ferryman_inv : (goal_ferryman == 1);
+  invariant goal_goat_inv : (goal_goat == 1);
+  invariant goal_cabbage_inv : (goal_cabbage == 1);
+  invariant goal_wolf_inv : (goal_wolf == 1);
+  invariant goal_carry_inv : (goal_carry == 0);
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

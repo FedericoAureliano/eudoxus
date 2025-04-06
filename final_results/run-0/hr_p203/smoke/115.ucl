@@ -1,0 +1,57 @@
+module AlternatingBitProtocol {
+  type State = bv1;
+  type Message = bv8;
+  type Control = bv1;
+
+  var receiver_ack: bv1;
+  var st: State;
+  var message1: Message;
+  var message2: Message;
+  var ack: Control;
+
+  input sender_msg: Message;
+
+  output sender_ack: Control;
+  output receiver_msg: Message;
+
+  procedure step()
+    modifies receiver_ack;
+    modifies st;
+    modifies message1;
+    modifies sender_ack;
+    modifies message2;
+  {
+    if (st == 0bv1) {
+      sender_ack = 0bv1; //78
+      if (receiver_ack == 0bv1) {
+        st = 1bv1; //94
+        message1 = sender_msg; //99
+      }
+    } else {
+      if (st == 1bv1) {
+        sender_ack = 1bv1; //118
+        if (receiver_ack == 1bv1) {
+          st = 0bv1; //134
+          message2 = sender_msg; //139
+        }
+      }
+    }
+    if (sender_ack != ack) {
+      sender_ack = ack; //156
+    }
+    if (receiver_msg == 0bv8) {
+      receiver_ack = ack; //172
+    }
+  }
+
+  next {
+    call step();
+  }
+  invariant spec: (receiver_ack == ack);
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

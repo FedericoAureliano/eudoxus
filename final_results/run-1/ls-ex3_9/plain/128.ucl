@@ -1,0 +1,69 @@
+module TrafficLight {
+  type String = enum { green, pending, red, yellow };
+
+  var count: integer;
+  var pedestrian: boolean;
+  var sigG: boolean;
+  var sigR: boolean;
+  var sigY: boolean;
+  var state: String;
+  var t_g: integer;
+  var t_y: integer;
+
+  init {
+    state = red; //55
+    sigR = true; //59
+    sigY = false; //63
+    sigG = false; //67
+    pedestrian = false; //71
+    count = 0; //75
+    t_g = 0; //79
+    t_y = 0; //83
+
+  }
+  next {
+    if (state == red) {
+      if (count < 60) {
+        count' = (count + 1); //104
+      } else {
+        state' = green; //109
+        sigG' = true; //113
+        sigR' = false; //117
+        count' = 0; //121
+      }
+    } else {
+      if (state == green) {
+        if (pedestrian) {
+          if (t_g >= 60) {
+            state' = yellow; //142
+            sigG' = false; //146
+            sigY' = true; //150
+            t_y' = 0; //154
+          } else {
+            state' = pending; //159
+          }
+        } else {
+          t_g' = (t_g + 1); //168
+        }
+      } else {
+        if (state == yellow) {
+          if (t_y < 5) {
+            t_y' = (t_y + 1); //189
+          } else {
+            state' = red; //194
+            sigY' = false; //198
+            sigR' = true; //202
+          }
+        } else {
+          if (state == pending) {
+            state' = yellow; //214
+            sigG' = false; //218
+            sigY' = true; //222
+            t_y' = 0; //226
+          }
+        }
+      }
+    }
+
+  }
+}

@@ -1,0 +1,76 @@
+module Module {
+  var mG: boolean;
+  var mR: boolean;
+  var mY: boolean;
+  var mainGreen: boolean;
+  var mainRed: boolean;
+  var mainYellow: boolean;
+  var sG: boolean;
+  var sR: boolean;
+  var sY: boolean;
+  var secondaryGreen: boolean;
+  var secondaryRed: boolean;
+  var secondaryYellow: boolean;
+  var vehicleDetected: boolean;
+
+  init {
+    mainGreen = true; //66
+    mainYellow = false; //70
+    mainRed = false; //74
+    secondaryGreen = false; //78
+    secondaryYellow = false; //82
+    secondaryRed = false; //86
+    vehicleDetected = false; //90
+
+  }
+  procedure step()
+    modifies sY;
+    modifies mR;
+    modifies mG;
+    modifies sR;
+    modifies mY;
+    modifies sG;
+  {
+    if (vehicleDetected) {
+      mG = false; //99
+      mY = false; //103
+      mR = true; //107
+      sG = false; //111
+      sY = false; //115
+      sR = true; //119
+    } else {
+      mG = true; //124
+      mY = false; //128
+      mR = false; //132
+      sG = false; //136
+      sY = false; //140
+      sR = true; //144
+      if (mainGreen) {
+        sG = true; //151
+        sR = false; //155
+        if (mainYellow) {
+          mG = false; //162
+          mY = true; //166
+          mR = false; //170
+        }
+      }
+    }
+  }
+
+  next {
+    call step();
+  }
+  invariant mG_inv : ((((sR && !mY) && !mR) && !sG) && !sY);
+  invariant mY_inv : ((((sR && !mG) && !mR) && !sG) && !sY);
+  invariant mR_inv : (((sG || sY) && !mG) && !mY);
+  invariant sG_inv : ((((mR && !sY) && !sR) && !mG) && !mY);
+  invariant sY_inv : ((((mR && !sG) && !sR) && !mG) && !mY);
+  invariant sR_inv : (((mG || mY) && !sG) && !sY);
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

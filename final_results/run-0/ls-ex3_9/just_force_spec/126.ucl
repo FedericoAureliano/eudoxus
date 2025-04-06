@@ -1,0 +1,84 @@
+module Module {
+  var count: integer;
+  var pedestrian: boolean;
+  var sigG: boolean;
+  var sigR: boolean;
+  var sigY: boolean;
+  var state: record {  };
+
+  init {
+    sigG = false; //38
+    sigY = false; //42
+    sigR = true; //46
+    pedestrian = false; //50
+    count = 0; //54
+
+  }
+  procedure step()
+    modifies sigR;
+    modifies sigG;
+    modifies count;
+    modifies pedestrian;
+    modifies sigY;
+  {
+    if (state.val == 0) {
+      count = (count + 1); //71
+      if (count == 60) {
+        state.val = 1; //83
+        count = 0; //87
+        sigR = false; //91
+        sigG = true; //95
+      } else {
+        sigR = true; //100
+      }
+    } else {
+      if (state.val == 1) {
+        if (pedestrian) {
+          if (count >= 60) {
+            state.val = 2; //125
+            count = 0; //129
+            sigG = false; //133
+            sigY = true; //137
+          } else {
+            count = (count + 1); //145
+            sigG = true; //149
+          }
+        } else {
+          count = 0; //155
+          sigG = true; //159
+        }
+      } else {
+        if (state.val == 2) {
+          count = (count + 1); //176
+          if (count == 5) {
+            state.val = 0; //188
+            count = 0; //192
+            sigY = false; //196
+            sigR = true; //200
+          } else {
+            sigY = true; //205
+          }
+        }
+      }
+    }
+    pedestrian = false; //214
+  }
+
+  next {
+    call step();
+  }
+  invariant count_inv : ((count >= 0) && (count <= 60));
+  invariant count_bounds : count_inv;
+  invariant pedestrian_inv : !pedestrian;
+  invariant sigG_inv : (sigG && (state.val == 0));
+  invariant sigY_inv : (sigY && (state.val == 2));
+  invariant sigR_inv : ((state.val == 0) || (state.val == 2));
+  invariant state_inv : ((state.val == 2) || ((state.val == 0) || (state.val == 1)));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

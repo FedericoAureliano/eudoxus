@@ -1,0 +1,45 @@
+module ABP {
+  type Bit = integer;
+
+  var ack: Bit;
+  var control_bit: Bit;
+  var sender_state: Bit;
+  var receiver_state: Bit;
+
+  input sender_input: Bit;
+  input receiver_input: Bit;
+
+  output sender_output: Bit;
+  output receiver_output: Bit;
+
+  next {
+    sender_output' = control_bit; //55
+    receiver_output' = control_bit; //60
+    if ((sender_state == 0) && (sender_input == control_bit)) {
+      sender_state' = 1; //77
+    } else {
+      if ((sender_state == 1) && (ack == control_bit)) {
+        sender_state' = 0; //95
+      }
+    }
+    if ((receiver_state == 0) && (receiver_input == control_bit)) {
+      receiver_state' = 1; //115
+    } else {
+      if ((receiver_state == 1) && (ack != control_bit)) {
+        receiver_state' = 0; //133
+      }
+    }
+
+  }
+  invariant sender_state_inv : (((sender_state == 0) == (sender_input != control_bit)) || (ack != control_bit));
+  invariant receiver_state_inv : (((receiver_state == 0) == (receiver_input != control_bit)) || (ack == control_bit));
+  invariant ack_inv : (ack == receiver_output);
+  invariant control_bit_inv : (control_bit == sender_output);
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

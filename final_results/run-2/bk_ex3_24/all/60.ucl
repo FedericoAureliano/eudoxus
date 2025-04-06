@@ -1,0 +1,38 @@
+module BeverageVendingMachine {
+  var coin: integer;
+  var coin_prev: integer;
+  var dispensed_drinks: integer;
+  var dispensed_prev: integer;
+  var safety_property: boolean;
+
+  init {
+    coin_prev = 0; //34
+    dispensed_prev = 0; //38
+    coin = 0; //42
+    dispensed_drinks = 0; //46
+    safety_property = (coin >= dispensed_drinks); //55
+
+  }
+  next {
+    coin_prev' = coin; //62
+    dispensed_prev' = dispensed_drinks; //67
+    if (coin_prev < coin) {
+      coin' = (coin_prev + 1); //81
+    }
+    if (dispensed_prev < dispensed_drinks) {
+      dispensed_drinks' = (dispensed_prev + 1); //97
+    }
+    safety_property' = (coin >= dispensed_drinks); //108
+
+  }
+  invariant coin_inv : (coin >= 0);
+  invariant dispensed_drinks_inv : (dispensed_drinks >= 0);
+  invariant safety_property_inv : (safety_property == (coin >= dispensed_drinks));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

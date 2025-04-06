@@ -1,0 +1,44 @@
+module Module {
+  type BitVec = record {  };
+
+  var Lights: BitVec;
+  var L1: Lights;
+  var L2: Lights;
+  var L3: Lights;
+  var L4: Lights;
+
+  init {
+    L1 = Lights.green; //42
+    L2 = Lights.red; //49
+    L3 = Lights.red; //56
+    L4 = Lights.red; //63
+
+  }
+  next {
+    if ((L1 == Lights.green) && (L3 == Lights.green)) {
+      L1' = Lights.amber; //90
+      L3' = Lights.amber; //97
+    } else {
+      if (L2 == Lights.green) {
+        L2' = Lights.amber; //114
+      } else {
+        L4' = Lights.green; //122
+      }
+    }
+
+  }
+  invariant controller_logic_inv : ((L4 == Lights.green) || (((L1 == Lights.green) && (L3 == Lights.green)) || (L2 == Lights.green)));
+  invariant cycles_inv : ((if (L2 == Lights.amber) then (L2 == Lights.green) else true) && ((if (L1 == Lights.amber) then (L1 == Lights.green) else true) && (if (L3 == Lights.amber) then (L3 == Lights.green) else true)));
+  invariant l1_l3_inv : ((L1 == Lights.green) && (L3 == Lights.green));
+  invariant L1_inv : !((L1 == Lights.red) && ((L1 == Lights.amber) || (L1 == Lights.yellow)));
+  invariant L2_inv : !((L2 == Lights.yellow) || ((L2 == Lights.red) || (L2 == Lights.green)));
+  invariant L3_inv : !((L3 == Lights.red) || ((L3 == Lights.amber) || (L3 == Lights.yellow)));
+  invariant L4_inv : !((L4 == Lights.yellow) || ((L4 == Lights.red) || (L4 == Lights.green)));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

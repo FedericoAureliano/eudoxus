@@ -1,0 +1,31 @@
+module Railroad {
+  var train_state: bv2;
+  var controller_state: bv2;
+  var gate_state: bv2;
+
+  next {
+    if ((controller_state == 0bv2) && (train_state == 1bv2)) {
+      controller_state' = 1bv2; //51
+    } else {
+      if ((controller_state == 1bv2) && (gate_state == 1bv2)) {
+        controller_state' = 2bv2; //77
+      } else {
+        if ((controller_state == 2bv2) && (train_state == 2bv2)) {
+          controller_state' = 3bv2; //103
+        } else {
+          if ((controller_state == 3bv2) && (gate_state == 1bv2)) {
+            controller_state' = 0bv2; //129
+          }
+        }
+      }
+    }
+
+  }
+  invariant spec: (if (train_state == 2bv2) then (gate_state == 1bv2) else true);
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

@@ -1,0 +1,45 @@
+module MutualExclusion {
+  var guarantee_mutual_exclusion: boolean;
+  var guarantee_starvation_freedom: boolean;
+  var i: boolean;
+  var s: boolean;
+  var s_i: boolean;
+  var s_not_i: boolean;
+  var y0_i: boolean;
+  var y0: boolean;
+  var y1: boolean;
+
+  init {
+    s = true; //50
+    y0 = false; //54
+    y1 = false; //58
+
+  }
+  next {
+    y0_i' = (y1 == true); //68
+    s_not_i' = (s != i); //77
+    s_i' = (s == i); //86
+    s' = (if (y1) then i else s); //96
+    y0' = (if (s_i) then i else y0); //106
+    y1' = (if (s_not_i) then i else y1); //116
+    guarantee_mutual_exclusion' = (y0 && y1); //124
+    guarantee_starvation_freedom' = true; //128
+
+  }
+  invariant s_i_inv : (s == i);
+  invariant s_not_i_inv : (s != i);
+  invariant y0_i_inv : (y1 == false);
+  invariant s_inv : ((s == false) || (s == true));
+  invariant y0_inv : ((y0 == false) || (y0 == true));
+  invariant y1_inv : ((y1 == false) || (y1 == true));
+  invariant i_inv : ((i == false) || (i == true));
+  invariant guarantee_mutual_exclusion_inv : (guarantee_mutual_exclusion == true);
+  invariant guarantee_starvation_freedom_inv : (guarantee_starvation_freedom == true);
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

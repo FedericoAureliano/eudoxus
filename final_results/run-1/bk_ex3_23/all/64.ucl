@@ -1,0 +1,39 @@
+module TrafficLight {
+  var red: boolean;
+  var green: boolean;
+  var yellow: boolean;
+  var prev_state: boolean;
+
+  init {
+    red = false; //30
+    green = false; //34
+    yellow = false; //38
+    prev_state = false; //42
+
+  }
+  next {
+    if (yellow) {
+      prev_state' = true; //51
+    } else {
+      if (red && prev_state) {
+        prev_state' = false; //62
+      } else {
+        if (red && !prev_state) {
+          assert false; //72
+        }
+      }
+    }
+
+  }
+  invariant red_inv : !(green && yellow);
+  invariant green_inv : !(red && yellow);
+  invariant yellow_inv : !(red && green);
+  invariant prev_state_inv : (yellow && (red && !green));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

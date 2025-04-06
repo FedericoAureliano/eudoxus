@@ -1,0 +1,90 @@
+module TrafficLight {
+  var count: integer;
+  var pedestrian: boolean;
+  var sigG: boolean;
+  var sigR: boolean;
+  var sigY: boolean;
+  var state: integer;
+
+  init {
+    sigR = true; //38
+    sigG = false; //42
+    sigY = false; //46
+    count = 0; //50
+    state = 0; //54
+
+  }
+  procedure step()
+    modifies count;
+    modifies sigY;
+    modifies sigR;
+    modifies sigG;
+    modifies state;
+  {
+    if (state == 0) {
+      sigR = true; //66
+      sigG = false; //70
+      sigY = false; //74
+      count = (count + 1); //81
+      if (count == 60) {
+        state = 1; //91
+        count = 0; //95
+      }
+    } else {
+      if (state == 1) {
+        sigR = false; //108
+        sigG = true; //112
+        sigY = false; //116
+        count = (count + 1); //123
+        if (pedestrian) {
+          if (count == 60) {
+            state = 2; //136
+            count = 0; //140
+          } else {
+            state = 3; //145
+            count = 0; //149
+          }
+        }
+      } else {
+        if (state == 2) {
+          sigR = false; //163
+          sigG = false; //167
+          sigY = true; //171
+          count = (count + 1); //178
+          if (count == 5) {
+            state = 0; //188
+            count = 0; //192
+          }
+        } else {
+          if (state == 3) {
+            sigR = false; //205
+            sigG = false; //209
+            sigY = false; //213
+            count = (count + 1); //220
+            if (count == 60) {
+              state = 2; //230
+              count = 0; //234
+            }
+          }
+        }
+      }
+    }
+  }
+
+  next {
+    call step();
+  }
+  invariant pedestrian_inv : ((pedestrian == true) || (pedestrian == false));
+  invariant state_inv : ((((state == 0) || (state == 1)) || (state == 2)) || (state == 3));
+  invariant sigR_inv : (sigR == (state == 0));
+  invariant sigG_inv : (sigG == (state == 1));
+  invariant sigY_inv : (sigY == (state == 2));
+  invariant count_inv : ((count >= 0) && (((state == 2) && (count <= 5)) || (((state == 0) || (state == 1)) && (count <= 60))));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

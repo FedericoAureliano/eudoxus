@@ -1,0 +1,49 @@
+module TrafficLights {
+  type Range = bv2;
+  type state = integer;
+
+  var L1: state;
+  var L2: state;
+  var L3: state;
+  var L4: state;
+
+  init {
+    L1 = 1; //40
+    L2 = 2; //44
+    L3 = 1; //48
+    L4 = 2; //52
+
+  }
+  next {
+    if ((L1 == 1) && (L3 == 1)) {
+      L1' = 3; //70
+      L3' = 3; //74
+    } else {
+      if ((L1 == 3) && (L3 == 3)) {
+        L1' = 4; //91
+        L3' = 4; //95
+        L2' = 1; //99
+      } else {
+        if (L2 == 1) {
+          L2' = 3; //110
+        } else {
+          if (L4 == 2) {
+            L4' = 1; //121
+          }
+        }
+      }
+    }
+
+  }
+  invariant L1_inv : ((L1 == 1) ==> (L3 == 1));
+  invariant L2_inv : ((L2 != 1) ==> (L2 == 3));
+  invariant L3_inv : ((L3 == 1) ==> (L1 == 1));
+  invariant L4_inv : ((L4 == 2) || (L4 == 1));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

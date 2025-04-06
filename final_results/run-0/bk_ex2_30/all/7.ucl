@@ -1,0 +1,20 @@
+module Module {
+  var train_state: enum { far, in_, near };
+  var gate_state: enum { down, up };
+  var controller_state: real;
+
+  instance train: Train();
+  instance gate: Gate();
+  instance controller: Controller();
+
+  invariant gate_state_inv : ((gate.gate_state == up) ==> (controller.controller_state == 0));
+  invariant controller_state_inv : ((controller.controller_state == 2) ==> (train.train_state == in_));
+  invariant train_state_inv : ((train.train_state == in_) ==> (gate.gate_state == down));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

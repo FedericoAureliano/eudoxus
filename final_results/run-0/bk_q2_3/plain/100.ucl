@@ -1,0 +1,50 @@
+module StreetJunction {
+  var State: record { red: bv2, green: bv2 };
+  var L1: bv2;
+  var L2: bv2;
+  var L3: bv2;
+  var L4: bv2;
+  var controller_state: bv2;
+
+  init {
+    L1 = State.green; //54
+    L2 = State.red; //61
+    L3 = State.green; //68
+    L4 = State.red; //75
+    controller_state = 0bv2; //82
+
+  }
+  next {
+    if (controller_state == 0bv2) {
+      L1' = State.green; //100
+      L2' = State.red; //107
+      L3' = State.green; //114
+      L4' = State.red; //121
+      controller_state' = 1bv2; //128
+    } else {
+      if (controller_state == 1bv2) {
+        L1' = State.red; //145
+        L2' = State.green; //152
+        L3' = State.red; //159
+        L4' = State.red; //166
+        controller_state' = 2bv2; //173
+      } else {
+        if (controller_state == 2bv2) {
+          L1' = State.red; //190
+          L2' = State.red; //197
+          L3' = State.red; //204
+          L4' = State.green; //211
+          controller_state' = 0bv2; //218
+        }
+      }
+    }
+
+  }
+  invariant spec: true;
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

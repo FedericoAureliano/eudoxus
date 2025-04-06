@@ -1,0 +1,34 @@
+module SynchronousComposition {
+  var r1: boolean;
+  var r2: boolean;
+
+  input x2: boolean;
+
+  output y1: boolean;
+  output y2: boolean;
+
+  init {
+    r1 = false; //36
+    r2 = false; //40
+
+  }
+  next {
+    y1' = r1; //47
+    r1' = !r1; //53
+    y2' = (x2 || r2); //61
+    r2' = (x2 || r2); //69
+
+  }
+  invariant y1_inv : (y1 == r1);
+  invariant r1_inv : ((r1 == true) || (r1 == false));
+  invariant x2_inv : ((x2 == true) || (x2 == false));
+  invariant y2_inv : (y2 == (x2 || r2));
+  invariant r2_inv : (r2 == (x2 || r2));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

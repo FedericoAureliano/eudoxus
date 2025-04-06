@@ -1,0 +1,111 @@
+module TrafficLights {
+  type BitVec = bv1;
+  type Bit = BitVec;
+
+  var states: record { YELLOW: bv1, RED: record {  }, GREEN: record {  } };
+  var mState: record { RED: State_T, YELLOW: State_T, GREEN: State_T };
+  var sState_inv: BitVec;
+  var sState: State_T;
+  var timer: bv12;
+
+  input vehicle_detected: boolean;
+
+  output mG: Bit;
+  output mY: Bit;
+  output mR: Bit;
+  output sG: Bit;
+  output sY: Bit;
+  output sR: Bit;
+
+  init {
+    timer = 0bv12; //97
+    sState = State_T.GREEN; //104
+    timer = 0bv12; //111
+
+  }
+  procedure step()
+    modifies timer;
+    modifies mG;
+    modifies sG;
+    modifies mState;
+    modifies State_T;
+    modifies sY;
+    modifies mR;
+    modifies sState;
+    modifies sR;
+    modifies mY;
+  {
+    if (vehicle_detected) {
+      timer = ((timer + 1bv12) % 240bv12); //131
+      if (State_T == mState.RED) {
+        mG = 1bv1; //147
+        mY = 0bv1; //154
+        mR = 0bv1; //161
+      } else {
+        if (State_T == mState.YELLOW) {
+          mG = 0bv1; //178
+          mY = 1bv1; //185
+          mR = 0bv1; //192
+        } else {
+          if (State_T == mState.GREEN) {
+            mG = 0bv1; //209
+            mY = 0bv1; //216
+            mR = 1bv1; //223
+            if (timer == 180bv12) {
+              State_T = sState; //237
+              timer = 0bv12; //244
+            }
+          }
+        }
+      }
+    } else {
+      mG = 0bv1; //258
+      mY = 1bv1; //265
+      mR = 0bv1; //272
+      sG = 0bv1; //279
+      sY = 0bv1; //286
+      sR = 1bv1; //293
+      mState = sState; //298
+      if (timer < 5bv12) {
+        timer = (timer + 1bv12); //317
+      } else {
+        if (timer == 5bv12) {
+          timer = 0bv12; //334
+          sState = State_T.YELLOW; //341
+          if (State_T == sState.RED) {
+            sG = 1bv1; //357
+            sY = 0bv1; //364
+            sR = 0bv1; //371
+          }
+          if (timer == 55bv12) {
+            sState = State_T.RED; //389
+            sG = 0bv1; //396
+            sY = 0bv1; //403
+            sR = 1bv1; //410
+          }
+        }
+      }
+    }
+  }
+
+  next {
+    call step();
+  }
+  invariant vehicle_detected_inv : ((vehicle_detected == true) || (vehicle_detected == false));
+  invariant mstate_inv : (sState == mState);
+  invariant sState_inv : (mState == sState);
+  invariant mG_inv : (State_T == mState.GREEN);
+  invariant mY_inv : (State_T == mState.YELLOW);
+  invariant mR_inv : (State_T == mState.RED);
+  invariant sG_inv : (sState == State_T.GREEN);
+  invariant sY_inv : (sState == State_T.YELLOW);
+  invariant sR_inv : (sState == State_T.RED);
+  invariant timer_inv : (timer < 240bv12);
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

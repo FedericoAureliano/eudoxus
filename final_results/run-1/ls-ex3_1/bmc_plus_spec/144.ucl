@@ -1,0 +1,56 @@
+module Module {
+  var count: bv8;
+  var arrival: bv2;
+  var departure: bv3;
+
+  instance arrival_detector: ArrivalDetector();
+  instance departure_detector: DepartureDetector();
+  instance counter_actor: Counter();
+
+  init {
+    count = 0bv8; //42
+
+  }
+  next {
+    if arrival_detector.event {
+      counter_actor.count' = (counter_actor.count + 1); //60
+    } else {
+      if departure_detector.event {
+        counter_actor.count' = (counter_actor.count - 1); //77
+      }
+    }
+
+  }
+}
+module ArrivalDetector {
+  var arrival: bv2;
+  var event: bv4;
+
+}
+module DepartureDetector {
+  var departure: bv3;
+  var event: bv5;
+
+}
+module Counter {
+  var arrival: bv2;
+  var departure: bv3;
+  var count: bv8;
+  var i: bv8;
+
+  init {
+    count = i; //164
+
+  }
+  invariant count_inv : (count >= 0bv8);
+  invariant arrival_inv : (arrival >= 0bv2);
+  invariant departure_inv : (departure >= 0bv3);
+  invariant counter_inv : (count >= 0bv8);
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

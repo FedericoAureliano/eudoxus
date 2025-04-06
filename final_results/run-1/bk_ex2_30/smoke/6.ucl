@@ -1,0 +1,49 @@
+module RailroadSystem {
+  var train_state: bv2;
+  var controller_state: bv2;
+  var gate_state: bv1;
+
+  init {
+    train_state = 0bv2; //32
+    controller_state = 0bv2; //39
+    gate_state = 0bv1; //46
+
+  }
+  next {
+    if (train_state == 1bv2) {
+      controller_state' = ((controller_state + 1bv2) % 4bv2); //72
+    } else {
+      if (train_state == 2bv2) {
+        gate_state' = 1bv1; //89
+        controller_state' = ((controller_state + 1bv2) % 4bv2); //104
+      } else {
+        if (controller_state == 2bv2) {
+          gate_state' = 1bv1; //121
+          controller_state' = ((controller_state + 1bv2) % 4bv2); //136
+        } else {
+          if (train_state == 3bv2) {
+            controller_state' = ((controller_state + 1bv2) % 4bv2); //161
+            gate_state' = 0bv1; //168
+          } else {
+            if (controller_state == 1bv2) {
+              controller_state' = 0bv2; //185
+            } else {
+              if (controller_state == 3bv2) {
+                gate_state' = 0bv1; //202
+                controller_state' = 0bv2; //209
+              }
+            }
+          }
+        }
+      }
+    }
+
+  }
+  invariant spec: true;
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

@@ -1,0 +1,49 @@
+module AlternatingBitProtocol {
+  type Bit = integer;
+
+  var st: integer;
+  var sender_ready: Bit;
+  var receiver_ready: Bit;
+
+  input sender_message: Bit;
+  input receiver_message: Bit;
+
+  output sender_ack: Bit;
+  output receiver_ack: Bit;
+
+  init {
+    sender_ready = 1; //49
+    receiver_ready = 0; //53
+
+  }
+  procedure step()
+    modifies sender_ready;
+    modifies sender_ack;
+    modifies receiver_ready;
+    modifies receiver_ack;
+  {
+    if (sender_ready == 1) {
+      sender_ready = 0; //65
+      receiver_ready = 1; //69
+      sender_ack = st; //74
+    }
+    if (receiver_ready == 1) {
+      if (receiver_message == st) {
+        receiver_ack = st; //94
+        receiver_ready = 0; //98
+        sender_ready = 1; //102
+      }
+    }
+  }
+
+  next {
+    call step();
+  }
+  invariant spec: ((((sender_ready == 1) || (receiver_ready == 1)) && ((receiver_message == st) && (sender_ack == 0))) || ((sender_message == st) && (receiver_ack == 1)));
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

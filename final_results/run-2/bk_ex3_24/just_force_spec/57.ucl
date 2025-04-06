@@ -1,0 +1,37 @@
+module BeverageVendingMachine {
+  var coin: integer;
+  var coin_inserted: boolean;
+  var dispensed_drinks: integer;
+  var inserted_coins: integer;
+
+  init {
+    inserted_coins = 0; //30
+
+  }
+  procedure step()
+    modifies coin_inserted;
+    modifies inserted_coins;
+  {
+    coin_inserted = (coin > 0); //40
+    if (coin_inserted) {
+      inserted_coins = (inserted_coins + coin); //51
+      if (dispensed_drinks > inserted_coins) {
+        inserted_coins = dispensed_drinks; //63
+      }
+    }
+  }
+
+  next {
+    call step();
+  }
+  invariant inserted_coins_inv : (inserted_coins >= 0);
+  invariant dispensed_drinks_inv : (dispensed_drinks >= 0);
+  invariant inserted_coins_dispensed_inv : (inserted_coins >= dispensed_drinks);
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

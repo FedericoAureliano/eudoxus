@@ -1,0 +1,49 @@
+module RailroadCrossing {
+  var controller_state: real;
+  var controller_state_next: real;
+  var gate_state: integer;
+  var gate_state_next: integer;
+  var train_state: bv2;
+  var train_state_next: bv2;
+
+  procedure step()
+    modifies controller_state;
+    modifies controller_state_next;
+    modifies gate_state_next;
+    modifies train_state;
+    modifies gate_state;
+    modifies train_state_next;
+  {
+    train_state_next = train_state; //42
+    controller_state_next = controller_state; //47
+    gate_state_next = gate_state; //52
+    if ((controller_state == 1.0) && (train_state == 1bv2)) {
+      gate_state_next = 1; //71
+    } else {
+      if ((controller_state == 2.0) && (train_state == 0bv2)) {
+        controller_state_next = 2.0; //91
+      }
+    }
+    train_state = train_state_next; //99
+    controller_state = controller_state_next; //104
+    gate_state = gate_state_next; //109
+  }
+
+  next {
+    call step();
+  }
+  invariant train_state_inv : (train_state == 2bv2);
+  invariant controller_state_inv : ((controller_state == 0.0) || (controller_state == 3.0));
+  invariant controller_state_inv : ((train_state == 3bv2) && (gate_state == 0));
+  invariant controller_state_inv : (train_state == 0bv2);
+  invariant controller_state_inv : ((train_state == 2bv2) && (gate_state == 1));
+  invariant controller_state_inv : ((train_state == 1bv2) && (gate_state == 0));
+  invariant gate_state_inv : (train_state == 2bv2);
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

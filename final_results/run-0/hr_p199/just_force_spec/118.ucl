@@ -1,0 +1,65 @@
+module FerryPuzzle {
+  type State = boolean;
+
+  var ferryman: State;
+  var goat: State;
+  var cabbage: State;
+  var wolf: State;
+  var carry: State;
+
+  init {
+    ferryman = false; //39
+    goat = false; //43
+    cabbage = false; //47
+    wolf = false; //51
+    carry = false; //55
+
+  }
+  next {
+    ferryman' = !ferryman; //63
+    if (ferryman) {
+      if (carry) {
+        carry' = !carry; //75
+        if (goat) {
+          goat' = !goat; //84
+        } else {
+          if (cabbage) {
+            cabbage' = !cabbage; //94
+          } else {
+            if (wolf) {
+              wolf' = !wolf; //104
+            }
+          }
+        }
+      }
+    } else {
+      if (carry) {
+        carry' = !carry; //120
+        if (goat) {
+          goat' = !goat; //129
+        } else {
+          if (cabbage) {
+            cabbage' = !cabbage; //139
+          } else {
+            if (wolf) {
+              wolf' = !wolf; //149
+            }
+          }
+        }
+      }
+    }
+
+  }
+  invariant ferryman_inv : ferryman;
+  invariant goat_inv : !((ferryman && goat) && (cabbage || wolf));
+  invariant cabbage_inv : !((ferryman && cabbage) && goat);
+  invariant wolf_inv : !((ferryman && wolf) && goat);
+  invariant carry_inv : (carry == ferryman);
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

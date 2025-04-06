@@ -1,0 +1,32 @@
+module BookingSystem {
+  type Bit = boolean;
+
+  var BCR_state: Bit;
+  var BP_state: Bit;
+  var Printer_state: Bit;
+
+  next {
+    if (BCR_state == false) {
+      BCR_state' = true; //38
+    } else {
+      if (BP_state == false) {
+        BP_state' = true; //49
+      } else {
+        if (Printer_state == false) {
+          Printer_state' = true; //60
+        }
+      }
+    }
+
+  }
+  invariant BCR_state_inv : (BCR_state ==> !BP_state);
+  invariant BP_state_inv : (BP_state ==> !Printer_state);
+  invariant Printer_state_inv : (Printer_state ==> !BCR_state);
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

@@ -1,0 +1,54 @@
+module Sender {
+  var sent_message: bv8;
+
+  input m: bv8;
+  input b: boolean;
+
+  output c: Channel;
+
+  next {
+    if (!(c.ack == sent_message)) {
+      sent_message' = m; //46
+    }
+
+  }
+}
+module Receiver {
+  var received_message: real;
+
+  input d: Channel;
+
+  output m: bv8;
+  output b: boolean;
+
+  next {
+    if (d.msg == received_message) {
+      received_message' = d.msg; //97
+    }
+
+  }
+}
+module Channel {
+  var msg: bv8;
+
+  output ack: bv8;
+
+  procedure step()
+    modifies ack;
+    modifies msg;
+  {
+    if (msg == ack) {
+      ack = msg; //136
+    }
+    if (ack != msg) {
+      msg = ack; //150
+    }
+    if (ack == msg) {
+      msg = ack; //164
+    }
+  }
+
+  next {
+    call step();
+  }
+}

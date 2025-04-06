@@ -1,0 +1,131 @@
+module Sender {
+  type Bit = boolean;
+  type Message = bv8;
+  type Control = Bit;
+
+  var S_ctrl: boolean;
+  var S_msg: bv8;
+  var m: Message;
+  var b: Control;
+
+  input c: Bit;
+  input R_ack: Bit;
+  input timeout: Bit;
+
+  next {
+    if (timeout) {
+      S_msg' = m; //63
+      S_ctrl' = !b; //69
+    } else {
+      S_msg' = m; //75
+      S_ctrl' = b; //80
+    }
+
+  }
+}
+module Receiver {
+  type Bit = boolean;
+  type Message = bv8;
+  type Control = Bit;
+
+  var R_ack: boolean;
+  var c: boolean;
+  var c_inv: boolean;
+  var d_inv: boolean;
+  var m: Message;
+  var b: Control;
+  var ack: Bit;
+
+  input d: Bit;
+  input S_msg: boolean;
+  input S_ctrl: Bit;
+
+  output R_msg: boolean;
+  output R_ctrl: Bit;
+
+  next {
+    if (ack) {
+      R_msg' = S_msg; //167
+      R_ctrl' = b; //172
+    } else {
+      R_msg' = S_msg; //178
+      R_ctrl' = !b; //184
+    }
+
+  }
+  invariant R_msg : R_msg;
+  invariant ctrl_diff : (S_ctrl != R_ctrl);
+  invariant R_ack_false : (R_ack == false);
+  invariant S_msg : S_msg;
+  invariant S_ctrl : S_ctrl;
+  invariant R_ack_false1 : (R_ack == false);
+  invariant R_ack_true : (R_ack == true);
+  invariant msg_equal : (S_msg == R_msg);
+  invariant ctrl_equal : (S_ctrl == R_ctrl);
+  invariant ack : ack;
+  invariant s_ctrl_inv : S_ctrl;
+  invariant s_msg_inv : S_msg;
+  invariant r_msg_inv : R_msg;
+  invariant r_ctrl_inv : R_ctrl;
+  invariant c_inv : c;
+  invariant d_inv : !d;
+  invariant S_m_inv : S_msg;
+  invariant S_b_inv : S_ctrl;
+  invariant R_m_inv : R_msg;
+  invariant R_b_inv : R_ctrl;
+  invariant R_ack_inv : R_ack;
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}
+module Module {
+  type Bit = boolean;
+  type Message = bv8;
+  type Control = Bit;
+
+  var c: Bit;
+  var d: Bit;
+  var S_msg: Message;
+  var R_msg: Message;
+  var S_ctrl: Control;
+  var R_ctrl: Control;
+  var m: Message;
+  var b: Control;
+  var R_ack: Bit;
+  var ack: Bit;
+  var timeout: Bit;
+
+  next {
+    c' = S_ctrl; //367
+    d' = R_ctrl; //372
+    if (c) {
+      R_msg' = S_msg; //380
+      R_ctrl' = S_ctrl; //385
+      R_ack' = b; //390
+    } else {
+      R_msg' = R_msg; //396
+      R_ctrl' = d; //401
+      R_ack' = ack; //406
+    }
+    if (S_ctrl) {
+      S_msg' = m; //415
+      b' = !b; //421
+      timeout' = false; //425
+    } else {
+      if (timeout) {
+        S_msg' = m; //434
+        b' = b; //439
+        timeout' = true; //443
+      } else {
+        S_msg' = m; //449
+        b' = b; //454
+        timeout' = false; //458
+      }
+    }
+
+  }
+}

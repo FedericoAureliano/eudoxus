@@ -1,0 +1,43 @@
+module VendingMachine {
+  var beer_selected: boolean;
+  var coin_inserted: boolean;
+  var soda_selected: boolean;
+  var nsoda: bv4;
+  var nbeer: bv4;
+  var sget: boolean;
+  var bget: boolean;
+  var refill: boolean;
+  var coin: boolean;
+
+  next {
+    coin_inserted' = coin; //54
+    soda_selected' = sget; //59
+    beer_selected' = bget; //64
+    if (coin_inserted) {
+      coin' = coin_inserted; //72
+    } else {
+      if (soda_selected) {
+        nsoda' = (nsoda - 1bv4); //86
+      } else {
+        if (beer_selected) {
+          nbeer' = (nbeer - 1bv4); //100
+        }
+      }
+    }
+
+  }
+  invariant nsoda_inv : ((nsoda >= 0bv4) && (nsoda <= 15bv4));
+  invariant nbeer_inv : ((nbeer >= 0bv4) && (nbeer <= 15bv4));
+  invariant sget_inv : (sget ==> (nsoda > 0bv4));
+  invariant bget_inv : (bget ==> (nbeer > 0bv4));
+  invariant refill_inv : (refill ==> ((nsoda == 15bv4) && (nbeer == 15bv4)));
+  invariant coin_inv : (coin ==> coin_inserted);
+  invariant coin_inserted_inv : (coin_inserted ==> (!beer_selected && !soda_selected));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

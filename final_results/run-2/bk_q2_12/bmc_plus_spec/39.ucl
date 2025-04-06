@@ -1,0 +1,47 @@
+module LeaderElection {
+  var send: [integer]integer;
+  var n: integer;
+  var received: integer;
+  var id: integer;
+  var m: integer;
+
+  output leader: integer;
+
+  init {
+    received = 0; //43
+    id = 1; //47
+    leader =  -1; //52
+    n = id; //57
+    m = id; //62
+
+  }
+  procedure step()
+    modifies send;
+    modifies received;
+    modifies leader;
+  {
+    send = send[id -> id]; //73
+    received = send[(id - 1)]; //83
+    if (received == id) {
+      leader = id; //95
+    }
+    if (received > id) {
+      send = send[id -> received]; //113
+    }
+  }
+
+  next {
+    call step();
+  }
+  invariant id_inv : ((id >= 1) && (id <= n));
+  invariant m_inv : ((m == id) || ((m >= 1) && (m <= n)));
+  invariant received_inv : ((received >= 1) && (received <= n));
+  invariant leader_inv : (if (received == id) then (leader == id) else ((leader ==  -1) || (leader == id)));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

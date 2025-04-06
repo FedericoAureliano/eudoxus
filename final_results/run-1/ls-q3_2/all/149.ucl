@@ -1,0 +1,46 @@
+module Thermostat {
+  type Nat = bv32;
+
+  var temp: real;
+  var heatOn: boolean;
+  var heatOff: boolean;
+  var time: Nat;
+
+  init {
+    heatOn = false; //36
+    heatOff = true; //40
+    time = 0bv32; //47
+
+  }
+  next {
+    if (time == 0bv32) {
+      if (temp <= 20.0) {
+        heatOn' = true; //68
+        heatOff' = false; //72
+        time' = (time + 30bv32); //82
+      }
+    } else {
+      if (time == 30bv32) {
+        if (temp > 20.0) {
+          heatOn' = false; //104
+          heatOff' = true; //108
+          time' = (time + 120bv32); //118
+        }
+      } else {
+        time' = (time - 1bv32); //131
+      }
+    }
+
+  }
+  invariant temp_inv : ((time % 30bv32) == 0bv32);
+  invariant heatOn_inv : (((time >= 0bv32) && heatOn) && !heatOff);
+  invariant heatOff_inv : (((time >= 0bv32) && !heatOn) && heatOff);
+  invariant time_inv : ((time >= 0bv32) && ((time % 30bv32) == 0bv32));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

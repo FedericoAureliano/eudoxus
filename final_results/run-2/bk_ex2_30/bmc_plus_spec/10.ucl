@@ -1,0 +1,48 @@
+module RailroadCrossing {
+  type Bit = integer;
+
+  var train_state: record { state: Bit };
+  var controller_state: record { state: Bit };
+  var gate_state: record { state: Bit };
+
+  init {
+    train_state.state = 0; //42
+
+  }
+  next {
+    if ((train_state.state == 1) && (controller_state.state == 0)) {
+      controller_state.state' = 1; //66
+    } else {
+      if ((train_state.state == 1) && (controller_state.state == 1)) {
+        controller_state.state' = 2; //89
+      } else {
+        if ((train_state.state == 1) && (controller_state.state == 2)) {
+          controller_state.state' = 3; //112
+        } else {
+          if (controller_state.state == 3) {
+            controller_state.state' = 0; //127
+          }
+        }
+      }
+    }
+    if (controller_state.state == 0) {
+      gate_state.state' = 1; //146
+    } else {
+      if (controller_state.state == 2) {
+        gate_state.state' = 0; //161
+      }
+    }
+
+  }
+  invariant state_consistency_inv : ((train_state.state == 2) == (gate_state.state == 0));
+  invariant train_state_inv : (train_state.state != 2);
+  invariant controller_state_inv : ((controller_state.state < 0) || (controller_state.state > 3));
+  invariant gate_state_inv : ((gate_state.state == 0) ==> (controller_state.state == 0));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

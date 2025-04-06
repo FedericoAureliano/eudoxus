@@ -1,0 +1,29 @@
+module Module {
+  var display: integer;
+
+  instance arrivalDetector: ArrivalDetector();
+  instance departureDetector: DepartureDetector();
+  instance counter: Counter();
+  instance displayUpdater: DisplayUpdater();
+
+  next {
+    if arrivalDetector.event {
+      counter.count' = (counter.count + 1); //44
+    }
+    if departureDetector.event {
+      counter.count' = (counter.count - 1); //62
+    }
+    display' = counter.count; //71
+
+  }
+  invariant arrival : arrivalDetector.event;
+  invariant departure : departureDetector.event;
+  invariant counter : (display == counter.count);
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

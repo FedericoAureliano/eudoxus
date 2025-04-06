@@ -1,0 +1,55 @@
+module Module {
+  var controller_state: integer;
+  var gate_state: integer;
+  var train_state: enum { far, in_ };
+  var train_approaching: boolean;
+  var train_exiting: boolean;
+
+  input train_signal: boolean;
+
+  output gate_signal: integer;
+
+  next {
+    if (controller_state == 0) {
+      if (train_signal) {
+        controller_state' = 1; //56
+      }
+    } else {
+      if (controller_state == 1) {
+        gate_state' = 1; //69
+        controller_state' = 2; //73
+      } else {
+        if (controller_state == 2) {
+          if (train_exiting) {
+            controller_state' = 3; //87
+          }
+        } else {
+          if (controller_state == 3) {
+            gate_state' = 0; //100
+            controller_state' = 0; //104
+          }
+        }
+      }
+    }
+    if ((train_state == far) && (controller_state > 0)) {
+      gate_state' = 1; //125
+    } else {
+      if (train_state == in_) {
+        gate_state' = 1; //136
+      } else {
+        if ((train_state == far) && (controller_state == 0)) {
+          gate_state' = 0; //153
+        }
+      }
+    }
+    gate_signal' = gate_state; //162
+
+  }
+  invariant spec: ((gate_state == 0) || ((gate_state == 1) && (train_state != in_)));
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

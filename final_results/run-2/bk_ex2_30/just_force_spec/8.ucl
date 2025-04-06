@@ -1,0 +1,55 @@
+module RailroadCrossing {
+  var train_state: ??;
+  var approach_state: real;
+  var gate_state: ??;
+  var current_train_state: record { state: bv8 };
+  var current_controller_state: controller_state;
+  var current_gate_state: record { state: bv8 };
+
+  procedure step()
+    modifies current_train_state;
+    modifies current_gate_state;
+    modifies current_controller_state;
+  {
+    current_controller_state = current_controller_state; //48
+    if (current_controller_state == controller_state[0]) {
+      if (current_train_state == train_state[1bv8]) {
+        current_controller_state = controller_state[1]; //76
+      }
+    } else {
+      if (current_controller_state == controller_state[1]) {
+        if (current_gate_state == gate_state[0bv8]) {
+          current_controller_state = controller_state[2]; //107
+        }
+      } else {
+        if (current_controller_state == controller_state[2]) {
+          if (current_train_state == train_state[2bv8]) {
+            current_controller_state = controller_state[3]; //138
+          }
+        } else {
+          if (current_controller_state == controller_state[3]) {
+            if (current_gate_state == gate_state[1bv8]) {
+              current_controller_state = controller_state[0]; //169
+            }
+          }
+        }
+      }
+    }
+    current_train_state = train_state[current_train_state.state]; //186
+    current_gate_state = gate_state[current_gate_state.state]; //196
+  }
+
+  next {
+    call step();
+  }
+  invariant gate_state_inv : (?? && ??);
+  invariant current_controller_state_inv : (((current_controller_state == 3) && (current_controller_state == 2)) && ((current_controller_state == 0) && (current_controller_state == 1)));
+  invariant current_train_state_inv : ((current_train_state == train_state[2bv8]) && (current_gate_state == gate_state[1bv8]));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

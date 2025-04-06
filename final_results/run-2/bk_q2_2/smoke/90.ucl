@@ -1,0 +1,45 @@
+module Process {
+  var x: integer;
+  var i: integer;
+
+  init {
+    x = 0; //22
+    i = 0; //26
+
+  }
+  procedure step()
+    modifies i;
+    modifies x;
+  {
+    i = (i + 1); //35
+    if (i <= 10) {
+      x = (x + 1); //48
+      i = (i + 1); //55
+    }
+  }
+
+  next {
+    call step();
+  }
+}
+module ParallelProgram {
+  var x: integer;
+
+  instance p1: Process();
+  instance p2: Process();
+  instance p3: Process();
+
+  next {
+    next(p1); //88
+    next(p2); //91
+    next(p3); //94
+
+  }
+  invariant spec: (x == 2);
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

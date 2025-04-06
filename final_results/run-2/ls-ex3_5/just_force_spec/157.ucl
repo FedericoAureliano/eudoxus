@@ -1,0 +1,35 @@
+module Thermostat {
+  input temp: real;
+
+  output heatOn: boolean;
+  output heatOff: boolean;
+
+  next {
+    if (temp > 22.0) {
+      heatOn' = true; //34
+      heatOff' = false; //38
+    } else {
+      if (temp < 18.0) {
+        heatOn' = false; //49
+        heatOff' = true; //53
+      } else {
+        heatOn' = false; //58
+        heatOff' = false; //62
+      }
+    }
+
+  }
+  invariant temp_inv : ((temp >= 18.0) && (temp <= 22.0));
+  invariant heatOn_inv : ((temp < 18.0) ==> heatOn);
+  invariant heatOff_inv : ((temp > 22.0) ==> heatOff);
+  invariant temp_inv : (!heatOn && !heatOff);
+  invariant heatOn_inv : ((temp > 22.0) ==> !heatOn);
+  invariant heatOff_inv : ((temp < 18.0) ==> !heatOff);
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

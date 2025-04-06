@@ -1,0 +1,70 @@
+module RailroadCrossing {
+  type Bit = boolean;
+  type BitVec = bv2;
+
+  var train_state: record {  };
+  var gate_state: record {  };
+  var controller_state: BitVec;
+
+  init {
+    train_state = train_state.far; //39
+    gate_state = gate_state.up; //46
+    controller_state = 0bv2; //53
+
+  }
+  procedure step()
+    modifies controller_state;
+    modifies train_state;
+    modifies gate_state;
+  {
+    if (controller_state == 0bv2) {
+      if (train_state == train_state.near) {
+        controller_state = 1bv2; //80
+      }
+    } else {
+      if (controller_state == 1bv2) {
+        if (gate_state == gate_state.up) {
+          controller_state = 2bv2; //108
+        }
+      } else {
+        if (controller_state == 2bv2) {
+          if (train_state == train_state.in_) {
+            controller_state = 3bv2; //136
+          }
+        } else {
+          if (controller_state == 3bv2) {
+            if (gate_state == gate_state.down) {
+              controller_state = 0bv2; //164
+            }
+          }
+        }
+      }
+    }
+    if ((train_state == train_state.far) && (controller_state == 0bv2)) {
+      train_state = train_state.near; //196
+    }
+    if ((train_state == train_state.near) && (controller_state == 3bv2)) {
+      train_state = train_state.in_; //223
+    }
+    if (controller_state == 3bv2) {
+      gate_state = gate_state.down; //241
+    }
+    if (controller_state == 0bv2) {
+      gate_state = gate_state.up; //259
+    }
+  }
+
+  next {
+    call step();
+  }
+  invariant gate_state_inv : ((gate_state == gate_state.down) ==> ((controller_state == 2bv2) || (controller_state == 3bv2)));
+  invariant train_state_inv : ((train_state == train_state.far) ==> (controller_state == 0bv2));
+  invariant controller_state_inv : ((controller_state == 0bv2) ==> ((train_state == train_state.far) && (gate_state == gate_state.up)));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

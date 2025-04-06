@@ -1,0 +1,113 @@
+module Module {
+  var side: ??;
+  var ferryman: integer;
+  var goat: integer;
+  var cabbage: integer;
+  var wolf: integer;
+  var carry: integer;
+
+  init {
+    side = side[0 -> 49]; //41
+    side = side[1 -> 58]; //48
+    ferryman = 64; //52
+    goat = 70; //56
+    cabbage = 76; //60
+    wolf = 82; //64
+    carry = 88; //68
+
+  }
+  procedure step()
+    modifies goat;
+    modifies ferryman;
+    modifies side;
+    modifies wolf;
+    modifies carry;
+    modifies cabbage;
+  {
+    if (ferryman == 1) {
+      if ((goat == cabbage) && (goat == wolf)) {
+        goat = 120; //94
+        cabbage = 126; //98
+        side = side[0 -> 135]; //105
+        side = side[1 -> 144]; //112
+        ferryman = 150; //116
+        carry = 156; //120
+      } else {
+        if ((goat == cabbage) && (goat == wolf)) {
+          goat = 178; //139
+          wolf = 184; //143
+          side = side[0 -> 193]; //150
+          side = side[1 -> 202]; //157
+          ferryman = 208; //161
+          carry = 214; //165
+        } else {
+          ferryman = 221; //170
+        }
+      }
+    } else {
+      if (((goat == cabbage) && (goat == wolf)) && (goat == carry)) {
+        side = side[0 -> 258]; //201
+        side = side[1 -> 267]; //208
+        ferryman = 273; //212
+      } else {
+        if (carry == 1) {
+          if ((goat == side[1]) && (carry == 1)) {
+            carry = 306; //238
+            goat = 312; //242
+            side = side[0 -> 321]; //249
+            side = side[1 -> 330]; //256
+            ferryman = 336; //260
+          } else {
+            if ((cabbage == side[1]) && (carry == 1)) {
+              carry = 360; //280
+              cabbage = 366; //284
+              side = side[0 -> 375]; //291
+              side = side[1 -> 384]; //298
+              ferryman = 390; //302
+            } else {
+              if ((wolf == side[1]) && (carry == 1)) {
+                carry = 414; //322
+                wolf = 420; //326
+                side = side[0 -> 429]; //333
+                side = side[1 -> 438]; //340
+                ferryman = 444; //344
+              }
+            }
+          }
+        } else {
+          if ((goat == side[1]) && (carry == 1)) {
+            carry = 475; //368
+            goat = 481; //372
+            side = side[0 -> 490]; //379
+            ferryman = 496; //383
+          } else {
+            if ((cabbage == side[1]) && (carry == 1)) {
+              carry = 520; //403
+              cabbage = 526; //407
+              side = side[0 -> 535]; //414
+              ferryman = 541; //418
+            } else {
+              if ((wolf == side[1]) && (carry == 1)) {
+                carry = 565; //438
+                wolf = 571; //442
+                side = side[0 -> 580]; //449
+                ferryman = 586; //453
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  next {
+    call step();
+  }
+  invariant spec: (((((side[1] == 1) && (goat == 1)) && (cabbage == 1)) && (wolf == 1)) && (carry == 1));
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

@@ -1,0 +1,51 @@
+module Thermostat {
+  var heatOff: boolean;
+  var heatOn: boolean;
+  var temp: integer;
+  var time: integer;
+
+  init {
+    temp = 20; //30
+    heatOn = (temp <= 20); //38
+    heatOff = false; //42
+    time = 0; //46
+
+  }
+  procedure step()
+    modifies heatOff;
+    modifies time;
+    modifies heatOn;
+  {
+    if (time > 0) {
+      time = (time - 1); //61
+    }
+    if (heatOn) {
+      heatOn = false; //70
+      heatOff = true; //74
+      time = 120; //78
+    } else {
+      if (heatOff) {
+        heatOff = false; //86
+        heatOn = (temp <= 20); //94
+        if (heatOn) {
+          time = 30; //101
+        }
+      }
+    }
+  }
+
+  next {
+    call step();
+  }
+  invariant temp_inv : (temp <= 20);
+  invariant heatOn_inv : (heatOn ==> (time <= 30));
+  invariant heatOff_inv : (heatOff ==> (time <= 120));
+  invariant time_inv : (time >= 0);
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

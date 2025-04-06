@@ -1,0 +1,58 @@
+module BeverageVendingMachine {
+  var nsoda: bv32;
+  var nbeer: bv32;
+  var sget: boolean;
+  var bget: boolean;
+  var refill: boolean;
+  var coin: boolean;
+  var start: boolean;
+  var select: boolean;
+
+  init {
+    nsoda = 10bv32; //51
+    nbeer = 10bv32; //58
+    sget = (nsoda > 0bv32); //69
+    bget = (nbeer > 0bv32); //80
+    refill = false; //84
+    coin = false; //88
+    start = true; //92
+    select = false; //96
+
+  }
+  next {
+    if (refill) {
+      nsoda' = 10bv32; //108
+      nbeer' = 10bv32; //115
+    } else {
+      if (sget) {
+        nsoda' = (nsoda - 1bv32); //129
+      } else {
+        if (bget) {
+          nbeer' = (nbeer - 1bv32); //143
+        } else {
+          if (coin) {
+            coin' = false; //151
+          } else {
+            nsoda' = 0bv32; //159
+            nbeer' = 0bv32; //166
+          }
+        }
+      }
+    }
+
+  }
+  invariant sget_inv : (sget == (nsoda > 0bv32));
+  invariant bget_inv : (bget == (nbeer > 0bv32));
+  invariant refill_inv : (refill == false);
+  invariant coin_inv : (coin == false);
+  invariant start_inv : (start == true);
+  invariant nsoda_inv : (nsoda >= 0bv32);
+  invariant nbeer_inv : (nbeer >= 0bv32);
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

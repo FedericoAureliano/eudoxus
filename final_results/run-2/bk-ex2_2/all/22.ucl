@@ -1,0 +1,57 @@
+module VendingMachine {
+  var coin_inserted: boolean;
+  var drink_delivered: boolean;
+  var current_state: enum { beer, pay, select, soda };
+
+  init {
+    coin_inserted = false; //30
+    drink_delivered = false; //34
+    current_state = pay; //38
+
+  }
+  next {
+    if (current_state == pay) {
+      if (coin_inserted) {
+        current_state' = select; //53
+      }
+    } else {
+      if (current_state == select) {
+        if (coin_inserted) {
+          if (drink_delivered) {
+            drink_delivered' = false; //72
+            if (current_state == soda) {
+              current_state' = pay; //82
+            } else {
+              if (current_state == beer) {
+                current_state' = pay; //93
+              }
+            }
+          }
+        }
+      } else {
+        if (current_state == soda) {
+          drink_delivered' = true; //111
+        } else {
+          if (current_state == beer) {
+            drink_delivered' = true; //122
+          }
+        }
+      }
+    }
+
+  }
+  invariant pay_inv : !coin_inserted;
+  invariant select_inv : ((current_state == select) ==> coin_inserted);
+  invariant current_state_inv : !((current_state == soda) && !coin_inserted);
+  invariant coin_inserted_inv : (coin_inserted ==> (current_state == select));
+  invariant drink_delivered_inv : !drink_delivered;
+  invariant soda_inv : !((current_state == soda) && !coin_inserted);
+  invariant beer_inv : !((current_state == beer) && !coin_inserted);
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

@@ -1,0 +1,34 @@
+module Module {
+  type Bit = boolean;
+
+  var light_on: Bit;
+  var door_open: Bit;
+  var time: integer;
+
+  init {
+    light_on = false; //31
+    door_open = false; //35
+    time = 0; //39
+
+  }
+  next {
+    if (door_open) {
+      light_on' = true; //48
+      time' = (time + 1); //55
+    } else {
+      if (light_on && (time > 30)) {
+        time' = (time - 1); //72
+      } else {
+        light_on' = false; //77
+      }
+    }
+
+  }
+  invariant spec: (((light_on == (door_open || !(light_on && (time > 30)))) && (time >= 0)) && (time <= 30));
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

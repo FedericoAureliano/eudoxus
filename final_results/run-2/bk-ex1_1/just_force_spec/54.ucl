@@ -1,0 +1,33 @@
+module ConcurrentProgram {
+  var x: integer;
+
+  init {
+    x = 0; //18
+
+  }
+  procedure step()
+    modifies x;
+  {
+    if (x < 200) {
+      x = (x + 1); //33
+    }
+    if (x > 0) {
+      x = (x - 1); //48
+    }
+    if (x == 200) {
+      x = 0; //60
+    }
+  }
+
+  next {
+    call step();
+  }
+  invariant x_inv : ((x >= 0) && (x <= 200));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

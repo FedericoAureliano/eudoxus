@@ -1,0 +1,48 @@
+module VendingMachine {
+  var coin_inserted: boolean;
+  var state_next: integer;
+  var state: integer;
+
+  input insert_coin: boolean;
+  input get_soda: boolean;
+  input get_beer: boolean;
+
+  procedure step()
+    modifies state;
+    modifies coin_inserted;
+    modifies state_next;
+  {
+    state_next = state; //41
+    if (insert_coin && (state == 0)) {
+      state_next = 1; //54
+    } else {
+      if (insert_coin && (state == 1)) {
+        coin_inserted = true; //68
+      } else {
+        if (get_soda && (state == 1)) {
+          if (coin_inserted) {
+            state_next = 2; //85
+          }
+        } else {
+          if (get_beer && (state == 1)) {
+            if (coin_inserted) {
+              state_next = 3; //104
+            }
+          }
+        }
+      }
+    }
+    state = state_next; //116
+  }
+
+  next {
+    call step();
+  }
+  invariant spec: ((get_soda ==> coin_inserted) && (get_beer ==> coin_inserted));
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

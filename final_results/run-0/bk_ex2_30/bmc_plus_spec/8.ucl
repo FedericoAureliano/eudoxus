@@ -1,0 +1,82 @@
+module RailroadCrossing {
+  var train_state: integer;
+  var gate_state: integer;
+  var controller_state: integer;
+
+  init {
+    train_state = 0; //26
+    gate_state = 0; //30
+    controller_state = 0; //34
+
+  }
+  next {
+    if (controller_state == 0) {
+      if (train_state == 1) {
+        controller_state' = 1; //52
+      }
+    } else {
+      if (controller_state == 1) {
+        if (gate_state == 0) {
+          controller_state' = 2; //71
+        }
+      } else {
+        if (controller_state == 2) {
+          if (gate_state == 1) {
+            controller_state' = 3; //90
+          }
+        } else {
+          if (controller_state == 3) {
+            if (train_state == 0) {
+              controller_state' = 0; //109
+            }
+          }
+        }
+      }
+    }
+    if (train_state == 2) {
+      train_state' = 0; //126
+    } else {
+      if (train_state == 0) {
+        if (controller_state == 3) {
+          train_state' = 1; //143
+        }
+      } else {
+        if (train_state == 1) {
+          if (controller_state == 0) {
+            train_state' = 2; //162
+          }
+        }
+      }
+    }
+    if (controller_state == 2) {
+      gate_state' = 1; //178
+    } else {
+      if (controller_state == 3) {
+        gate_state' = 0; //189
+      }
+    }
+
+  }
+  invariant combined_train_gate_inv : ((train_state == 1) ==> (gate_state == 0));
+  invariant combined_controller_train_far_inv : ((controller_state == 0) == (train_state == 1));
+  invariant combined_controller_gate_up_inv : ((controller_state == 1) == (gate_state == 1));
+  invariant combined_controller_gate_down_inv : ((controller_state == 2) ==> (gate_state == 0));
+  invariant combined_controller_train_near_inv : ((controller_state == 3) ==> (train_state == 0));
+  invariant combined_controller_train_exit_inv : ((controller_state == 0) ==> (train_state == 2));
+  invariant train_state_inv : ((train_state == 0) || ((train_state == 1) || (train_state == 2)));
+  invariant gate_state_inv : ((gate_state == 0) || (gate_state == 1));
+  invariant controller_state_inv : ((controller_state == 0) || ((controller_state == 1) || ((controller_state == 2) || (controller_state == 3))));
+  invariant train_gate_state_inv : ((train_state == 1) ==> (gate_state == 0));
+  invariant controller_train_far_inv : ((controller_state == 0) == (train_state == 1));
+  invariant controller_gate_up_inv : ((controller_state == 1) == (gate_state == 1));
+  invariant controller_gate_down_inv : ((controller_state == 2) ==> (gate_state == 0));
+  invariant controller_train_near_inv : ((controller_state == 3) ==> (train_state == 0));
+  invariant controller_train_far_inv : ((controller_state == 0) ==> (train_state == 2));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

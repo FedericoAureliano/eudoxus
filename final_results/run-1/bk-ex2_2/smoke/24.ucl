@@ -1,0 +1,23 @@
+module VendingMachine {
+  type Variable = enum { beer, pay, select, soda };
+
+  var spec: boolean;
+  var next_state: enum { beer, pay, select, soda };
+  var current_state: Variable;
+
+  input insert_coin: boolean;
+
+  next {
+    next_state' = (if ((current_state == pay) && insert_coin) then select else current_state); //56
+    spec' = ((next_state != pay) || ((next_state == soda) || (next_state == beer))); //76
+    current_state' = next_state; //81
+
+  }
+  invariant spec: spec;
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

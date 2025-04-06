@@ -1,0 +1,63 @@
+module Module {
+  type Bit = integer;
+
+  var channel_to_receiver: integer;
+  var channel_to_sender: integer;
+  var st: Bit;
+  var message1: Bit;
+  var message2: Bit;
+  var ack: Bit;
+
+  input sender_to_channel: Bit;
+  input receiver_to_channel: Bit;
+
+  output channel_to_sender_ack: Bit;
+  output channel_to_receiver_ack: Bit;
+
+  init {
+    st = 0; //61
+    message1 = 0; //65
+    message2 = 0; //69
+    ack = 0; //73
+    channel_to_sender_ack = 0; //77
+    channel_to_receiver_ack = 0; //81
+
+  }
+  next {
+    if (st == 0) {
+      if (sender_to_channel == 0) {
+        message1' = 0; //99
+        channel_to_receiver' = 0; //103
+        channel_to_receiver_ack' = 0; //107
+      } else {
+        channel_to_receiver' = sender_to_channel; //113
+        channel_to_receiver_ack' = 0; //117
+      }
+    } else {
+      if (receiver_to_channel == message2) {
+        channel_to_sender_ack' = 0; //130
+      } else {
+        channel_to_sender_ack' = 0; //135
+      }
+      if (sender_to_channel == 0) {
+        message2' = 0; //146
+      }
+    }
+    ack' = 0; //153
+    channel_to_sender' = ack; //158
+    channel_to_receiver' = ack; //163
+    st' = 0; //167
+
+  }
+  invariant st_inv : (st != 0);
+  invariant message1_inv : (message1 != 0);
+  invariant message2_inv : (message2 != 0);
+  invariant ack_inv : (ack != 0);
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

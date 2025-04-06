@@ -1,0 +1,62 @@
+module TrafficLights {
+  var current_state: bv2;
+  var green: bv2;
+  var next_state: bv2;
+  var L1: bv2;
+  var L1_green: boolean;
+  var L2: bv2;
+  var L2_green: boolean;
+  var L3: bv2;
+  var L3_green: boolean;
+  var L4: bv2;
+  var L4_green: boolean;
+  var state: [integer]bv2;
+
+  init {
+    current_state = state[0]; //77
+
+  }
+  next {
+    L1_green' = (L1 == green); //88
+    L3_green' = (L3 == green); //97
+    L2_green' = (L2 == green); //106
+    L4_green' = (L4 == green); //115
+    if (L1_green && L3_green) {
+      next_state' = state[1]; //128
+    } else {
+      if (L2_green) {
+        next_state' = state[2]; //139
+      } else {
+        if (L4_green) {
+          next_state' = state[3]; //150
+        } else {
+          next_state' = state[0]; //158
+        }
+      }
+    }
+    current_state' = next_state; //166
+
+  }
+  invariant amber_inv : ((current_state == 3bv2) || (current_state == 0bv2));
+  invariant yellow_inv : (1bv2 == current_state);
+  invariant red_inv : (2bv2 == current_state);
+  invariant current_state_inv : ((current_state >= 0bv2) && (current_state <= 3bv2));
+  invariant next_state_inv : ((next_state >= 0bv2) && (next_state <= 3bv2));
+  invariant L1_inv : ((0bv2 <= L1) && (L1 <= 100bv2));
+  invariant L2_inv : ((0bv2 <= L2) && (L2 <= 100bv2));
+  invariant L3_inv : ((0bv2 <= L3) && (L3 <= 100bv2));
+  invariant L4_inv : ((0bv2 <= L4) && (L4 <= 100bv2));
+  invariant green_inv : ((((L4 == green) && (L3 == green)) && (L1 == green)) && (L2 == green));
+  invariant L1_green_inv : ((L1 == green) == L1_green);
+  invariant L2_green_inv : ((L2 == green) == L2_green);
+  invariant L3_green_inv : ((L3 == green) == L3_green);
+  invariant L4_green_inv : ((L4 == green) == L4_green);
+  invariant state_inv : (forall (i0:integer) :: ((i0 >= 0) ==> ((0bv2 <= state[i0]) && (state[i0] <= 3bv2))));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

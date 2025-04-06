@@ -1,0 +1,43 @@
+module CommunicationProtocol {
+  type Channel = boolean;
+  type Variable = boolean;
+
+  var c: Channel;
+  var d: Channel;
+  var S: boolean;
+  var R: boolean;
+  var m: Variable;
+  var b: boolean;
+
+  procedure step()
+    modifies m;
+    modifies R;
+    modifies b;
+  {
+    if (c != d) {
+      m = S; //56
+      b = !b; //62
+    }
+    if (R != S) {
+      R = m; //76
+      b = !b; //82
+    }
+  }
+
+  next {
+    call step();
+  }
+  invariant c_inv : (forall (c0:boolean) :: (c0 != d));
+  invariant d_inv : (forall (d0:boolean) :: ((d0 == R) ==> (m == R)));
+  invariant S_inv : (forall (S0:boolean) :: ((S0 == m) ==> (b != b)));
+  invariant R_inv : (forall (R0:boolean) :: ((R0 == m) ==> (b == b)));
+  invariant m_inv : (forall (m0:boolean) :: (R == m0));
+  invariant b_inv : (forall (b0:boolean) :: ((b0 != b0) ==> (R == m)));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

@@ -1,0 +1,38 @@
+module AlternatingBitProtocol {
+  type Bit = integer;
+
+  var st: Bit;
+  var message1: bv8;
+  var message2: integer;
+  var ack: Bit;
+
+  init {
+    st = 0; //36
+    ack = 0; //40
+
+  }
+  next {
+    if (st == 0) {
+      message1' = message1; //53
+    } else {
+      if (st == 1) {
+        if (ack == message2) {
+          ack' = 1; //71
+        } else {
+          ack' = 0; //76
+        }
+      }
+    }
+    if (ack == st) {
+      st' = (1 - st); //94
+    }
+
+  }
+  invariant spec: (if (st == 1) then (st == 0) else (st == 1));
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

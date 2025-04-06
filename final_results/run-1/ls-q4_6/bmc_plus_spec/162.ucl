@@ -1,0 +1,41 @@
+module Automobile {
+  var doors_open: integer;
+  var light_on: boolean;
+  var door_open: integer;
+  var time: integer;
+
+  init {
+    light_on = false; //30
+    time = 0; //34
+
+  }
+  procedure step()
+    modifies time;
+    modifies light_on;
+    modifies doors_open;
+  {
+    time = (time + 1); //43
+    doors_open = door_open; //48
+    if (doors_open > 0) {
+      light_on = true; //58
+      time = 0; //62
+    }
+    if ((doors_open == 0) && (time > 30)) {
+      light_on = false; //80
+    }
+  }
+
+  next {
+    call step();
+  }
+  invariant light_on_inv : ((doors_open > 0) || ((doors_open == 0) && (time <= 30)));
+  invariant doors_open_inv : (doors_open == door_open);
+  invariant time_inv : (time >= 0);
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

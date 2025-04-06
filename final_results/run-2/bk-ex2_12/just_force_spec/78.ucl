@@ -1,0 +1,78 @@
+module VendingMachine {
+  type Bit = boolean;
+
+  var bget: integer;
+  var bget_action: boolean;
+  var coin: integer;
+  var coin_enabled: boolean;
+  var coin_inserted: boolean;
+  var max: integer;
+  var nbeer: integer;
+  var nbeer_max: integer;
+  var nsoda: integer;
+  var nsoda_max: integer;
+  var refill: boolean;
+  var refill_action: boolean;
+  var refill_enabled: boolean;
+  var ret_coin_action: boolean;
+  var set_nbeer: integer;
+  var set_nsoda: integer;
+  var sget: integer;
+  var sget_action: boolean;
+  var start: Bit;
+  var select: Bit;
+
+  init {
+    start = true; //99
+    nsoda = 5; //103
+    nbeer = 5; //107
+    sget = 0; //111
+    bget = 0; //115
+    refill = false; //119
+    coin = 0; //123
+
+  }
+  next {
+    coin_enabled' = start; //130
+    refill_enabled' = start; //135
+    coin_inserted' = coin_enabled; //140
+    refill_action' = (refill_enabled && refill); //148
+    sget_action' = (select && (nsoda > 0)); //159
+    bget_action' = (select && (nbeer > 0)); //170
+    set_nsoda' = (nsoda - 1); //177
+    set_nbeer' = (nbeer - 1); //184
+    nsoda_max' = max; //189
+    nbeer_max' = max; //194
+    nsoda' = (if (refill_action) then nsoda_max else (if (sget_action) then set_nsoda else (if (bget_action) then set_nbeer else nsoda))); //214
+    nbeer' = (if (refill_action) then nbeer_max else (if (sget_action) then nbeer else (if (bget_action) then nbeer else nbeer))); //234
+    ret_coin_action' = ((nbeer == 0) && (select && (nsoda == 0))); //251
+    coin' = (if (ret_coin_action) then 1 else 0); //259
+    start' = (if (ret_coin_action) then true else false); //267
+
+  }
+  invariant refill_inv : ((refill == false) || (refill == true));
+  invariant select_inv : ??;
+  invariant nsoda_inv : ((0 <= nsoda) && (nsoda <= max));
+  invariant nbeer_inv : ((0 <= nbeer) && (nbeer <= max));
+  invariant sget_inv : ((0 <= sget) && (sget <= (max - nsoda)));
+  invariant bget_inv : ((0 <= bget) && (bget <= (max - nbeer)));
+  invariant coin_inv : ((coin == 0) || (coin == 1));
+  invariant coin_enabled_inv : (coin_enabled == (start == true));
+  invariant coin_inserted_inv : (coin_inserted == coin_enabled);
+  invariant refill_action_inv : (refill_action == (start && refill));
+  invariant ret_coin_action_inv : (ret_coin_action == (((nsoda == 0) && (nbeer == 0)) && select));
+  invariant start_inv : (start == (if (ret_coin_action) then true else false));
+  invariant sget_action_inv : (sget_action == (select && (nsoda > 0)));
+  invariant bget_action_inv : (bget_action == (select && (nbeer > 0)));
+  invariant nsoda_max_inv : (nsoda_max == max);
+  invariant nbeer_max_inv : (nbeer_max == max);
+  invariant set_nsoda_inv : (set_nsoda == (nsoda - 1));
+  invariant set_nbeer_inv : (set_nbeer == (nbeer - 1));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

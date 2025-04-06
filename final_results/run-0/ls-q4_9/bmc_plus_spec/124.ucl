@@ -1,0 +1,57 @@
+module TrafficLightModule {
+  var mG: boolean;
+  var mY: boolean;
+  var mR: boolean;
+  var sG: boolean;
+  var sY: boolean;
+  var sR: boolean;
+
+  init {
+    mG = false; //38
+    mY = false; //42
+    mR = false; //46
+    sG = false; //50
+    sY = false; //54
+    sR = false; //58
+
+  }
+  next {
+    if (sG) {
+      mG' = false; //67
+      mY' = true; //71
+      mR' = true; //75
+      sG' = false; //79
+      sY' = false; //83
+      sR' = true; //87
+    } else {
+      if (sY || sR) {
+        mG' = true; //98
+        mY' = false; //102
+        mR' = false; //106
+        sG' = true; //110
+        sY' = false; //114
+        sR' = false; //118
+      } else {
+        if (mY) {
+          mG' = false; //126
+          mY' = false; //130
+          mR' = true; //134
+        }
+      }
+    }
+
+  }
+  invariant mg_inv : (mG ==> sR);
+  invariant my_inv : (mY ==> sR);
+  invariant mr_inv : (mR ==> (!sG && !sY));
+  invariant sg_inv : (sG ==> mR);
+  invariant sy_inv : (sY ==> mR);
+  invariant sr_inv : (sR ==> (!mG && !mY));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

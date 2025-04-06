@@ -1,0 +1,65 @@
+module TrafficLights {
+  var state: bv0;
+  var vehicle_detected: boolean;
+  var timer: bv0;
+
+  input vehicle_detected_on_secondary: boolean;
+
+  init {
+    state = 2bv0; //36
+    timer = 8bv0; //43
+
+  }
+  next {
+    if (vehicle_detected_on_secondary) {
+      state' = 1bv0; //55
+      timer' = 8bv0; //62
+    } else {
+      if (timer == 5bv0) {
+        if (state == 2bv0) {
+          state' = 1bv0; //88
+          timer' = 8bv0; //95
+        } else {
+          if (state == 1bv0) {
+            state' = 0bv0; //112
+            timer' = 5bv0; //119
+          } else {
+            if (state == 0bv0) {
+              state' = 2bv0; //136
+              timer' = 8bv0; //143
+            } else {
+              if (state == 1bv0) {
+                state' = 2bv0; //160
+                timer' = 8bv0; //167
+              }
+            }
+          }
+        }
+      } else {
+        if (timer == 5bv0) {
+          if (state == 1bv0) {
+            state' = 0bv0; //198
+            timer' = 8bv0; //205
+          }
+        } else {
+          timer' = (timer + 1bv0); //218
+        }
+      }
+    }
+
+  }
+  invariant mY_inv : (state == 1bv0);
+  invariant mR_inv : (state == 0bv0);
+  invariant sG_inv : (state == 2bv0);
+  invariant sY_inv : (state == 1bv0);
+  invariant sR_inv : (state == 0bv0);
+  invariant vehicle_detected_inv : vehicle_detected_on_secondary;
+  invariant timer_inv : (timer <= 8bv0);
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

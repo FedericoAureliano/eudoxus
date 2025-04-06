@@ -1,0 +1,45 @@
+module Module {
+  type Bit = boolean;
+
+  var ferryman: Bit;
+  var goat: Bit;
+  var cabbage: Bit;
+  var wolf: Bit;
+  var carry: Bit;
+
+  procedure step()
+    modifies carry;
+    modifies ferryman;
+  {
+    if (ferryman == true) {
+      ferryman = false; //46
+    } else {
+      ferryman = true; //51
+    }
+    if (carry == goat) {
+      carry = goat; //64
+    }
+    if (carry == cabbage) {
+      carry = cabbage; //78
+    }
+    if (carry == wolf) {
+      carry = wolf; //92
+    }
+  }
+
+  next {
+    call step();
+  }
+  invariant ferryman_inv : ((ferryman == false) && (ferryman == true));
+  invariant goat_inv : ((goat == false) && (goat == true));
+  invariant cabbage_inv : ((cabbage == false) && (cabbage == true));
+  invariant wolf_inv : ((wolf == false) && (wolf == true));
+  invariant carry_inv : ((carry == wolf) && ((carry == goat) && ((carry == cabbage) && (carry == ferryman))));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

@@ -1,0 +1,66 @@
+module TrafficLight {
+  var count: bv6;
+  var pedestrian: boolean;
+  var sigP: boolean;
+
+  output sigG: boolean;
+  output sigY: boolean;
+  output sigR: boolean;
+
+  init {
+    count = 0bv6; //43
+    pedestrian = false; //47
+    sigG = false; //51
+    sigY = false; //55
+    sigR = true; //59
+
+  }
+  next {
+    if (sigR) {
+      count' = (count + 1bv6); //74
+      if (count == 60bv6) {
+        sigR' = false; //87
+        sigG' = true; //91
+      }
+    } else {
+      if (sigG) {
+        if (pedestrian) {
+          if (count >= 60bv6) {
+            sigG' = false; //113
+            sigY' = true; //117
+          } else {
+            sigG' = false; //122
+            sigP' = true; //126
+          }
+        }
+      } else {
+        if (sigP) {
+          sigP' = false; //137
+          sigY' = true; //141
+        } else {
+          if (sigY) {
+            count' = (count + 1bv6); //155
+            if (count == 65bv6) {
+              sigY' = false; //168
+              sigR' = true; //172
+            }
+          }
+        }
+      }
+    }
+
+  }
+  invariant sigp_inv : !pedestrian;
+  invariant pedestrian_inv : (pedestrian ==> (sigG && (count >= 60bv6)));
+  invariant count_inv : ((count >= 0bv6) && (count <= 65bv6));
+  invariant sigG_inv : (sigG ==> ((count >= 0bv6) && (count < 60bv6)));
+  invariant sigY_inv : (sigY ==> ((count >= 0bv6) && (count <= 65bv6)));
+  invariant sigR_inv : (sigR ==> ((count == 0bv6) || (count == 65bv6)));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

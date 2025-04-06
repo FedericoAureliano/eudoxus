@@ -1,0 +1,58 @@
+module Module {
+  var max: bv8;
+  var nsoda: bv8;
+  var nbeer: bv8;
+  var sget: boolean;
+  var bget: boolean;
+  var refill: boolean;
+  var coin: boolean;
+
+  init {
+    nsoda = max; //46
+    nbeer = max; //51
+    sget = false; //55
+    bget = false; //59
+    refill = false; //63
+    coin = false; //67
+
+  }
+  next {
+    if (coin) {
+      nsoda' = nsoda; //77
+      nbeer' = nbeer; //82
+    } else {
+      if (refill) {
+        nsoda' = max; //91
+        nbeer' = max; //96
+      } else {
+        if (sget) {
+          nsoda' = (nsoda - 1bv8); //110
+        } else {
+          if (bget) {
+            nbeer' = (nbeer - 1bv8); //124
+          } else {
+            if ((nsoda == 0bv8) && (nbeer == 0bv8)) {
+              coin' = true; //147
+              nsoda' = max; //152
+              nbeer' = max; //157
+            }
+          }
+        }
+      }
+    }
+
+  }
+  invariant nsoda_inv : ((nsoda >= 0bv8) && (nsoda <= max));
+  invariant nbeer_inv : ((nbeer >= 0bv8) && (nbeer <= max));
+  invariant sget_inv : (sget == (nsoda > 0bv8));
+  invariant bget_inv : (bget == (nbeer > 0bv8));
+  invariant refill_inv : (refill == ((nsoda == max) && (nbeer == max)));
+  invariant coin_inv : (coin == ((nsoda == 0bv8) && (nbeer == 0bv8)));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

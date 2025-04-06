@@ -1,0 +1,49 @@
+module C1 {
+  var y1: boolean;
+  var r1: boolean;
+
+  next {
+    y1' = r1; //24
+    r1' = !r1; //30
+
+  }
+}
+module C2 {
+  var x2: boolean;
+  var y2: boolean;
+  var r2: boolean;
+
+  next {
+    y2' = (x2 || r2); //64
+    r2' = (x2 || r2); //72
+
+  }
+}
+module SynchronousComposition {
+  var x2: boolean;
+  var y1: boolean;
+  var y2: boolean;
+  var r1: boolean;
+  var r2: boolean;
+
+  instance c1: C1();
+  instance c2: C2();
+
+  next {
+    r1' = c1.r1; //120
+    r2' = (if (r2) then c2.r2 else c2.x2); //134
+
+  }
+  invariant y1_inv : (y1 == r1);
+  invariant r1_inv : (r1 != r1);
+  invariant x2_inv : true;
+  invariant y2_inv : (y2 == (x2 || r2));
+  invariant r2_inv : (r2 == (x2 || r2));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

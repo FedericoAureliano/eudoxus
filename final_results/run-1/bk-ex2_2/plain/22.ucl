@@ -1,0 +1,47 @@
+module BeverageVendingMachine {
+  var has_coin: boolean;
+  var machine_action: enum { beer, get_beer, get_soda, insert_coin, pay, select, soda };
+  var state: enum { beer, get_beer, get_soda, insert_coin, pay, select, soda };
+  var user_action: enum { beer, get_beer, get_soda, insert_coin, pay, select, soda };
+
+  init {
+    state = pay; //51
+    has_coin = false; //55
+
+  }
+  procedure step()
+    modifies state;
+    modifies has_coin;
+  {
+    if (state == pay) {
+      if (user_action == insert_coin) {
+        has_coin = true; //73
+      }
+    }
+    if ((state == pay) && has_coin) {
+      state = select; //90
+    }
+    if (state == select) {
+      if ((machine_action == get_soda) && has_coin) {
+        state = soda; //111
+        has_coin = false; //115
+      } else {
+        if ((machine_action == get_beer) && has_coin) {
+          state = beer; //129
+          has_coin = false; //133
+        }
+      }
+    }
+  }
+
+  next {
+    call step();
+  }
+  invariant spec: (((state == beer) || (state == soda)) == has_coin);
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

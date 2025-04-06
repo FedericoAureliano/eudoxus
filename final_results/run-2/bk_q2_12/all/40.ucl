@@ -1,0 +1,39 @@
+module LeaderElection {
+  type Input = integer;
+  type Output = bv2;
+
+  var n: integer;
+  var leader: integer;
+  var process_id: integer;
+  var recv_id: integer;
+  var send: integer;
+
+  input receive: Input;
+
+  output leader_id: Output;
+
+  next {
+    recv_id' = receive; //56
+    if (recv_id == process_id) {
+    } else {
+      if (recv_id > process_id) {
+        send' = recv_id; //76
+      } else {
+        send' = 0; //81
+      }
+    }
+
+  }
+  invariant leader_inv : ((leader >= 1) && (leader <= n));
+  invariant process_id_inv : ((process_id >= 1) && (process_id <= n));
+  invariant recv_id_inv : ((recv_id >= 1) && (recv_id <= n));
+  invariant send_inv : (((send == 0) || (send == recv_id)) && ((send == recv_id) ==> (recv_id > process_id)));
+  invariant receive_inv : ((receive >= 1) && (receive <= n));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

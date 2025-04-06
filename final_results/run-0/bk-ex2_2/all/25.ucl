@@ -1,0 +1,62 @@
+module BeverageVendingMachine {
+  var coin_inserted: boolean;
+  var coin_inserted_next: boolean;
+  var state: bv2;
+  var state_next: bv2;
+
+  input insert_coin: boolean;
+
+  output get_soda: boolean;
+  output get_beer: boolean;
+
+  init {
+    state = 0bv2; //49
+    coin_inserted = false; //53
+
+  }
+  procedure step()
+    modifies get_soda;
+    modifies state_next;
+    modifies get_beer;
+    modifies coin_inserted_next;
+    modifies coin_inserted;
+    modifies state;
+  {
+    coin_inserted_next = insert_coin; //60
+    state_next = state; //65
+    if (state == 0bv2) {
+      state_next = (if (insert_coin) then 1bv2 else state_next); //86
+    } else {
+      if (state == 1bv2) {
+        state_next = (if (coin_inserted && get_soda) then 2bv2 else state_next); //111
+      } else {
+        if (state == 2bv2) {
+          state_next = (if (coin_inserted && get_soda) then 0bv2 else 2bv2); //138
+        } else {
+          if (state == 3bv2) {
+            state_next = (if (coin_inserted && get_beer) then 0bv2 else 3bv2); //165
+          }
+        }
+      }
+    }
+    coin_inserted = coin_inserted_next; //175
+    state = state_next; //180
+    get_soda = (state == 2bv2); //191
+    get_beer = (state == 3bv2); //202
+  }
+
+  next {
+    call step();
+  }
+  invariant pay_inv : !coin_inserted;
+  invariant select_inv : (!get_beer && (coin_inserted && !get_soda));
+  invariant soda_inv : (!get_beer && (coin_inserted && get_soda));
+  invariant beer_inv : (!get_soda && (coin_inserted && get_beer));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

@@ -1,0 +1,45 @@
+module VendingMachine {
+  type Atom = boolean;
+
+  var CoinInserted_inv: Atom;
+  var state_inv: Atom;
+  var CoinInserted: Atom;
+  var state: bv2;
+
+  input action: bv2;
+
+  init {
+    CoinInserted = false; //42
+    CoinInserted_inv = true; //46
+    state = 0bv2; //53
+    state_inv = false; //57
+
+  }
+  next {
+    if ((state == 0bv2) && CoinInserted) {
+      state' = 1bv2; //78
+    } else {
+      if ((state == 1bv2) && (action == 1bv2)) {
+        state' = 2bv2; //104
+      } else {
+        if ((state == 1bv2) && (action == 0bv2)) {
+          state' = 3bv2; //130
+        }
+      }
+    }
+
+  }
+  invariant pay_inv : !state_inv;
+  invariant select_inv : !state_inv;
+  invariant soda_inv : state_inv;
+  invariant beer_inv : state_inv;
+  invariant CoinInserted_inv : !CoinInserted;
+  invariant state_inv : ((state == 2bv2) || (state == 3bv2));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

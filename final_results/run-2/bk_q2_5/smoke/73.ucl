@@ -1,0 +1,34 @@
+module MutualExclusion {
+  var s: bv1;
+  var s_next: bv1;
+  var y0_next: boolean;
+  var y1_next: boolean;
+  var y0: boolean;
+  var y1: boolean;
+
+  procedure step()
+    modifies y0_next;
+    modifies s;
+    modifies y1_next;
+    modifies s_next;
+  {
+    y0_next = y0; //42
+    y1_next = y1; //47
+    s_next = s; //52
+    s = (if ((s == 0bv1) && (y1 == true)) then 0bv1 else s); //76
+    s = (if ((s == 1bv1) && (y0 == true)) then 1bv1 else s); //100
+  }
+
+  next {
+    call step();
+  }
+  invariant mutual_exclusion : ((y0 == true) && (y1 == true));
+  invariant starvation_freedom : true;
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

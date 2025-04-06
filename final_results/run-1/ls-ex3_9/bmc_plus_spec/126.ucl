@@ -1,0 +1,96 @@
+module TrafficLight {
+  var bool: boolean;
+  var pedestrian: boolean;
+  var sigG: boolean;
+  var sigR: boolean;
+  var sigY: boolean;
+  var state: integer;
+  var remaining: integer;
+
+  init {
+    pedestrian = false; //42
+    state = 0; //46
+    remaining = 60; //50
+    sigR = true; //54
+    sigG = false; //58
+    sigY = false; //62
+
+  }
+  procedure step()
+    modifies state;
+    modifies sigG;
+    modifies sigR;
+    modifies sigY;
+    modifies remaining;
+  {
+    if (state == 0) {
+      sigR = true; //74
+      sigG = false; //78
+      sigY = false; //82
+      if (remaining > 0) {
+        remaining = (remaining - 1); //95
+        if (pedestrian) {
+          state = 1; //102
+          remaining = 60; //106
+        }
+      }
+    } else {
+      if (state == 1) {
+        sigR = false; //121
+        sigG = true; //125
+        sigY = false; //129
+        if (pedestrian) {
+          if (remaining == 0) {
+            state = 2; //142
+            remaining = 5; //146
+          } else {
+            state = 3; //151
+            remaining = (60 - remaining); //158
+          }
+        }
+      } else {
+        if (state == 2) {
+          sigR = false; //172
+          sigG = false; //176
+          sigY = true; //180
+          if (remaining > 0) {
+            remaining = (remaining - 1); //193
+          } else {
+            state = 0; //198
+            remaining = 60; //202
+          }
+        } else {
+          if (state == 3) {
+            sigR = false; //214
+            sigG = false; //218
+            sigY = false; //222
+            if (remaining > 0) {
+              remaining = (remaining - 1); //235
+            } else {
+              state = 2; //240
+              remaining = 5; //244
+            }
+          }
+        }
+      }
+    }
+  }
+
+  next {
+    call step();
+  }
+  invariant count_inv : ((((remaining >= 0) && (remaining <= 60)) && (state == 2)) && (remaining <= 5));
+  invariant state_inv : ((state >= 0) && (state <= 3));
+  invariant remaining_inv : (if (state == 3) then ((remaining >= 0) && (remaining <= 60)) else true);
+  invariant sigr_inv : (sigR == (state == 0));
+  invariant sigg_inv : (sigG == (state == 1));
+  invariant sigy_inv : (sigY == (state == 2));
+  invariant pedestrian_inv : true;
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

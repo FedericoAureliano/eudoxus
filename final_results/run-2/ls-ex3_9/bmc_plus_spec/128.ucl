@@ -1,0 +1,105 @@
+module TrafficLight {
+  var count: integer;
+  var pedestrian: boolean;
+  var sigG: boolean;
+  var sigR: boolean;
+  var sigY: boolean;
+  var state: integer;
+
+  init {
+    state = 0; //38
+    sigG = false; //42
+    sigY = false; //46
+    sigR = true; //50
+    pedestrian = false; //54
+    count = 0; //58
+
+  }
+  procedure step()
+    modifies sigR;
+    modifies sigY;
+    modifies state;
+    modifies pedestrian;
+    modifies sigG;
+    modifies count;
+  {
+    if (pedestrian) {
+      pedestrian = false; //67
+    }
+    if (state == 0) {
+      if (count < 60) {
+        count = (count + 1); //88
+      } else {
+        sigR = false; //93
+        sigG = true; //97
+        sigY = false; //101
+        if (pedestrian) {
+          state = 1; //108
+          count = 0; //112
+        }
+      }
+    } else {
+      if (state == 1) {
+        if (count >= 60) {
+          if (pedestrian) {
+            state = 2; //135
+          } else {
+            state = 3; //140
+            count = 0; //144
+          }
+        }
+        if (count < 60) {
+          count = (count + 1); //160
+        } else {
+          sigR = false; //165
+          sigG = false; //169
+          sigY = true; //173
+        }
+      } else {
+        if (state == 2) {
+          count = (count + 1); //188
+          if (count >= 5) {
+            state = 3; //198
+            count = 0; //202
+          }
+        } else {
+          if (state == 3) {
+            if (count < 60) {
+              count = (count + 1); //224
+            } else {
+              state = 2; //229
+              sigR = false; //233
+              sigG = false; //237
+              sigY = true; //241
+              count = 0; //245
+            }
+            if (pedestrian) {
+              state = 1; //253
+              count = 0; //257
+            }
+          }
+        }
+      }
+    }
+  }
+
+  next {
+    call step();
+  }
+  invariant pedestrian_inv : pedestrian;
+  invariant sigg_inv : ((sigG == (state == 1)) && ((count >= 60) || !pedestrian));
+  invariant sigr_inv : (sigR == (state == 0));
+  invariant sigy_inv : (sigY == (state == 2));
+  invariant count_inv : ((count >= 0) && (count <= 60));
+  invariant sigG_inv : sigG;
+  invariant sigR_inv : sigR;
+  invariant sigY_inv : sigY;
+  invariant state_inv : ((state == 3) || ((state == 2) || ((state == 0) || (state == 1))));
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}

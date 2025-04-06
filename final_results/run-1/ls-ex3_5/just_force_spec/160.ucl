@@ -1,0 +1,39 @@
+module Thermostat {
+  var hysteresis: real;
+  var setpoint: real;
+
+  input temp: real;
+
+  output heatOn: boolean;
+  output heatOff: boolean;
+
+  next {
+    setpoint' = 20.0; //37
+    hysteresis' = 2.0; //41
+    if ?? {
+      heatOn' = true; //47
+      heatOff' = false; //51
+    } else {
+      if (temp <= (setpoint - hysteresis)) {
+        heatOn' = false; //66
+        heatOff' = true; //70
+      } else {
+        heatOn' = false; //75
+        heatOff' = false; //79
+      }
+    }
+
+  }
+  invariant temp_inv : temp;
+  invariant heatOn_inv : (temp <= 18.0);
+  invariant heatOff_inv : (temp >= 22.0);
+  invariant hysteresis_inv : (hysteresis == 2.0);
+  invariant setpoint_inv : (setpoint == 20.0);
+
+  control  {
+    v = bmc(3);
+    check;
+    print_results;
+    v.print_cex();
+  }
+}
