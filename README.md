@@ -1,3 +1,6 @@
+# Moving Forward, This Project Will be Maintained at https://github.com/uclid-org/eudoxus
+
+
 # eudoxus: [UCLID5](https://github.com/uclid-org/uclid) text-to-code tool
 
 "Eudoxus was probably the source for most of book V of Euclid's Elements." -
